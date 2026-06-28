@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KnowFlow · 知流</title>
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- 状态条 — 顶部 -->
+  <div id="status-bar" class="status-bar status-unknown">
+    <div class="status-left">
+      <div class="status-dot"></div>
+      <span id="status-text">检测中…</span>
+    </div>
+    <span id="vault-label" class="chip chip-badge chip-brand" style="display:none"></span>
+  </div>
+
+  <!-- 吉祥物问候区 — 绿色背景 -->
+  <div class="mascot-greeting">
+    <div class="mascot mascot-idle">
+      <svg class="mascot-svg" width="36" height="36" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 20Q19 12 16 6Q22 10 26 16Z" fill="#07C160" stroke="#058040" stroke-width="1.2" stroke-linejoin="round"/>
+        <path d="M44 20Q45 12 48 6Q42 10 38 16Z" fill="#07C160" stroke="#058040" stroke-width="1.2" stroke-linejoin="round"/>
+        <circle cx="32" cy="32" r="22" fill="#FFFFFF" stroke="#058040" stroke-width="1.8"/>
+        <circle cx="26.5" cy="28" r="5.5" fill="#FFFFFF" stroke="#058040" stroke-width="1.5"/>
+        <circle cx="37.5" cy="28" r="5.5" fill="#FFFFFF" stroke="#058040" stroke-width="1.5"/>
+        <circle cx="28" cy="29" r="2.5" fill="#043D1E"/>
+        <circle cx="36" cy="29" r="2.5" fill="#043D1E"/>
+        <circle cx="26.5" cy="27.5" r="1.2" fill="#FFFFFF"/>
+        <circle cx="35.5" cy="27.5" r="1.2" fill="#FFFFFF"/>
+        <circle cx="32" cy="35" r="2.2" fill="#E6432D"/>
+        <circle cx="31.3" cy="34.3" r="0.7" fill="#FF8888"/>
+        <line x1="32" y1="37" x2="32" y2="40" stroke="#058040" stroke-width="1" stroke-linecap="round"/>
+        <path d="M26 40Q29 44 32 41Q35 44 38 40" stroke="#058040" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+        <line x1="6" y1="33" x2="18" y2="34" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <line x1="6" y1="36" x2="18" y2="36" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <line x1="6" y1="39" x2="18" y2="38" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <line x1="46" y1="34" x2="58" y2="33" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <line x1="46" y1="36" x2="58" y2="36" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <line x1="46" y1="38" x2="58" y2="39" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+        <path d="M14 50Q32 56 50 50L50 54Q32 60 14 54Z" fill="#07C160" stroke="#058040" stroke-width="1"/>
+        <circle cx="32" cy="53" r="4.5" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+        <line x1="32" y1="50.5" x2="32" y2="55.5" stroke="#B8860B" stroke-width="0.8"/>
+        <circle cx="32" cy="55" r="1" fill="#B8860B"/>
+        <circle cx="30.5" cy="51.5" r="0.8" fill="#FFEC8B"/>
+        <ellipse cx="16" cy="38" rx="3.5" ry="2.2" fill="#B5E8C8" opacity="0.35"/>
+        <ellipse cx="48" cy="38" rx="3.5" ry="2.2" fill="#B5E8C8" opacity="0.35"/>
+      </svg>
+    </div>
+    <div class="greeting-text">
+      <div class="greeting-title">Hi，知识收集者</div>
+      <div class="greeting-sub">今天也要同步干货哦</div>
+    </div>
+  </div>
+
+  <!-- 悬浮工具栏开关 -->
+  <div class="toolbar-toggle-section">
+    <div class="toggle-row">
+      <span class="toggle-label">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 9.5H3M21 4.5H3M13 14.5H3M21 14.5h-4M9 19.5H3M21 19.5h-8"/></svg>
+        悬浮工具栏
+      </span>
+      <label class="switch">
+        <input type="checkbox" id="toolbar-enabled" checked />
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <span class="toggle-hint">选中文字后出现 AI 浮动工具栏</span>
+  </div>
+
+  <!-- 主操作按钮 -->
+  <div class="hero">
+    <button id="open-sidepanel-btn" class="btn btn-primary btn-lg" type="button" style="width:100%">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      打开同步面板
+    </button>
+    <div class="hero-actions">
+      <button id="open-ai-btn" class="btn btn-secondary btn-md" type="button" style="flex:1">🤖 AI 助手</button>
+      <button id="open-settings-btn" class="btn btn-secondary btn-md" type="button" style="padding:0 12px;font-size:15px">⚙️</button>
+    </div>
+  </div>
+
+  <!-- 连接配置 -->
+  <div class="section-divider">
+    <span>连接</span>
+  </div>
+
+  <div class="conn-form">
+    <div class="field-group">
+      <span class="small-label">主机 & 端口</span>
+      <div class="host-port">
+        <input type="text" id="host" class="input input-md" placeholder="127.0.0.1" />
+        <span class="sep">:</span>
+        <input type="number" id="port" class="input input-md mono" placeholder="4567" min="1" max="65535" />
+      </div>
+    </div>
+
+    <div class="field-group">
+      <span class="small-label">令牌</span>
+      <input type="text" id="token" class="input input-md mono" placeholder="从 OB 插件设置页复制" />
+    </div>
+
+    <div class="inline-actions">
+      <button id="test-btn" class="btn btn-secondary btn-sm">测试连接</button>
+      <button id="save-btn" class="btn btn-primary btn-sm">保存</button>
+    </div>
+
+    <div id="result" class="result"></div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

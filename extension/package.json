@@ -1,0 +1,20 @@
+{
+  "name": "@sync/extension",
+  "version": "3.1.0",
+  "private": true,
+  "description": "KnowFlow · 知流 — 飞书 → Obsidian 知识同步浏览器扩展（模块 A，Chrome/Edge MV3）",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch"
+  },
+  "dependencies": {
+    "@sync/shared": "*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.250",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0"
+  }
+}

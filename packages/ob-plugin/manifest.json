@@ -1,0 +1,9 @@
+{
+  "id": "feishu-sync",
+  "name": "飞书同步",
+  "version": "3.0.1",
+  "minAppVersion": "1.5.0",
+  "description": "飞书 ↔ Obsidian 3.0 MVP：协议触发、命令拉取、Clipper 占位兼容、双向同步",
+  "author": "Shi Keran",
+  "isDesktopOnly": true
+}

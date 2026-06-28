@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Build outputs (source-committed exception: see extension/dist/ note below)
+# We DO commit extension/dist/ so users can clone & load directly.
+# Obsidian plugin build outputs are also committed for the same reason.
+# If you prefer a cleaner repo, uncomment the lines below and use GitHub Releases instead.
+# packages/ob-plugin/main.js
+# packages/ob-plugin/styles.css
+# extension/dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Obsidian plugin data (user-specific, contains tokens)
+data.json
+
+# Legacy build artifacts
+packages/dist/
+
+# Workspace memory
+.workbuddy/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# macOS
+*.dmg
+*.app

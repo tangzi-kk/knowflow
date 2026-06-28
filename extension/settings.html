@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KnowFlow · 知流</title>
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="settings.css" />
+</head>
+<body>
+  <main class="page">
+    <aside class="nav">
+      <div class="nav-head">
+        <div class="brand">
+          <div class="mascot mascot-idle mascot-sm">
+            <svg class="mascot-svg" width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 20Q19 12 16 6Q22 10 26 16Z" fill="#07C160" stroke="#058040" stroke-width="1.2" stroke-linejoin="round"/>
+              <path d="M44 20Q45 12 48 6Q42 10 38 16Z" fill="#07C160" stroke="#058040" stroke-width="1.2" stroke-linejoin="round"/>
+              <circle cx="32" cy="32" r="22" fill="#FFFFFF" stroke="#058040" stroke-width="1.8"/>
+              <circle cx="26.5" cy="28" r="5.5" fill="#FFFFFF" stroke="#058040" stroke-width="1.5"/>
+              <circle cx="37.5" cy="28" r="5.5" fill="#FFFFFF" stroke="#058040" stroke-width="1.5"/>
+              <circle cx="28" cy="29" r="2.5" fill="#043D1E"/>
+              <circle cx="36" cy="29" r="2.5" fill="#043D1E"/>
+              <circle cx="26.5" cy="27.5" r="1.2" fill="#FFFFFF"/>
+              <circle cx="35.5" cy="27.5" r="1.2" fill="#FFFFFF"/>
+              <circle cx="32" cy="35" r="2.2" fill="#E6432D"/>
+              <circle cx="31.3" cy="34.3" r="0.7" fill="#FF8888"/>
+              <line x1="32" y1="37" x2="32" y2="40" stroke="#058040" stroke-width="1" stroke-linecap="round"/>
+              <path d="M26 40Q29 44 32 41Q35 44 38 40" stroke="#058040" stroke-width="1.3" stroke-linecap="round" fill="none"/>
+              <line x1="6" y1="33" x2="18" y2="34" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <line x1="6" y1="36" x2="18" y2="36" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <line x1="6" y1="39" x2="18" y2="38" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <line x1="46" y1="34" x2="58" y2="33" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <line x1="46" y1="36" x2="58" y2="36" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <line x1="46" y1="38" x2="58" y2="39" stroke="#058040" stroke-width="1" opacity="0.4" stroke-linecap="round"/>
+              <path d="M14 50Q32 56 50 50L50 54Q32 60 14 54Z" fill="#07C160" stroke="#058040" stroke-width="1"/>
+              <circle cx="32" cy="53" r="4.5" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+              <line x1="32" y1="50.5" x2="32" y2="55.5" stroke="#B8860B" stroke-width="0.8"/>
+              <circle cx="32" cy="55" r="1" fill="#B8860B"/>
+              <circle cx="30.5" cy="51.5" r="0.8" fill="#FFEC8B"/>
+              <ellipse cx="16" cy="38" rx="3.5" ry="2.2" fill="#B5E8C8" opacity="0.35"/>
+              <ellipse cx="48" cy="38" rx="3.5" ry="2.2" fill="#B5E8C8" opacity="0.35"/>
+            </svg>
+          </div>
+          <span>KnowFlow · 知流</span>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a href="?section=general" data-section-link="general" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1.5v2.5M12 20v2.5M4.2 4.2l1.8 1.8M18 18l1.8 1.8M1.5 12h2.5M20 12h2.5M4.2 19.8l1.8-1.8M18 6l1.8-1.8"/></svg>
+          常规
+        </a>
+        <a href="?section=template" data-section-link="template" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="13" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><circle cx="16" cy="13" r="1" fill="currentColor" stroke="none"/></svg>
+          属性模板
+        </a>
+        <a href="?section=options" data-section-link="options" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><polyline points="5 8 2 6 5 4"/><polyline points="5 20 2 18 5 16"/></svg>
+          下拉选项
+        </a>
+        <a href="?section=interpreter" data-section-link="interpreter" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.5 5.5L19 9l-5.5 1.5L12 16l-1.5-5.5L5 9l5.5-1.5z"/></svg>
+          AI 解释器
+        </a>
+        <a href="?section=ai" data-section-link="ai" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line x1="10" y1="9" x2="16" y2="9"/><line x1="10" y1="13" x2="13" y2="13"/></svg>
+          AI 助手
+        </a>
+        <a href="?section=scenes" data-section-link="scenes" class="nav-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h5M8 17h3"/></svg>
+          划词场景
+        </a>
+      </nav>
+      <div class="nav-foot">
+        <div class="nav-foot-label">KnowFlow · 知流</div>
+      </div>
+    </aside>
+
+    <section class="content">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">KnowFlow · 知流</p>
+          <h1>扩展设置</h1>
+        </div>
+        <div id="result" class="result"></div>
+      </header>
+
+      <section id="general" class="section">
+        <h2>常规</h2>
+        <div class="grid two">
+          <label class="field">
+            <span>OB 插件地址</span>
+            <input type="text" id="host" placeholder="127.0.0.1" />
+          </label>
+          <label class="field">
+            <span>端口</span>
+            <input type="number" id="port" placeholder="4567" min="1" max="65535" />
+          </label>
+        </div>
+        <label class="field">
+          <span>启动令牌</span>
+          <input type="password" id="token" class="mono" placeholder="从 OB 插件设置页复制" />
+        </label>
+        <div class="actions">
+          <button id="test-btn" class="btn secondary" type="button">测试连接</button>
+          <button id="save-config-btn" class="btn primary" type="button">保存连接</button>
+        </div>
+      </section>
+
+      <section id="template" class="section">
+        <h2>属性模板</h2>
+        <p class="copy">同步前按模板预填 YAML。支持 <code>{{title}}</code>、<code>{{url}}</code>、<code>{{date}}</code>、<code>{{dir}}</code>、<code>{{keywords}}</code>。</p>
+        <div id="property-fields" class="rows"></div>
+      </section>
+
+      <section id="options" class="section">
+        <h2>下拉选项</h2>
+        <p class="copy">这些选项来自知识库导引规范。留空的字段会在侧边栏保留普通输入。</p>
+        <div id="property-options" class="rows"></div>
+        <div class="actions">
+          <button id="reset-template-btn" class="btn secondary" type="button">恢复默认模板</button>
+          <button id="save-template-btn" class="btn primary" type="button">保存模板与选项</button>
+        </div>
+      </section>
+
+      <section id="interpreter" class="section">
+        <h2>AI 解释器</h2>
+        <div class="toggle-line">
+          <div>
+            <strong>启用解释器</strong>
+            <span>默认复用 AI 助手里的 Gemini Web；AI 只生成建议，最终以人工确认后的字段为准。</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="interpreter-enabled" /><span class="switch-track"></span></label>
+        </div>
+        <div class="toggle-line">
+          <div>
+            <strong>自动运行</strong>
+            <span>打开侧边栏后自动生成标签、评分、索引建议。</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="interpreter-auto-run" /><span class="switch-track"></span></label>
+        </div>
+        <div class="toggle-line">
+          <div>
+            <strong>使用自定义 AI 解释器</strong>
+            <span>关闭时使用“AI 助手”的 Gemini Web；开启后才使用下面的 NewAPI / OpenAI 兼容配置。</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="interpreter-custom-enabled" /><span class="switch-track"></span></label>
+        </div>
+        <div class="grid two">
+          <label class="field">
+            <span>提供商</span>
+            <input type="text" id="interpreter-provider" placeholder="NewAPI" />
+          </label>
+          <label class="field">
+            <span>路由模型</span>
+            <input type="text" id="interpreter-model" placeholder="smart" />
+          </label>
+        </div>
+        <label class="field">
+          <span>AI 中转地址</span>
+          <input type="text" id="interpreter-base-url" class="mono" placeholder="http://127.0.0.1:3000/v1" />
+        </label>
+        <label class="field">
+          <span>AI 分析正文长度</span>
+          <input type="number" id="interpreter-excerpt-chars" min="800" max="12000" step="200" placeholder="4000" />
+        </label>
+        <label class="field">
+          <span>API Key（本机保存）</span>
+          <input type="password" id="interpreter-api-key" class="mono" placeholder="填写 NewAPI 令牌" />
+        </label>
+        <label class="field">
+          <span>默认解释器上下文</span>
+          <textarea id="interpreter-context" rows="5"></textarea>
+        </label>
+        <div class="actions">
+          <button id="save-interpreter-btn" class="btn primary" type="button">保存解释器</button>
+        </div>
+      </section>
+
+      <section id="ai" class="section">
+        <h2>AI 助手</h2>
+        <p class="copy">Gemini Web 复用已登录的 Google 会话；其余 Provider 使用各自 API。</p>
+        <label class="field">
+          <span>AI Provider</span>
+          <select id="ai-provider">
+            <option value="gemini-web">Gemini Web（复用浏览器登录）</option>
+            <option value="gemini-nano">Gemini Nano（Chrome 内置）</option>
+            <option value="gemini-api">Gemini API</option>
+            <option value="openai">OpenAI</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="custom">自定义（OpenAI 兼容）</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>API Key</span>
+          <input type="password" id="ai-api-key" class="mono" placeholder="sk-...（Gemini API / OpenAI / DeepSeek）" />
+        </label>
+        <label class="field" id="ai-base-url-group" style="display:none">
+          <span>Base URL</span>
+          <input type="text" id="ai-base-url" class="mono" placeholder="https://api.openai.com" />
+        </label>
+        <label class="field">
+          <span>Model</span>
+          <select id="ai-model">
+            <option value="56fdd199312815e2">Gemini Web · 3.5 Flash</option>
+            <option value="8c46e95b1a07cecc">Gemini Web · 3.1 Flash-Lite</option>
+            <option value="e6fa609c3fa255c0">Gemini Web · 3.1 Pro</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>System Prompt</span>
+          <textarea id="ai-system-prompt" rows="5" placeholder="AI 助手系统提示词..."></textarea>
+        </label>
+        <div class="actions">
+          <button id="save-ai-config-btn" class="btn primary" type="button">保存 AI 配置</button>
+        </div>
+      </section>
+
+      <section id="scenes" class="section">
+        <h2>划词剪贴板</h2>
+        <p class="copy">选中文本后显示知识剪贴板悬浮窗。核心逻辑是把干货收存、补充或 AI 整理后进入 Obsidian。AI Prompt 支持 <code>{text}</code>、<code>{title}</code>、<code>{url}</code>、<code>{domain}</code>、<code>{date}</code>。</p>
+        <div class="toggle-line">
+          <div>
+            <strong>启用划词悬浮窗</strong>
+            <span>关闭后仍可使用右键菜单和侧边栏。</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="selection-toolbar-enabled" /><span class="switch-track"></span></label>
+        </div>
+        <div class="grid two">
+          <label class="field">
+            <span>默认主动作</span>
+            <select id="selection-default-action">
+              <option value="append">补充</option>
+              <option value="save">收存</option>
+              <option value="refine">精炼</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>点击收存后</span>
+            <select id="selection-save-behavior">
+              <option value="confirmInSidepanel">打开侧边栏确认</option>
+              <option value="silent">静默保存（需要默认目录）</option>
+            </select>
+          </label>
+        </div>
+        <label class="field">
+          <span>默认补充文档路径</span>
+          <input type="text" id="selection-default-append-path" placeholder="例如：2️⃣输出/金句汇总.md" />
+        </label>
+        <div class="toggle-line">
+          <div>
+            <strong>收存前使用 AI 整理</strong>
+            <span>开启后“收存”会使用该场景 Prompt 生成草稿；默认关闭，避免误改原文。</span>
+          </div>
+          <label class="switch"><input type="checkbox" id="selection-ai-before-save" /><span class="switch-track"></span></label>
+        </div>
+        <div class="visible-actions">
+          <span class="row-label">显示哪些快捷动作</span>
+          <label><input type="checkbox" data-visible-action="save" />收存</label>
+          <label><input type="checkbox" data-visible-action="append" />补充</label>
+          <label><input type="checkbox" data-visible-action="refine" />精炼</label>
+          <label><input type="checkbox" data-visible-action="translate-explain" />译解</label>
+          <label><input type="checkbox" data-visible-action="concept-card" />概念卡</label>
+          <label><input type="checkbox" data-visible-action="quote" />金句</label>
+          <label><input type="checkbox" data-visible-action="question" />问题</label>
+          <label><input type="checkbox" data-visible-action="copy" />复制</label>
+          <label><input type="checkbox" data-visible-action="open-sidepanel" />打开侧边栏</label>
+        </div>
+
+        <h2 class="subsection-title">AI 场景提示词</h2>
+        <div id="context-scenes-list" class="rows"></div>
+        <div class="actions">
+          <button id="reset-context-scenes-btn" class="btn secondary" type="button">恢复默认场景</button>
+          <button id="save-context-scenes-btn" class="btn primary" type="button">保存划词场景</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="settings.js"></script>
+</body>
+</html>

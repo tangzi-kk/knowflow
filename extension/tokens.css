@@ -1,0 +1,219 @@
+/* ═══════════════════════════════════════════════════════════════
+   KnowFlow · 知流 · Shared Design Tokens
+   统一设计令牌 — 所有 UI 表面共享，修改一处全局生效
+   来源: 设计原型 styles.css v5 (WeUI #07C160 green)
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ═══════════ BRAND PRIMITIVES (10-step green scale) ═══════════ */
+  --brand-50:  #E8F8EE;
+  --brand-100: #C5F0D5;
+  --brand-200: #8FE0B0;
+  --brand-300: #5AD08B;
+  --brand-400: #29C56C;
+  --brand-500: #07C160;   /* 微信绿 — 品牌主色 */
+  --brand-600: #06A050;   /* hover 态 */
+  --brand-700: #058040;
+  --brand-800: #046030;
+  --brand-900: #034020;
+
+  /* ═══════════ NEUTRAL PRIMITIVES (11-step gray scale) ═══════════ */
+  --neutral-0:   #FFFFFF;
+  --neutral-50:  #F7F7F7;
+  --neutral-100: #EDEDED;
+  --neutral-200: #DEDEDE;
+  --neutral-300: #C8C8C8;
+  --neutral-400: #999999;
+  --neutral-500: #666666;
+  --neutral-600: #333333;
+  --neutral-700: #1A1A1A;
+  --neutral-800: #111111;
+  --neutral-900: #000000;
+
+  /* ═══════════ STATUS COLORS ═══════════ */
+  --link:    #576B95;
+  --success: #07C160;
+  --warning: #FA9D3B;
+  --error:   #FA5151;
+
+  /* ═══════════ SEMANTIC TOKENS ═══════════
+     业务层使用这些变量，不要直接引用 primitives */
+  --c-brand:       var(--brand-500);
+  --c-brand-hover: var(--brand-600);
+  --c-brand-soft:  var(--brand-50);
+  --c-brand-ring:  rgba(7, 193, 96, 0.18);
+
+  --c-bg:           var(--neutral-50);
+  --c-surface:      var(--neutral-0);
+  --c-surface-hover:var(--neutral-50);
+  --c-surface-dim:  var(--neutral-100);
+  --c-divider:      var(--neutral-100);
+  --c-border:       var(--neutral-200);
+
+  --c-text:    var(--neutral-700);
+  --c-text-2:  var(--neutral-500);
+  --c-text-3:  var(--neutral-400);
+
+  --c-success:      var(--success);
+  --c-success-soft: var(--brand-50);
+  --c-error:        var(--error);
+  --c-error-soft:   #FDEAEA;
+  --c-error-dark:   #D93636;
+  --c-warning:      var(--warning);
+  --c-info:         var(--link);
+  --c-info-soft:    #EEF2F8;
+  --c-white:        #FFFFFF;
+  --c-accent:       #FA9D3B;
+  --c-accent-soft:  #FFF3E0;
+  --c-accent-dark:  #E08A20;
+
+  /* ═══════════ TYPOGRAPHY ═══════════ */
+  --font:      '宋体', SimSun, 'Songti SC', serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* ═══════════ SPACING SCALE ═══════════ */
+  --sp-xs:   8px;
+  --sp-sm:   12px;
+  --sp-md:   16px;
+  --sp-lg:   20px;
+  --sp-xl:   24px;
+  --sp-xxl:  32px;
+  --sp-xxxl: 40px;
+
+  /* ═══════════ BORDER RADIUS ═══════════ */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+
+  /* ═══════════ MOTION ═══════════ */
+  --ease:   cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  --t-fast: 0.15s var(--ease);
+  --t-norm: 0.25s var(--ease);
+
+  /* ═══════════ SHADOWS ═══════════ */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04);
+  --shadow-md: 0 2px 8px rgba(0,0,0,0.06), 0 0 0 0.5px #DEDEDE;
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.08), 0 0 0 0.5px #DEDEDE;
+}
+
+/* ═══════════ DARK MODE (system preference) ═══════════ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --c-bg:           #191919;
+    --c-surface:      #1E1E1E;
+    --c-surface-hover:#262626;
+    --c-surface-dim:  #2A2A2A;
+    --c-divider:      #2A2A2A;
+    --c-border:       #333333;
+    --c-text:         #E5E5E5;
+    --c-text-2:       #999999;
+    --c-text-3:       #666666;
+    --c-brand:        #07C160;
+    --c-brand-hover:  #06AD56;
+    --c-brand-soft:   #0D2B1A;
+    --c-brand-ring:   rgba(7, 193, 96, 0.25);
+    --c-success:      #07C160;
+    --c-success-soft: #0D2B1A;
+    --c-error:        #FA5151;
+    --c-error-soft:   #2E1A1A;
+    --c-warning:      #FA9D3B;
+    --c-info:         #7CA0D4;
+    --c-info-soft:    #1A2230;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.2);
+    --shadow-md: 0 2px 8px rgba(0,0,0,0.3);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.4);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CAT MASCOT — Doraemon-inspired (round head, bell, whiskers)
+   CSS custom properties keep SVG colors in sync with the theme.
+   ═══════════════════════════════════════════════════════════════ */
+
+.mascot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  user-select: none;
+  --cat-primary: var(--brand-500);
+  --cat-primary-dark: var(--brand-700);
+  --cat-primary-light: var(--brand-200);
+  --cat-soft: var(--brand-100);
+  --cat-accent: var(--brand-600);
+  --cat-accent-light: var(--brand-300);
+  --cat-pupil: var(--neutral-800);
+  --cat-glow: rgba(7, 193, 96, 0.2);
+}
+
+/* Override hardcoded SVG hex fills/strokes with theme-synced vars */
+.mascot svg [fill="#07C160"]   { fill: var(--cat-primary); }
+.mascot svg [stroke="#058040"] { stroke: var(--cat-primary-dark); }
+.mascot svg [fill="#B5E8C8"]   { fill: var(--cat-soft); }
+.mascot svg [stroke="#B5E8C8"] { stroke: var(--cat-soft); }
+.mascot svg [fill="#41C978"]   { fill: var(--cat-accent-light); }
+.mascot svg [stroke="#41C978"] { stroke: var(--cat-accent-light); }
+.mascot svg [fill="#06A050"]   { fill: var(--cat-primary); }
+.mascot svg [fill="#034020"]   { fill: var(--cat-primary-dark); }
+.mascot svg [fill="#043D1E"]   { fill: var(--cat-pupil); }
+
+.mascot-svg {
+  width: 36px;
+  height: 36px;
+  animation: mascot-idle 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 4px var(--cat-glow));
+}
+
+.mascot-sm .mascot-svg { width: 24px; height: 24px; }
+.mascot-lg .mascot-svg { width: 56px; height: 56px; }
+
+/* State animations */
+.mascot-loading .mascot-svg {
+  animation: mascot-loading 0.5s ease-in-out infinite alternate;
+}
+.mascot-success .mascot-svg {
+  animation: mascot-success 0.6s var(--spring);
+}
+.mascot-error .mascot-svg {
+  animation: mascot-error 0.4s ease-in-out;
+}
+.mascot-sleeping .mascot-svg {
+  animation: mascot-sleeping 4s ease-in-out infinite;
+}
+
+@keyframes mascot-idle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  25% { transform: rotate(1.5deg) translateY(-1px); }
+  50% { transform: rotate(0deg) translateY(0); }
+  75% { transform: rotate(-1.5deg) translateY(-1px); }
+}
+@keyframes mascot-loading {
+  from { transform: rotate(-5deg) translateY(-2px) scale(1.02); }
+  to   { transform: rotate(5deg) translateY(-3px) scale(1.02); }
+}
+@keyframes mascot-success {
+  0%   { transform: scale(1) translateY(0) rotate(0deg); }
+  20%  { transform: scale(1.12) translateY(-6px) rotate(-4deg); }
+  40%  { transform: scale(1.18) translateY(-10px) rotate(4deg); }
+  60%  { transform: scale(1.08) translateY(-4px) rotate(-2deg); }
+  80%  { transform: scale(1.02) translateY(-1px) rotate(1deg); }
+  100% { transform: scale(1) translateY(0) rotate(0deg); }
+}
+@keyframes mascot-error {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  15% { transform: translateX(-3px) rotate(-2deg); }
+  30% { transform: translateX(3px) rotate(2deg); }
+  45% { transform: translateX(-2px) rotate(-1deg); }
+  60% { transform: translateX(2px) rotate(1deg); }
+  75% { transform: translateX(-1px) rotate(0deg); }
+}
+@keyframes mascot-sleeping {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50%      { transform: scale(1.04) translateY(3px); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .mascot { --cat-glow: rgba(7, 193, 96, 0.35); }
+}

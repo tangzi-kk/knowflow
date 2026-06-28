@@ -1,0 +1,21 @@
+{
+  "name": "@sync/ob-plugin",
+  "version": "3.0.1",
+  "private": true,
+  "description": "飞书↔OB 同步 OB 插件（模块 B）",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "dev": "node esbuild.config.mjs --watch"
+  },
+  "dependencies": {
+    "@sync/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.20.0",
+    "obsidian": "latest",
+    "typescript": "^5.4.0"
+  }
+}

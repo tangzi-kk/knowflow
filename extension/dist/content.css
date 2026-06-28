@@ -1,0 +1,502 @@
+/* src/content/content.css */
+.fab,
+.feishu-sync-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 84px;
+  z-index: 99999;
+  padding: 8px 12px;
+  background: #07C160;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(7, 193, 96, 0.26);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+  font-family:
+    "\5b8b\4f53",
+    SimSun,
+    "Songti SC",
+    serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    sans-serif;
+  line-height: 1;
+}
+.fab:hover,
+.feishu-sync-fab:hover {
+  transform: translateY(-1px);
+  background: #06AD56;
+  box-shadow: 0 8px 22px rgba(7, 193, 96, 0.34);
+}
+.fab:active,
+.feishu-sync-fab:active {
+  transform: translateY(0);
+}
+.doc-title + .fab,
+.doc-title + .feishu-sync-fab,
+.wiki-title + .fab,
+.wiki-title + .feishu-sync-fab {
+  position: relative;
+  right: auto;
+  bottom: auto;
+}
+.feishu-sync-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100002;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-family:
+    "\5b8b\4f53",
+    SimSun,
+    "Songti SC",
+    serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    sans-serif;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  animation: feishu-sync-toast-in 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+  max-width: min(480px, calc(100vw - 48px));
+  pointer-events: auto;
+}
+.feishu-sync-toast-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.feishu-sync-toast-info {
+  background: #FFFFFF;
+  color: #191919;
+  border: 1px solid #E5E5E5;
+}
+.feishu-sync-toast-info .feishu-sync-toast-icon {
+  color: #07C160;
+}
+.feishu-sync-toast-success {
+  background: #F0FFF4;
+  color: #034020;
+  border: 1px solid #B7EBC8;
+}
+.feishu-sync-toast-success .feishu-sync-toast-icon {
+  color: #07C160;
+}
+.feishu-sync-toast-error {
+  background: #FFF5F5;
+  color: #8B0000;
+  border: 1px solid #FECACA;
+}
+.feishu-sync-toast-error .feishu-sync-toast-icon {
+  color: #FA5151;
+}
+.feishu-sync-toast-closing {
+  animation: feishu-sync-toast-out 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes feishu-sync-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+@keyframes feishu-sync-toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-8px);
+  }
+}
+.feishu-sync-panel-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  background: rgba(0, 0, 0, 0.25);
+  animation: feishu-sync-fade-in 0.18s ease;
+}
+.feishu-sync-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100001;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  width: min(440px, calc(100vw - 28px));
+  background: #FFFFFF;
+  color: #191919;
+  border-left: 1px solid #E5E5E5;
+  box-shadow: -16px 0 40px rgba(0, 0, 0, 0.12);
+  font-family:
+    "\5b8b\4f53",
+    SimSun,
+    "Songti SC",
+    serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "PingFang SC",
+    sans-serif;
+  animation: feishu-sync-panel-in 0.22s ease;
+}
+.feishu-sync-panel,
+.feishu-sync-panel * {
+  box-sizing: border-box;
+}
+.feishu-sync-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid #EDEDED;
+  background: #FAFAFA;
+}
+.feishu-sync-eyebrow {
+  margin: 0 0 6px;
+  color: #07C160;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.feishu-sync-panel h2 {
+  margin: 0;
+  color: #191919;
+  font-size: 19px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.feishu-sync-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  color: #666666;
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.feishu-sync-icon-btn:hover {
+  background: #F7F7F7;
+  border-color: #D9D9D9;
+}
+.feishu-sync-panel-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+.feishu-sync-section {
+  padding: 0 0 16px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid #EDEDED;
+}
+.feishu-sync-section:last-of-type {
+  border-bottom: none;
+}
+.feishu-sync-section-title {
+  margin: 0 0 10px;
+  color: #404040;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 600;
+}
+.feishu-sync-doc-title {
+  margin-bottom: 8px;
+  color: #191919;
+  font-size: 17px;
+  line-height: 1.45;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.feishu-sync-source {
+  display: block;
+  color: #07C160;
+  font-size: 12px;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.feishu-sync-source:hover {
+  text-decoration: underline;
+}
+.feishu-sync-interpreter {
+  margin-top: 10px;
+  padding: 8px 10px;
+  color: #666666;
+  background: #F7F7F7;
+  border: 1px solid #EDEDED;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.feishu-sync-dir-control {
+  display: grid;
+  gap: 8px;
+}
+.feishu-sync-dir-select,
+.feishu-sync-dir-input,
+.feishu-sync-field input,
+.feishu-sync-field select,
+.feishu-sync-field textarea {
+  width: 100%;
+  min-width: 0;
+  color: #191919;
+  background: #FFFFFF;
+  border: 1px solid #E5E5E5;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  outline: none;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+.feishu-sync-dir-select,
+.feishu-sync-dir-input,
+.feishu-sync-field input,
+.feishu-sync-field select {
+  height: 36px;
+  padding: 0 10px;
+}
+.feishu-sync-field textarea {
+  min-height: 64px;
+  resize: vertical;
+  padding: 9px 10px;
+}
+.feishu-sync-dir-select:focus,
+.feishu-sync-dir-input:focus,
+.feishu-sync-field input:focus,
+.feishu-sync-field select:focus,
+.feishu-sync-field textarea:focus {
+  border-color: #07C160;
+  box-shadow: 0 0 0 3px rgba(7, 193, 96, 0.15);
+  background: #FFFFFF;
+}
+.feishu-sync-meta-form {
+  display: grid;
+  gap: 12px;
+}
+.feishu-sync-field {
+  display: grid;
+  grid-template-columns: minmax(98px, 32%) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 5px;
+}
+.feishu-sync-field-textarea {
+  align-items: start;
+}
+.feishu-sync-field-label {
+  color: #666666;
+  font-size: 12px;
+  line-height: 1.35;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.feishu-sync-field small {
+  grid-column: 2;
+  color: #999999;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.feishu-sync-field-checkbox input {
+  width: 18px;
+  height: 18px;
+  justify-self: start;
+  accent-color: #07C160;
+}
+.feishu-sync-grouped-control {
+  display: grid;
+  gap: 8px;
+}
+.feishu-sync-choice-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+}
+.feishu-sync-choice-title {
+  padding-top: 5px;
+  color: #999999;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.feishu-sync-choice-chip {
+  width: auto;
+  min-height: 28px;
+  margin: 0 5px 5px 0;
+  padding: 4px 8px;
+  border: 1px solid #E5E5E5;
+  border-radius: 6px;
+  background: #FFFFFF;
+  color: #666666;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.feishu-sync-choice-chip.is-selected {
+  border-color: #07C160;
+  background: #E8F8EE;
+  color: #191919;
+}
+.feishu-sync-choice-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.feishu-sync-choice-title {
+  flex: 0 0 100%;
+  padding-top: 0;
+}
+.feishu-sync-choice-chip {
+  flex: 0 0 auto;
+  margin: 0;
+  white-space: nowrap;
+}
+.feishu-sync-status {
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  border: 1px solid transparent;
+  overflow-wrap: anywhere;
+}
+.feishu-sync-status-idle {
+  color: #666666;
+  background: #F7F7F7;
+  border-color: #EDEDED;
+}
+.feishu-sync-status-info {
+  color: #576B95;
+  background: #EEF2F8;
+  border-color: #D5DFEE;
+}
+.feishu-sync-status-success {
+  color: #07C160;
+  background: #E8F8EE;
+  border-color: #C8EDD6;
+}
+.feishu-sync-status-error {
+  color: #FA5151;
+  background: #FDEAEA;
+  border-color: #F5C7C7;
+}
+.feishu-sync-panel-footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid #EDEDED;
+  background: #FAFAFA;
+}
+.feishu-sync-panel-footer button {
+  min-width: 84px;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s ease;
+}
+.feishu-sync-secondary {
+  color: #666666;
+  background: #EDEDED;
+}
+.feishu-sync-secondary:hover {
+  background: #E5E5E5;
+}
+.feishu-sync-suggest {
+  color: #576B95;
+  background: #EEF2F8;
+}
+.feishu-sync-suggest:hover {
+  background: #E0E6F2;
+}
+.feishu-sync-primary {
+  color: #FFFFFF;
+  background: #07C160;
+}
+.feishu-sync-primary:hover {
+  background: #06AD56;
+}
+.feishu-sync-primary:disabled,
+.feishu-sync-suggest:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+@media (max-width: 520px) {
+  .feishu-sync-panel {
+    width: calc(100vw - 16px);
+  }
+  .feishu-sync-panel-header,
+  .feishu-sync-panel-body,
+  .feishu-sync-panel-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .feishu-sync-field {
+    grid-template-columns: 1fr;
+  }
+  .feishu-sync-field small {
+    grid-column: 1;
+  }
+}
+@keyframes feishu-sync-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes feishu-sync-panel-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0.7;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+/*# sourceMappingURL=content.css.map */

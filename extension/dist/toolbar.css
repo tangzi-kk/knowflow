@@ -1,0 +1,452 @@
+/* ═══════════════════════════════════════════════════════════════
+   浮动选择工具栏 v3.0 — Gemini Nexus 风格 Shadow DOM 样式
+   此文件注入 Shadow DOM 内部，完全隔离页面样式
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Host 隔离 ───────────────────────────────────────────────── */
+
+:host {
+  all: initial;
+  position: fixed;
+  z-index: 2147483647;
+  pointer-events: none;
+  font-family: '宋体', SimSun, 'Songti SC', serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", "Helvetica Neue", sans-serif;
+
+  /* ── Design Tokens (Shadow DOM 内联，不依赖外部 CSS) ── */
+  --brand-50: #E8F8EE;
+  --brand-100: #C5F0D5;
+  --brand-500: #07C160;
+  --brand-600: #06A050;
+  --brand-700: #058040;
+  --neutral-0: #FFFFFF;
+  --neutral-50: #F7F7F7;
+  --neutral-100: #EDEDED;
+  --neutral-200: #DEDEDE;
+  --neutral-400: #999999;
+  --neutral-500: #666666;
+  --neutral-700: #1A1A1A;
+  --c-brand: var(--brand-500);
+  --c-brand-hover: var(--brand-600);
+  --c-brand-soft: var(--brand-50);
+  --c-brand-ring: rgba(7, 193, 96, 0.18);
+  --c-bg: var(--neutral-50);
+  --c-surface: var(--neutral-0);
+  --c-surface-dim: var(--neutral-100);
+  --c-border: var(--neutral-200);
+  --c-divider: var(--neutral-100);
+  --c-text: var(--neutral-700);
+  --c-text-2: var(--neutral-500);
+  --c-text-3: var(--neutral-400);
+  --c-error: #FA5151;
+  --c-white: #FFFFFF;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-fast: 0.15s var(--ease);
+  --t-norm: 0.25s var(--ease);
+}
+
+/* ── 胶囊工具栏 ──────────────────────────────────────────────── */
+
+.capsule {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-radius: 20px;
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.08),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  user-select: none;
+  pointer-events: auto;
+  animation: capsule-in 0.2s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@keyframes capsule-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── 胶囊按钮 ────────────────────────────────────────────────── */
+
+.capsule button {
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #444;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  padding: 0;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.capsule button:hover {
+  background: #f0f0f0;
+  color: #07c160;
+}
+
+.capsule button:active {
+  transform: scale(0.9);
+}
+
+/* ── 分隔线 ──────────────────────────────────────────────────── */
+
+.capsule .divider {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+/* ── 主按钮（飞书同步绿色）─────────────────────────────────── */
+
+.capsule button.primary {
+  background: #07c160;
+  color: #fff;
+  border-radius: 16px;
+  width: auto;
+  padding: 0 12px;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.capsule button.primary:hover {
+  background: #06ad56;
+  color: #fff;
+}
+
+/* ── 复制成功反馈 ───────────────────────────────────────────── */
+
+.capsule button.copied {
+  color: #07c160;
+}
+
+.capsule button.copied svg {
+  stroke: #07c160;
+}
+
+/* ── 结果窗口 ────────────────────────────────────────────────── */
+
+.result-window {
+  width: 360px;
+  max-height: 400px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.12),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  pointer-events: auto;
+  animation: window-in 0.25s ease-out;
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes window-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── 结果头部 ────────────────────────────────────────────────── */
+
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.result-close {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 14px;
+  color: #999;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.result-close:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+/* ── 结果内容区 ──────────────────────────────────────────────── */
+
+.result-body {
+  padding: 12px 14px;
+  max-height: 280px;
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #333;
+  flex: 1;
+}
+
+.result-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.result-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 2px;
+}
+
+/* ── 加载动画 ────────────────────────────────────────────────── */
+
+.result-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #999;
+  font-size: 13px;
+}
+
+.result-loading::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e0e0e0;
+  border-top-color: #07c160;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 结果底部操作栏 ──────────────────────────────────────────── */
+
+.result-footer {
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px;
+  border-top: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+
+.result-footer button {
+  padding: 6px 12px;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.15s;
+  outline: none;
+  white-space: nowrap;
+}
+
+.result-footer button:hover {
+  border-color: #07c160;
+  color: #07c160;
+}
+
+.result-footer button:active {
+  transform: scale(0.97);
+}
+
+/* ── Markdown 渲染 ───────────────────────────────────────────── */
+
+.result-content p {
+  margin: 0 0 8px 0;
+}
+
+.result-content p:last-child {
+  margin-bottom: 0;
+}
+
+.result-content strong {
+  font-weight: 600;
+  color: #222;
+}
+
+.result-content em {
+  font-style: italic;
+}
+
+.result-content code {
+  background: #f5f5f5;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+  color: #d63384;
+}
+
+.result-content pre {
+  background: #f8f8f8;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  font-family: "SF Mono", "Fira Code", "Consolas", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0;
+}
+
+.result-content pre code {
+  background: none;
+  padding: 0;
+  color: #333;
+  font-size: inherit;
+}
+
+.result-content ul,
+.result-content ol {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+
+.result-content li {
+  margin: 2px 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   暗色模式
+   ═══════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  .capsule {
+    background: rgba(30, 30, 30, 0.92);
+    box-shadow:
+      0 2px 12px rgba(0, 0, 0, 0.3),
+      0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  }
+
+  .capsule button {
+    color: #ccc;
+  }
+
+  .capsule button:hover {
+    background: #333;
+    color: #07c160;
+  }
+
+  .capsule .divider {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .capsule button.primary {
+    background: #07c160;
+    color: #fff;
+  }
+
+  .capsule button.primary:hover {
+    background: #06ad56;
+    color: #fff;
+  }
+
+  .result-window {
+    background: #1e1e1e;
+    box-shadow:
+      0 4px 24px rgba(0, 0, 0, 0.4),
+      0 0 0 0.5px rgba(255, 255, 255, 0.1);
+  }
+
+  .result-header {
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e0e0e0;
+  }
+
+  .result-close {
+    color: #888;
+  }
+
+  .result-close:hover {
+    background: #333;
+    color: #e0e0e0;
+  }
+
+  .result-body {
+    color: #e0e0e0;
+  }
+
+  .result-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .result-content strong {
+    color: #fff;
+  }
+
+  .result-content code {
+    background: #2a2a2a;
+    color: #f0a0c0;
+  }
+
+  .result-content pre {
+    background: #252525;
+    border-color: #333;
+  }
+
+  .result-content pre code {
+    color: #e0e0e0;
+  }
+
+  .result-footer {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .result-footer button {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #aaa;
+  }
+
+  .result-footer button:hover {
+    border-color: #07c160;
+    color: #07c160;
+  }
+
+  .result-loading {
+    color: #888;
+  }
+
+  .result-loading::before {
+    border-color: #333;
+    border-top-color: #07c160;
+  }
+}
