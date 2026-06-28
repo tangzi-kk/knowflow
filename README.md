@@ -79,7 +79,7 @@
 
 > 在 Obsidian 中运行，负责接收同步请求、调用 lark-cli、读写文件、回写飞书。
 
-**[⬇️ 下载最新版 Obsidian 插件](https://github.com/shikeran/knowflow/releases/latest)**
+**[⬇️ 下载最新版 Obsidian 插件](https://github.com/tangzi-kk/knowflow/releases/latest)**
 
 | 文件 | 用途 |
 |------|------|
@@ -99,7 +99,7 @@
 
 > 在 Chrome/Edge 中运行，注入飞书页面「同步到 OB」按钮，提供 Sidepanel 仪表盘。
 
-**[⬇️ 下载最新版浏览器扩展](https://github.com/shikeran/knowflow/releases/latest)**
+**[⬇️ 下载最新版浏览器扩展](https://github.com/tangzi-kk/knowflow/releases/latest)**
 
 **安装步骤**：
 1. 下载 `knowflow-extension-vX.X.X.zip` 并解压
@@ -129,7 +129,7 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/shikeran/knowflow.git
+git clone https://github.com/tangzi-kk/knowflow.git
 cd knowflow
 
 # 2. 安装依赖
