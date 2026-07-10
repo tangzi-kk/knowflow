@@ -1,0 +1,10 @@
+{
+  "id": "fs-TB",
+  "name": "飞书同步 (fs-TB)",
+  "version": "3.2.1",
+  "minAppVersion": "1.5.0",
+  "description": "飞书↔Obsidian 同步、短编码显示、属性层整理、系统属性隐藏",
+  "author": "Shi Keran",
+  "authorUrl": "",
+  "isDesktopOnly": true
+}

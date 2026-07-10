@@ -1,14 +1,37 @@
 "use strict";
 (() => {
+  var __create = Object.create;
   var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
   var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __getProtoOf = Object.getPrototypeOf;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
   var __esm = (fn, res) => function __init() {
     return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
+  var __commonJS = (cb, mod) => function __require() {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
   };
   var __export = (target, all) => {
     for (var name in all)
       __defProp(target, name, { get: all[name], enumerable: true });
   };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+    // If the importer is in node compatibility mode or this is not an ESM
+    // file that has been converted to a CommonJS file using a Babel-
+    // compatible transform (i.e. "__esModule" has not been set), then set
+    // "default" to the CommonJS "module.exports" for node compatibility.
+    isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+    mod
+  ));
 
   // ../packages/shared/dist/types.js
   var init_types = __esm({
@@ -51,29 +74,29 @@
   });
 
   // ../node_modules/js-yaml/dist/js-yaml.mjs
-  var __create, __defProp2, __getOwnPropDesc, __getOwnPropNames2, __getProtoOf, __hasOwnProp, __commonJSMin, __copyProps, __toESM, require_common, require_exception, require_snippet, require_type, require_schema, require_str, require_seq, require_map, require_failsafe, require_null, require_bool, require_int, require_float, require_json, require_core, require_timestamp, require_merge, require_binary, require_omap, require_pairs, require_set, require_default, require_loader, require_dumper, import_js_yaml, Type, Schema, FAILSAFE_SCHEMA, JSON_SCHEMA, CORE_SCHEMA, DEFAULT_SCHEMA, load, loadAll, dump, YAMLException, types, safeLoad, safeLoadAll, safeDump, index_vite_proxy_tmp_default;
+  var __create2, __defProp2, __getOwnPropDesc2, __getOwnPropNames2, __getProtoOf2, __hasOwnProp2, __commonJSMin, __copyProps2, __toESM2, require_common, require_exception, require_snippet, require_type, require_schema, require_str, require_seq, require_map, require_failsafe, require_null, require_bool, require_int, require_float, require_json, require_core, require_timestamp, require_merge, require_binary, require_omap, require_pairs, require_set, require_default, require_loader, require_dumper, import_js_yaml, Type, Schema, FAILSAFE_SCHEMA, JSON_SCHEMA, CORE_SCHEMA, DEFAULT_SCHEMA, load, loadAll, dump, YAMLException, types, safeLoad, safeLoadAll, safeDump, index_vite_proxy_tmp_default;
   var init_js_yaml = __esm({
     "../node_modules/js-yaml/dist/js-yaml.mjs"() {
-      __create = Object.create;
+      __create2 = Object.create;
       __defProp2 = Object.defineProperty;
-      __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+      __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
       __getOwnPropNames2 = Object.getOwnPropertyNames;
-      __getProtoOf = Object.getPrototypeOf;
-      __hasOwnProp = Object.prototype.hasOwnProperty;
+      __getProtoOf2 = Object.getPrototypeOf;
+      __hasOwnProp2 = Object.prototype.hasOwnProperty;
       __commonJSMin = (cb, mod) => () => (mod || (cb((mod = { exports: {} }).exports, mod), cb = null), mod.exports);
-      __copyProps = (to, from, except, desc) => {
+      __copyProps2 = (to, from, except, desc) => {
         if (from && typeof from === "object" || typeof from === "function")
           for (var keys = __getOwnPropNames2(from), i = 0, n = keys.length, key; i < n; i++) {
             key = keys[i];
-            if (!__hasOwnProp.call(to, key) && key !== except)
+            if (!__hasOwnProp2.call(to, key) && key !== except)
               __defProp2(to, key, {
                 get: ((k) => from[k]).bind(null, key),
-                enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable
+                enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable
               });
           }
         return to;
       };
-      __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(isNodeMode || !mod || !mod.__esModule ? __defProp2(target, "default", {
+      __toESM2 = (mod, isNodeMode, target) => (target = mod != null ? __create2(__getProtoOf2(mod)) : {}, __copyProps2(isNodeMode || !mod || !mod.__esModule ? __defProp2(target, "default", {
         value: mod,
         enumerable: true
       }) : target, mod));
@@ -2733,7 +2756,7 @@
         }
         module.exports.dump = dump2;
       });
-      import_js_yaml = /* @__PURE__ */ __toESM((/* @__PURE__ */ __commonJSMin((exports, module) => {
+      import_js_yaml = /* @__PURE__ */ __toESM2((/* @__PURE__ */ __commonJSMin((exports, module) => {
         var loader = require_loader();
         var dumper = require_dumper();
         function renamed(from, to) {
@@ -3140,8 +3163,906 @@
     }
   });
 
+  // ../node_modules/js-sha3/src/sha3.js
+  var require_sha3 = __commonJS({
+    "../node_modules/js-sha3/src/sha3.js"(exports, module) {
+      (function() {
+        "use strict";
+        var INPUT_ERROR = "input is invalid type";
+        var FINALIZE_ERROR = "finalize already called";
+        var WINDOW = typeof window === "object";
+        var root = WINDOW ? window : {};
+        if (root.JS_SHA3_NO_WINDOW) {
+          WINDOW = false;
+        }
+        var WEB_WORKER = !WINDOW && typeof self === "object";
+        var NODE_JS = !root.JS_SHA3_NO_NODE_JS && typeof process === "object" && process.versions && process.versions.node;
+        if (NODE_JS) {
+          root = global;
+        } else if (WEB_WORKER) {
+          root = self;
+        }
+        var COMMON_JS = !root.JS_SHA3_NO_COMMON_JS && typeof module === "object" && module.exports;
+        var AMD = typeof define === "function" && define.amd;
+        var ARRAY_BUFFER = !root.JS_SHA3_NO_ARRAY_BUFFER && typeof ArrayBuffer !== "undefined";
+        var HEX_CHARS = "0123456789abcdef".split("");
+        var SHAKE_PADDING = [31, 7936, 2031616, 520093696];
+        var CSHAKE_PADDING = [4, 1024, 262144, 67108864];
+        var KECCAK_PADDING = [1, 256, 65536, 16777216];
+        var PADDING = [6, 1536, 393216, 100663296];
+        var SHIFT = [0, 8, 16, 24];
+        var RC = [
+          1,
+          0,
+          32898,
+          0,
+          32906,
+          2147483648,
+          2147516416,
+          2147483648,
+          32907,
+          0,
+          2147483649,
+          0,
+          2147516545,
+          2147483648,
+          32777,
+          2147483648,
+          138,
+          0,
+          136,
+          0,
+          2147516425,
+          0,
+          2147483658,
+          0,
+          2147516555,
+          0,
+          139,
+          2147483648,
+          32905,
+          2147483648,
+          32771,
+          2147483648,
+          32770,
+          2147483648,
+          128,
+          2147483648,
+          32778,
+          0,
+          2147483658,
+          2147483648,
+          2147516545,
+          2147483648,
+          32896,
+          2147483648,
+          2147483649,
+          0,
+          2147516424,
+          2147483648
+        ];
+        var BITS = [224, 256, 384, 512];
+        var SHAKE_BITS = [128, 256];
+        var OUTPUT_TYPES = ["hex", "buffer", "arrayBuffer", "array", "digest"];
+        var CSHAKE_BYTEPAD = {
+          "128": 168,
+          "256": 136
+        };
+        var isArray = root.JS_SHA3_NO_NODE_JS || !Array.isArray ? function(obj) {
+          return Object.prototype.toString.call(obj) === "[object Array]";
+        } : Array.isArray;
+        var isView = ARRAY_BUFFER && (root.JS_SHA3_NO_ARRAY_BUFFER_IS_VIEW || !ArrayBuffer.isView) ? function(obj) {
+          return typeof obj === "object" && obj.buffer && obj.buffer.constructor === ArrayBuffer;
+        } : ArrayBuffer.isView;
+        var formatMessage = function(message) {
+          var type = typeof message;
+          if (type === "string") {
+            return [message, true];
+          }
+          if (type !== "object" || message === null) {
+            throw new Error(INPUT_ERROR);
+          }
+          if (ARRAY_BUFFER && message.constructor === ArrayBuffer) {
+            return [new Uint8Array(message), false];
+          }
+          if (!isArray(message) && !isView(message)) {
+            throw new Error(INPUT_ERROR);
+          }
+          return [message, false];
+        };
+        var empty = function(message) {
+          return formatMessage(message)[0].length === 0;
+        };
+        var cloneArray = function(array) {
+          var newArray = [];
+          for (var i2 = 0; i2 < array.length; ++i2) {
+            newArray[i2] = array[i2];
+          }
+          return newArray;
+        };
+        var createOutputMethod = function(bits2, padding, outputType) {
+          return function(message) {
+            return new Keccak(bits2, padding, bits2).update(message)[outputType]();
+          };
+        };
+        var createShakeOutputMethod = function(bits2, padding, outputType) {
+          return function(message, outputBits) {
+            return new Keccak(bits2, padding, outputBits).update(message)[outputType]();
+          };
+        };
+        var createCshakeOutputMethod = function(bits2, padding, outputType) {
+          return function(message, outputBits, n, s) {
+            return methods["cshake" + bits2].update(message, outputBits, n, s)[outputType]();
+          };
+        };
+        var createKmacOutputMethod = function(bits2, padding, outputType) {
+          return function(key, message, outputBits, s) {
+            return methods["kmac" + bits2].update(key, message, outputBits, s)[outputType]();
+          };
+        };
+        var createOutputMethods = function(method, createMethod2, bits2, padding) {
+          for (var i2 = 0; i2 < OUTPUT_TYPES.length; ++i2) {
+            var type = OUTPUT_TYPES[i2];
+            method[type] = createMethod2(bits2, padding, type);
+          }
+          return method;
+        };
+        var createMethod = function(bits2, padding) {
+          var method = createOutputMethod(bits2, padding, "hex");
+          method.create = function() {
+            return new Keccak(bits2, padding, bits2);
+          };
+          method.update = function(message) {
+            return method.create().update(message);
+          };
+          return createOutputMethods(method, createOutputMethod, bits2, padding);
+        };
+        var createShakeMethod = function(bits2, padding) {
+          var method = createShakeOutputMethod(bits2, padding, "hex");
+          method.create = function(outputBits) {
+            return new Keccak(bits2, padding, outputBits);
+          };
+          method.update = function(message, outputBits) {
+            return method.create(outputBits).update(message);
+          };
+          return createOutputMethods(method, createShakeOutputMethod, bits2, padding);
+        };
+        var createCshakeMethod = function(bits2, padding) {
+          var w = CSHAKE_BYTEPAD[bits2];
+          var method = createCshakeOutputMethod(bits2, padding, "hex");
+          method.create = function(outputBits, n, s) {
+            if (empty(n) && empty(s)) {
+              return methods["shake" + bits2].create(outputBits);
+            } else {
+              return new Keccak(bits2, padding, outputBits).bytepad([n, s], w);
+            }
+          };
+          method.update = function(message, outputBits, n, s) {
+            return method.create(outputBits, n, s).update(message);
+          };
+          return createOutputMethods(method, createCshakeOutputMethod, bits2, padding);
+        };
+        var createKmacMethod = function(bits2, padding) {
+          var w = CSHAKE_BYTEPAD[bits2];
+          var method = createKmacOutputMethod(bits2, padding, "hex");
+          method.create = function(key, outputBits, s) {
+            return new Kmac(bits2, padding, outputBits).bytepad(["KMAC", s], w).bytepad([key], w);
+          };
+          method.update = function(key, message, outputBits, s) {
+            return method.create(key, outputBits, s).update(message);
+          };
+          return createOutputMethods(method, createKmacOutputMethod, bits2, padding);
+        };
+        var algorithms = [
+          { name: "keccak", padding: KECCAK_PADDING, bits: BITS, createMethod },
+          { name: "sha3", padding: PADDING, bits: BITS, createMethod },
+          { name: "shake", padding: SHAKE_PADDING, bits: SHAKE_BITS, createMethod: createShakeMethod },
+          { name: "cshake", padding: CSHAKE_PADDING, bits: SHAKE_BITS, createMethod: createCshakeMethod },
+          { name: "kmac", padding: CSHAKE_PADDING, bits: SHAKE_BITS, createMethod: createKmacMethod }
+        ];
+        var methods = {}, methodNames = [];
+        for (var i = 0; i < algorithms.length; ++i) {
+          var algorithm = algorithms[i];
+          var bits = algorithm.bits;
+          for (var j = 0; j < bits.length; ++j) {
+            var methodName = algorithm.name + "_" + bits[j];
+            methodNames.push(methodName);
+            methods[methodName] = algorithm.createMethod(bits[j], algorithm.padding);
+            if (algorithm.name !== "sha3") {
+              var newMethodName = algorithm.name + bits[j];
+              methodNames.push(newMethodName);
+              methods[newMethodName] = methods[methodName];
+            }
+          }
+        }
+        function Keccak(bits2, padding, outputBits) {
+          this.blocks = [];
+          this.s = [];
+          this.padding = padding;
+          this.outputBits = outputBits;
+          this.reset = true;
+          this.finalized = false;
+          this.block = 0;
+          this.start = 0;
+          this.blockCount = 1600 - (bits2 << 1) >> 5;
+          this.byteCount = this.blockCount << 2;
+          this.outputBlocks = outputBits >> 5;
+          this.extraBytes = (outputBits & 31) >> 3;
+          for (var i2 = 0; i2 < 50; ++i2) {
+            this.s[i2] = 0;
+          }
+        }
+        Keccak.prototype.update = function(message) {
+          if (this.finalized) {
+            throw new Error(FINALIZE_ERROR);
+          }
+          var result = formatMessage(message);
+          message = result[0];
+          var isString = result[1];
+          var blocks = this.blocks, byteCount = this.byteCount, length = message.length, blockCount = this.blockCount, index = 0, s = this.s, i2, code;
+          while (index < length) {
+            if (this.reset) {
+              this.reset = false;
+              blocks[0] = this.block;
+              for (i2 = 1; i2 < blockCount + 1; ++i2) {
+                blocks[i2] = 0;
+              }
+            }
+            if (isString) {
+              for (i2 = this.start; index < length && i2 < byteCount; ++index) {
+                code = message.charCodeAt(index);
+                if (code < 128) {
+                  blocks[i2 >> 2] |= code << SHIFT[i2++ & 3];
+                } else if (code < 2048) {
+                  blocks[i2 >> 2] |= (192 | code >> 6) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code & 63) << SHIFT[i2++ & 3];
+                } else if (code < 55296 || code >= 57344) {
+                  blocks[i2 >> 2] |= (224 | code >> 12) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code >> 6 & 63) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code & 63) << SHIFT[i2++ & 3];
+                } else {
+                  code = 65536 + ((code & 1023) << 10 | message.charCodeAt(++index) & 1023);
+                  blocks[i2 >> 2] |= (240 | code >> 18) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code >> 12 & 63) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code >> 6 & 63) << SHIFT[i2++ & 3];
+                  blocks[i2 >> 2] |= (128 | code & 63) << SHIFT[i2++ & 3];
+                }
+              }
+            } else {
+              for (i2 = this.start; index < length && i2 < byteCount; ++index) {
+                blocks[i2 >> 2] |= message[index] << SHIFT[i2++ & 3];
+              }
+            }
+            this.lastByteIndex = i2;
+            if (i2 >= byteCount) {
+              this.start = i2 - byteCount;
+              this.block = blocks[blockCount];
+              for (i2 = 0; i2 < blockCount; ++i2) {
+                s[i2] ^= blocks[i2];
+              }
+              f(s);
+              this.reset = true;
+            } else {
+              this.start = i2;
+            }
+          }
+          return this;
+        };
+        Keccak.prototype.encode = function(x, right) {
+          var o = x & 255, n = 1;
+          var bytes = [o];
+          x = x >> 8;
+          o = x & 255;
+          while (o > 0) {
+            bytes.unshift(o);
+            x = x >> 8;
+            o = x & 255;
+            ++n;
+          }
+          if (right) {
+            bytes.push(n);
+          } else {
+            bytes.unshift(n);
+          }
+          this.update(bytes);
+          return bytes.length;
+        };
+        Keccak.prototype.encodeString = function(str) {
+          var result = formatMessage(str);
+          str = result[0];
+          var isString = result[1];
+          var bytes = 0, length = str.length;
+          if (isString) {
+            for (var i2 = 0; i2 < str.length; ++i2) {
+              var code = str.charCodeAt(i2);
+              if (code < 128) {
+                bytes += 1;
+              } else if (code < 2048) {
+                bytes += 2;
+              } else if (code < 55296 || code >= 57344) {
+                bytes += 3;
+              } else {
+                code = 65536 + ((code & 1023) << 10 | str.charCodeAt(++i2) & 1023);
+                bytes += 4;
+              }
+            }
+          } else {
+            bytes = length;
+          }
+          bytes += this.encode(bytes * 8);
+          this.update(str);
+          return bytes;
+        };
+        Keccak.prototype.bytepad = function(strs, w) {
+          var bytes = this.encode(w);
+          for (var i2 = 0; i2 < strs.length; ++i2) {
+            bytes += this.encodeString(strs[i2]);
+          }
+          var paddingBytes = (w - bytes % w) % w;
+          var zeros = [];
+          zeros.length = paddingBytes;
+          this.update(zeros);
+          return this;
+        };
+        Keccak.prototype.finalize = function() {
+          if (this.finalized) {
+            return;
+          }
+          this.finalized = true;
+          var blocks = this.blocks, i2 = this.lastByteIndex, blockCount = this.blockCount, s = this.s;
+          blocks[i2 >> 2] |= this.padding[i2 & 3];
+          if (this.lastByteIndex === this.byteCount) {
+            blocks[0] = blocks[blockCount];
+            for (i2 = 1; i2 < blockCount + 1; ++i2) {
+              blocks[i2] = 0;
+            }
+          }
+          blocks[blockCount - 1] |= 2147483648;
+          for (i2 = 0; i2 < blockCount; ++i2) {
+            s[i2] ^= blocks[i2];
+          }
+          f(s);
+        };
+        Keccak.prototype.toString = Keccak.prototype.hex = function() {
+          this.finalize();
+          var blockCount = this.blockCount, s = this.s, outputBlocks = this.outputBlocks, extraBytes = this.extraBytes, i2 = 0, j2 = 0;
+          var hex = "", block;
+          while (j2 < outputBlocks) {
+            for (i2 = 0; i2 < blockCount && j2 < outputBlocks; ++i2, ++j2) {
+              block = s[i2];
+              hex += HEX_CHARS[block >> 4 & 15] + HEX_CHARS[block & 15] + HEX_CHARS[block >> 12 & 15] + HEX_CHARS[block >> 8 & 15] + HEX_CHARS[block >> 20 & 15] + HEX_CHARS[block >> 16 & 15] + HEX_CHARS[block >> 28 & 15] + HEX_CHARS[block >> 24 & 15];
+            }
+            if (j2 % blockCount === 0) {
+              s = cloneArray(s);
+              f(s);
+              i2 = 0;
+            }
+          }
+          if (extraBytes) {
+            block = s[i2];
+            hex += HEX_CHARS[block >> 4 & 15] + HEX_CHARS[block & 15];
+            if (extraBytes > 1) {
+              hex += HEX_CHARS[block >> 12 & 15] + HEX_CHARS[block >> 8 & 15];
+            }
+            if (extraBytes > 2) {
+              hex += HEX_CHARS[block >> 20 & 15] + HEX_CHARS[block >> 16 & 15];
+            }
+          }
+          return hex;
+        };
+        Keccak.prototype.arrayBuffer = function() {
+          this.finalize();
+          var blockCount = this.blockCount, s = this.s, outputBlocks = this.outputBlocks, extraBytes = this.extraBytes, i2 = 0, j2 = 0;
+          var bytes = this.outputBits >> 3;
+          var buffer;
+          if (extraBytes) {
+            buffer = new ArrayBuffer(outputBlocks + 1 << 2);
+          } else {
+            buffer = new ArrayBuffer(bytes);
+          }
+          var array = new Uint32Array(buffer);
+          while (j2 < outputBlocks) {
+            for (i2 = 0; i2 < blockCount && j2 < outputBlocks; ++i2, ++j2) {
+              array[j2] = s[i2];
+            }
+            if (j2 % blockCount === 0) {
+              s = cloneArray(s);
+              f(s);
+            }
+          }
+          if (extraBytes) {
+            array[j2] = s[i2];
+            buffer = buffer.slice(0, bytes);
+          }
+          return buffer;
+        };
+        Keccak.prototype.buffer = Keccak.prototype.arrayBuffer;
+        Keccak.prototype.digest = Keccak.prototype.array = function() {
+          this.finalize();
+          var blockCount = this.blockCount, s = this.s, outputBlocks = this.outputBlocks, extraBytes = this.extraBytes, i2 = 0, j2 = 0;
+          var array = [], offset, block;
+          while (j2 < outputBlocks) {
+            for (i2 = 0; i2 < blockCount && j2 < outputBlocks; ++i2, ++j2) {
+              offset = j2 << 2;
+              block = s[i2];
+              array[offset] = block & 255;
+              array[offset + 1] = block >> 8 & 255;
+              array[offset + 2] = block >> 16 & 255;
+              array[offset + 3] = block >> 24 & 255;
+            }
+            if (j2 % blockCount === 0) {
+              s = cloneArray(s);
+              f(s);
+            }
+          }
+          if (extraBytes) {
+            offset = j2 << 2;
+            block = s[i2];
+            array[offset] = block & 255;
+            if (extraBytes > 1) {
+              array[offset + 1] = block >> 8 & 255;
+            }
+            if (extraBytes > 2) {
+              array[offset + 2] = block >> 16 & 255;
+            }
+          }
+          return array;
+        };
+        function Kmac(bits2, padding, outputBits) {
+          Keccak.call(this, bits2, padding, outputBits);
+        }
+        Kmac.prototype = new Keccak();
+        Kmac.prototype.finalize = function() {
+          this.encode(this.outputBits, true);
+          return Keccak.prototype.finalize.call(this);
+        };
+        var f = function(s) {
+          var h, l, n, c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, b36, b37, b38, b39, b40, b41, b42, b43, b44, b45, b46, b47, b48, b49;
+          for (n = 0; n < 48; n += 2) {
+            c0 = s[0] ^ s[10] ^ s[20] ^ s[30] ^ s[40];
+            c1 = s[1] ^ s[11] ^ s[21] ^ s[31] ^ s[41];
+            c2 = s[2] ^ s[12] ^ s[22] ^ s[32] ^ s[42];
+            c3 = s[3] ^ s[13] ^ s[23] ^ s[33] ^ s[43];
+            c4 = s[4] ^ s[14] ^ s[24] ^ s[34] ^ s[44];
+            c5 = s[5] ^ s[15] ^ s[25] ^ s[35] ^ s[45];
+            c6 = s[6] ^ s[16] ^ s[26] ^ s[36] ^ s[46];
+            c7 = s[7] ^ s[17] ^ s[27] ^ s[37] ^ s[47];
+            c8 = s[8] ^ s[18] ^ s[28] ^ s[38] ^ s[48];
+            c9 = s[9] ^ s[19] ^ s[29] ^ s[39] ^ s[49];
+            h = c8 ^ (c2 << 1 | c3 >>> 31);
+            l = c9 ^ (c3 << 1 | c2 >>> 31);
+            s[0] ^= h;
+            s[1] ^= l;
+            s[10] ^= h;
+            s[11] ^= l;
+            s[20] ^= h;
+            s[21] ^= l;
+            s[30] ^= h;
+            s[31] ^= l;
+            s[40] ^= h;
+            s[41] ^= l;
+            h = c0 ^ (c4 << 1 | c5 >>> 31);
+            l = c1 ^ (c5 << 1 | c4 >>> 31);
+            s[2] ^= h;
+            s[3] ^= l;
+            s[12] ^= h;
+            s[13] ^= l;
+            s[22] ^= h;
+            s[23] ^= l;
+            s[32] ^= h;
+            s[33] ^= l;
+            s[42] ^= h;
+            s[43] ^= l;
+            h = c2 ^ (c6 << 1 | c7 >>> 31);
+            l = c3 ^ (c7 << 1 | c6 >>> 31);
+            s[4] ^= h;
+            s[5] ^= l;
+            s[14] ^= h;
+            s[15] ^= l;
+            s[24] ^= h;
+            s[25] ^= l;
+            s[34] ^= h;
+            s[35] ^= l;
+            s[44] ^= h;
+            s[45] ^= l;
+            h = c4 ^ (c8 << 1 | c9 >>> 31);
+            l = c5 ^ (c9 << 1 | c8 >>> 31);
+            s[6] ^= h;
+            s[7] ^= l;
+            s[16] ^= h;
+            s[17] ^= l;
+            s[26] ^= h;
+            s[27] ^= l;
+            s[36] ^= h;
+            s[37] ^= l;
+            s[46] ^= h;
+            s[47] ^= l;
+            h = c6 ^ (c0 << 1 | c1 >>> 31);
+            l = c7 ^ (c1 << 1 | c0 >>> 31);
+            s[8] ^= h;
+            s[9] ^= l;
+            s[18] ^= h;
+            s[19] ^= l;
+            s[28] ^= h;
+            s[29] ^= l;
+            s[38] ^= h;
+            s[39] ^= l;
+            s[48] ^= h;
+            s[49] ^= l;
+            b0 = s[0];
+            b1 = s[1];
+            b32 = s[11] << 4 | s[10] >>> 28;
+            b33 = s[10] << 4 | s[11] >>> 28;
+            b14 = s[20] << 3 | s[21] >>> 29;
+            b15 = s[21] << 3 | s[20] >>> 29;
+            b46 = s[31] << 9 | s[30] >>> 23;
+            b47 = s[30] << 9 | s[31] >>> 23;
+            b28 = s[40] << 18 | s[41] >>> 14;
+            b29 = s[41] << 18 | s[40] >>> 14;
+            b20 = s[2] << 1 | s[3] >>> 31;
+            b21 = s[3] << 1 | s[2] >>> 31;
+            b2 = s[13] << 12 | s[12] >>> 20;
+            b3 = s[12] << 12 | s[13] >>> 20;
+            b34 = s[22] << 10 | s[23] >>> 22;
+            b35 = s[23] << 10 | s[22] >>> 22;
+            b16 = s[33] << 13 | s[32] >>> 19;
+            b17 = s[32] << 13 | s[33] >>> 19;
+            b48 = s[42] << 2 | s[43] >>> 30;
+            b49 = s[43] << 2 | s[42] >>> 30;
+            b40 = s[5] << 30 | s[4] >>> 2;
+            b41 = s[4] << 30 | s[5] >>> 2;
+            b22 = s[14] << 6 | s[15] >>> 26;
+            b23 = s[15] << 6 | s[14] >>> 26;
+            b4 = s[25] << 11 | s[24] >>> 21;
+            b5 = s[24] << 11 | s[25] >>> 21;
+            b36 = s[34] << 15 | s[35] >>> 17;
+            b37 = s[35] << 15 | s[34] >>> 17;
+            b18 = s[45] << 29 | s[44] >>> 3;
+            b19 = s[44] << 29 | s[45] >>> 3;
+            b10 = s[6] << 28 | s[7] >>> 4;
+            b11 = s[7] << 28 | s[6] >>> 4;
+            b42 = s[17] << 23 | s[16] >>> 9;
+            b43 = s[16] << 23 | s[17] >>> 9;
+            b24 = s[26] << 25 | s[27] >>> 7;
+            b25 = s[27] << 25 | s[26] >>> 7;
+            b6 = s[36] << 21 | s[37] >>> 11;
+            b7 = s[37] << 21 | s[36] >>> 11;
+            b38 = s[47] << 24 | s[46] >>> 8;
+            b39 = s[46] << 24 | s[47] >>> 8;
+            b30 = s[8] << 27 | s[9] >>> 5;
+            b31 = s[9] << 27 | s[8] >>> 5;
+            b12 = s[18] << 20 | s[19] >>> 12;
+            b13 = s[19] << 20 | s[18] >>> 12;
+            b44 = s[29] << 7 | s[28] >>> 25;
+            b45 = s[28] << 7 | s[29] >>> 25;
+            b26 = s[38] << 8 | s[39] >>> 24;
+            b27 = s[39] << 8 | s[38] >>> 24;
+            b8 = s[48] << 14 | s[49] >>> 18;
+            b9 = s[49] << 14 | s[48] >>> 18;
+            s[0] = b0 ^ ~b2 & b4;
+            s[1] = b1 ^ ~b3 & b5;
+            s[10] = b10 ^ ~b12 & b14;
+            s[11] = b11 ^ ~b13 & b15;
+            s[20] = b20 ^ ~b22 & b24;
+            s[21] = b21 ^ ~b23 & b25;
+            s[30] = b30 ^ ~b32 & b34;
+            s[31] = b31 ^ ~b33 & b35;
+            s[40] = b40 ^ ~b42 & b44;
+            s[41] = b41 ^ ~b43 & b45;
+            s[2] = b2 ^ ~b4 & b6;
+            s[3] = b3 ^ ~b5 & b7;
+            s[12] = b12 ^ ~b14 & b16;
+            s[13] = b13 ^ ~b15 & b17;
+            s[22] = b22 ^ ~b24 & b26;
+            s[23] = b23 ^ ~b25 & b27;
+            s[32] = b32 ^ ~b34 & b36;
+            s[33] = b33 ^ ~b35 & b37;
+            s[42] = b42 ^ ~b44 & b46;
+            s[43] = b43 ^ ~b45 & b47;
+            s[4] = b4 ^ ~b6 & b8;
+            s[5] = b5 ^ ~b7 & b9;
+            s[14] = b14 ^ ~b16 & b18;
+            s[15] = b15 ^ ~b17 & b19;
+            s[24] = b24 ^ ~b26 & b28;
+            s[25] = b25 ^ ~b27 & b29;
+            s[34] = b34 ^ ~b36 & b38;
+            s[35] = b35 ^ ~b37 & b39;
+            s[44] = b44 ^ ~b46 & b48;
+            s[45] = b45 ^ ~b47 & b49;
+            s[6] = b6 ^ ~b8 & b0;
+            s[7] = b7 ^ ~b9 & b1;
+            s[16] = b16 ^ ~b18 & b10;
+            s[17] = b17 ^ ~b19 & b11;
+            s[26] = b26 ^ ~b28 & b20;
+            s[27] = b27 ^ ~b29 & b21;
+            s[36] = b36 ^ ~b38 & b30;
+            s[37] = b37 ^ ~b39 & b31;
+            s[46] = b46 ^ ~b48 & b40;
+            s[47] = b47 ^ ~b49 & b41;
+            s[8] = b8 ^ ~b0 & b2;
+            s[9] = b9 ^ ~b1 & b3;
+            s[18] = b18 ^ ~b10 & b12;
+            s[19] = b19 ^ ~b11 & b13;
+            s[28] = b28 ^ ~b20 & b22;
+            s[29] = b29 ^ ~b21 & b23;
+            s[38] = b38 ^ ~b30 & b32;
+            s[39] = b39 ^ ~b31 & b33;
+            s[48] = b48 ^ ~b40 & b42;
+            s[49] = b49 ^ ~b41 & b43;
+            s[0] ^= RC[n];
+            s[1] ^= RC[n + 1];
+          }
+        };
+        if (COMMON_JS) {
+          module.exports = methods;
+        } else {
+          for (i = 0; i < methodNames.length; ++i) {
+            root[methodNames[i]] = methods[methodNames[i]];
+          }
+          if (AMD) {
+            define(function() {
+              return methods;
+            });
+          }
+        }
+      })();
+    }
+  });
+
   // src/background.ts
   init_client();
+
+  // src/deepseek-web.ts
+  var import_js_sha3 = __toESM(require_sha3(), 1);
+  function solvePoW(challenge, maxTimeMs = 1e4) {
+    const prefix = `${challenge.salt}_${challenge.expire_at}_`;
+    const threshold = Math.floor(4294967296 / challenge.difficulty);
+    const startTime = performance.now();
+    const input = new TextEncoder();
+    const bChallenge = input.encode(challenge.challenge);
+    const bPrefix = input.encode(prefix);
+    const preLen = bChallenge.length + bPrefix.length;
+    const preBuf = new Uint8Array(preLen + 10);
+    preBuf.set(bChallenge, 0);
+    preBuf.set(bPrefix, bChallenge.length);
+    let nonce = 0;
+    while (nonce < 5e7) {
+      const nonceStr = String(nonce);
+      const nonceBytes = input.encode(nonceStr);
+      const totalLen = preLen + nonceBytes.length;
+      const fullInput = new Uint8Array(
+        preBuf.buffer.slice(0, preLen)
+      );
+      const combined = new Uint8Array(totalLen);
+      combined.set(fullInput, 0);
+      combined.set(nonceBytes, preLen);
+      const hash = import_js_sha3.sha3_256.array(combined);
+      const value = (hash[0] | hash[1] << 8 | hash[2] << 16 | hash[3] << 24) >>> 0;
+      if (value < threshold) {
+        const elapsed = performance.now() - startTime;
+        console.log(`[DeepSeek PoW] nonce=${nonce}, time=${elapsed.toFixed(0)}ms, value=${value.toString(16)}, threshold=${threshold.toString(16)}`);
+        return nonce;
+      }
+      nonce++;
+      if (nonce % 1e5 === 0) {
+        const elapsed = performance.now() - startTime;
+        if (elapsed > maxTimeMs) {
+          console.warn(`[DeepSeek PoW] timeout after ${elapsed.toFixed(0)}ms, ${nonce} iterations`);
+          return null;
+        }
+      }
+    }
+    console.warn(`[DeepSeek PoW] no solution found in ${nonce} iterations`);
+    return null;
+  }
+  function encodePowResponse(challenge, nonce) {
+    const payload = {
+      algorithm: challenge.algorithm,
+      challenge: challenge.challenge,
+      salt: challenge.salt,
+      answer: nonce,
+      signature: challenge.signature,
+      target_path: challenge.target_path
+    };
+    const json = JSON.stringify(payload);
+    return btoa(unescape(encodeURIComponent(json)));
+  }
+  async function fetchPowChallenge(token) {
+    const resp = await fetch("https://chat.deepseek.com/api/v0/chat/create_pow_challenge", {
+      method: "POST",
+      headers: {
+        "Accept": "*/*",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "Origin": "https://chat.deepseek.com",
+        "Referer": "https://chat.deepseek.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/134.0.0.0 Safari/537.36",
+        "x-client-version": "2.0.2",
+        "x-client-platform": "web"
+      },
+      body: JSON.stringify({ target_path: "/api/v0/chat/completion" })
+    });
+    if (!resp.ok) {
+      throw new Error(`\u83B7\u53D6 PoW \u6311\u6218\u5931\u8D25\uFF1AHTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    const bizData = data?.data?.biz_data || data?.biz_data || data;
+    if (!bizData.challenge || !bizData.salt || !bizData.difficulty) {
+      throw new Error(`PoW \u6311\u6218\u683C\u5F0F\u5F02\u5E38\uFF1A${JSON.stringify(bizData).slice(0, 200)}`);
+    }
+    return {
+      algorithm: bizData.algorithm || "DeepSeekHashV1",
+      challenge: bizData.challenge,
+      salt: bizData.salt,
+      difficulty: bizData.difficulty,
+      expire_at: bizData.expire_at || Date.now() + 6e4,
+      signature: bizData.signature || "",
+      target_path: bizData.target_path || "/api/v0/chat/completion"
+    };
+  }
+  var DS_TOKEN_KEY = "deepseek_web_token";
+  async function getDeepSeekToken() {
+    try {
+      const stored = await chrome.storage.sync.get(DS_TOKEN_KEY);
+      return stored[DS_TOKEN_KEY] || null;
+    } catch {
+      return null;
+    }
+  }
+  async function setDeepSeekToken(token) {
+    await chrome.storage.sync.set({ [DS_TOKEN_KEY]: token });
+  }
+  function isValidToken(token) {
+    if (!token || token.length < 20)
+      return false;
+    return true;
+  }
+  async function sendDeepSeekWebMessage(opts) {
+    const token = await getDeepSeekToken();
+    if (!isValidToken(token)) {
+      throw new Error(
+        "DeepSeek Token \u672A\u914D\u7F6E\u3002\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E\u4E2D\u7C98\u8D34\u60A8\u7684 DeepSeek Token\uFF0C\u6216\u6253\u5F00 chat.deepseek.com \u767B\u5F55\u540E\u81EA\u52A8\u63D0\u53D6\u3002"
+      );
+    }
+    const challenge = await fetchPowChallenge(token);
+    const nonce = solvePoW(challenge, 1e4);
+    if (nonce === null) {
+      throw new Error("DeepSeek PoW \u6C42\u89E3\u8D85\u65F6\uFF0810s\uFF09\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u6216\u91CD\u8BD5\u3002");
+    }
+    const powResponse = encodePowResponse(challenge, nonce);
+    const model = opts.model || "deepseek-chat";
+    const messages = [
+      { role: "user", content: opts.prompt }
+    ];
+    const chatBody = {
+      model,
+      messages,
+      stream: false,
+      temperature: 0.7
+    };
+    const resp = await fetch("https://chat.deepseek.com/api/v0/chat/completion", {
+      method: "POST",
+      headers: {
+        "Accept": "*/*",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "Origin": "https://chat.deepseek.com",
+        "Referer": "https://chat.deepseek.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/134.0.0.0 Safari/537.36",
+        "x-client-version": "2.0.2",
+        "x-client-platform": "web",
+        "x-ds-pow-response": powResponse
+      },
+      body: JSON.stringify(chatBody)
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      if (resp.status === 401) {
+        throw new Error(
+          "DeepSeek Token \u5DF2\u5931\u6548\uFF08401\uFF09\uFF0C\u8BF7\u91CD\u65B0\u83B7\u53D6\u3002\u6253\u5F00 chat.deepseek.com \u767B\u5F55\u540E\u53EF\u81EA\u52A8\u63D0\u53D6\u3002"
+        );
+      }
+      throw new Error(`DeepSeek API \u9519\u8BEF [${resp.status}]\uFF1A${errText.slice(0, 200)}`);
+    }
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content || data?.choices?.[0]?.text || data?.data?.content || data?.content || "";
+    if (!text) {
+      throw new Error("DeepSeek \u672A\u8FD4\u56DE\u5185\u5BB9\u3002\u54CD\u5E94\uFF1A" + JSON.stringify(data).slice(0, 300));
+    }
+    return text;
+  }
+  async function sendDeepSeekWebMessageStream(opts, onChunk) {
+    const token = await getDeepSeekToken();
+    if (!isValidToken(token)) {
+      throw new Error(
+        "DeepSeek Token \u672A\u914D\u7F6E\u3002\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E\u4E2D\u7C98\u8D34\u60A8\u7684 DeepSeek Token\uFF0C\u6216\u6253\u5F00 chat.deepseek.com \u767B\u5F55\u540E\u81EA\u52A8\u63D0\u53D6\u3002"
+      );
+    }
+    const challenge = await fetchPowChallenge(token);
+    const nonce = solvePoW(challenge, 1e4);
+    if (nonce === null) {
+      throw new Error("DeepSeek PoW \u6C42\u89E3\u8D85\u65F6\uFF0810s\uFF09\u3002\u8BF7\u68C0\u67E5\u7F51\u7EDC\u8FDE\u63A5\u6216\u91CD\u8BD5\u3002");
+    }
+    const powResponse = encodePowResponse(challenge, nonce);
+    const model = opts.model || "deepseek-chat";
+    const messages = [
+      { role: "user", content: opts.prompt }
+    ];
+    const chatBody = {
+      model,
+      messages,
+      stream: true,
+      temperature: 0.7
+    };
+    const resp = await fetch("https://chat.deepseek.com/api/v0/chat/completion", {
+      method: "POST",
+      headers: {
+        "Accept": "*/*",
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+        "Origin": "https://chat.deepseek.com",
+        "Referer": "https://chat.deepseek.com/",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/134.0.0.0 Safari/537.36",
+        "x-client-version": "2.0.2",
+        "x-client-platform": "web",
+        "x-ds-pow-response": powResponse
+      },
+      body: JSON.stringify(chatBody)
+    });
+    if (!resp.ok) {
+      const errText = await resp.text().catch(() => "");
+      if (resp.status === 401) {
+        throw new Error(
+          "DeepSeek Token \u5DF2\u5931\u6548\uFF08401\uFF09\uFF0C\u8BF7\u91CD\u65B0\u83B7\u53D6\u3002\u6253\u5F00 chat.deepseek.com \u767B\u5F55\u540E\u53EF\u81EA\u52A8\u63D0\u53D6\u3002"
+        );
+      }
+      throw new Error(`DeepSeek API \u9519\u8BEF [${resp.status}]\uFF1A${errText.slice(0, 200)}`);
+    }
+    if (!resp.body) {
+      throw new Error("DeepSeek \u6D41\u5F0F\u54CD\u5E94\u4E0D\u652F\u6301\uFF1Aresponse.body \u4E3A\u7A7A\u3002");
+    }
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullText = "";
+    const processSSELine = (line) => {
+      const trimmed = line.trim();
+      if (!trimmed || !trimmed.startsWith("data:"))
+        return;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]")
+        return;
+      try {
+        const json = JSON.parse(data);
+        const content = json?.choices?.[0]?.delta?.content;
+        if (typeof content === "string" && content) {
+          fullText += content;
+          onChunk(content);
+        }
+      } catch {
+      }
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done)
+        break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        processSSELine(line);
+      }
+    }
+    if (buffer.trim()) {
+      processSSELine(buffer);
+    }
+    if (!fullText) {
+      throw new Error("DeepSeek \u6D41\u5F0F\u672A\u8FD4\u56DE\u5185\u5BB9\u3002");
+    }
+    return fullText;
+  }
+
+  // src/background.ts
   var DEFAULT_INLINE_AI_CONFIG = {
     provider: "gemini-web",
     apiKey: "",
@@ -3152,14 +4073,65 @@
   var DEFAULT_CONTEXT_SCENES = [
     { id: "save", label: "\u6536\u5B58", action: "save", prompt: "{text}", enabled: true, aiEnabled: false },
     { id: "append", label: "\u8865\u5145", action: "append", prompt: "{text}", enabled: true, aiEnabled: false },
-    { id: "refine", label: "\u7CBE\u70BC", action: "refine", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u6574\u7406\u6210 Obsidian \u77E5\u8BC6\u5361\u7247\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u6838\u5FC3\u89C2\u70B9\n## \u5173\u952E\u8981\u70B9\n## \u53EF\u590D\u7528\u542F\u53D1\n## \u76F8\u5173\u5173\u952E\u8BCD\n\n\u8981\u6C42\uFF1A\n- \u4E0D\u8981\u7A7A\u6CDB\u603B\u7ED3\u3002\n- \u4FDD\u7559\u6709\u4FE1\u606F\u5BC6\u5EA6\u7684\u539F\u53E5\u3002\n- \u5982\u679C\u5185\u5BB9\u5F88\u77ED\uFF0C\u5C31\u76F4\u63A5\u56F4\u7ED5\u8FD9\u53E5\u8BDD\u5C55\u5F00\u3002\n- \u7528\u4E2D\u6587\u8F93\u51FA\u3002\n\n\u5185\u5BB9\uFF1A\n{text}", enabled: true, aiEnabled: true },
-    { id: "translate-explain", label: "\u8BD1\u89E3", action: "showResult", prompt: "\u8BF7\u4E0D\u8981\u505A\u9010\u5B57\u7FFB\u8BD1\u3002\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u8F6C\u6362\u6210\u6211\u80FD\u653E\u5165 Obsidian \u7684\u201C\u6982\u5FF5\u7406\u89E3\u7B14\u8BB0\u201D\uFF1A\n\n\u8981\u6C42\uFF1A\n1. \u5148\u7ED9\u81EA\u7136\u4E2D\u6587\u89E3\u91CA\u3002\n2. \u4FDD\u7559\u5173\u952E\u539F\u6587\u672F\u8BED\uFF0C\u5E76\u89E3\u91CA\u5B83\u4EEC\u7684\u542B\u4E49\u3002\n3. \u5982\u679C\u539F\u6587\u6709\u9690\u542B\u80CC\u666F\uFF0C\u8BF7\u8865\u51FA\u6765\u3002\n4. \u7ED9\u4E00\u4E2A\u6211\u80FD\u590D\u7528\u7684\u4F8B\u5B50\u3002\n5. \u6700\u540E\u7ED9 3-5 \u4E2A\u5173\u952E\u8BCD\u3002\n\n\u5185\u5BB9\uFF1A\n{text}\n\n\u6765\u6E90\uFF1A\n{title}\n{url}", enabled: true, aiEnabled: true },
-    { id: "concept-card", label: "\u6982\u5FF5\u5361", action: "showResult", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u6574\u7406\u6210\u4E00\u4E2A Obsidian \u6982\u5FF5\u5361\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u5B9A\u4E49\n## \u80CC\u666F\n## \u4F8B\u5B50\n## \u5BB9\u6613\u8BEF\u89E3\u7684\u70B9\n## \u5173\u8054\u6982\u5FF5\n\n\u5185\u5BB9\uFF1A\n{text}", enabled: true, aiEnabled: true },
-    { id: "quote", label: "\u91D1\u53E5", action: "showResult", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u9009\u4E2D\u6587\u672C\u6574\u7406\u6210\u201C\u91D1\u53E5/\u6D1E\u5BDF\u5361\u7247\u201D\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n> \u539F\u53E5\n\n## \u8FD9\u53E5\u8BDD\u7684\u542B\u4E49\n## \u4E3A\u4EC0\u4E48\u91CD\u8981\n## \u6211\u53EF\u4EE5\u600E\u4E48\u7528\n## \u5173\u952E\u8BCD\n\n\u5185\u5BB9\uFF1A\n{text}", enabled: true, aiEnabled: true },
-    { id: "question", label: "\u95EE\u9898", action: "showResult", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u8F6C\u6210\u540E\u7EED\u53EF\u63A2\u7D22\u7684\u95EE\u9898\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u6838\u5FC3\u95EE\u9898\n## \u53EF\u80FD\u7B54\u6848\n## \u8FD8\u9700\u8981\u67E5\u4EC0\u4E48\n## \u9002\u5408\u653E\u5165 Obsidian \u7684\u8FFD\u95EE\n\n\u5185\u5BB9\uFF1A\n{text}", enabled: true, aiEnabled: true },
+    { id: "refine", label: "\u7CBE\u70BC", action: "refine", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u6574\u7406\u6210 Obsidian \u77E5\u8BC6\u5361\u7247\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u6838\u5FC3\u89C2\u70B9\n## \u5173\u952E\u8981\u70B9\n## \u53EF\u590D\u7528\u542F\u53D1\n## \u76F8\u5173\u5173\u952E\u8BCD\n\n\u8981\u6C42\uFF1A\n- \u4E0D\u8981\u7A7A\u6CDB\u603B\u7ED3\u3002\n- \u4FDD\u7559\u6709\u4FE1\u606F\u5BC6\u5EA6\u7684\u539F\u53E5\u3002\n- \u5982\u679C\u5185\u5BB9\u5F88\u77ED\uFF0C\u5C31\u76F4\u63A5\u56F4\u7ED5\u8FD9\u53E5\u8BDD\u5C55\u5F00\u3002\n- \u7528\u4E2D\u6587\u8F93\u51FA\u3002\n\n\u9875\u9762\uFF1A{title}\n\u6765\u6E90\uFF1A{url}\n\u5185\u5BB9\uFF1A\n{text}\n\n{context}", enabled: true, aiEnabled: true },
+    { id: "translate-explain", label: "\u8BD1\u89E3", action: "showResult", prompt: '\u8BF7\u4E0D\u8981\u505A\u9010\u5B57\u7FFB\u8BD1\u3002\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u8F6C\u6362\u6210\u6211\u80FD\u653E\u5165 Obsidian \u7684"\u6982\u5FF5\u7406\u89E3\u7B14\u8BB0"\uFF1A\n\n\u8981\u6C42\uFF1A\n1. \u5148\u7ED9\u81EA\u7136\u4E2D\u6587\u89E3\u91CA\u3002\n2. \u4FDD\u7559\u5173\u952E\u539F\u6587\u672F\u8BED\uFF0C\u5E76\u89E3\u91CA\u5B83\u4EEC\u7684\u542B\u4E49\u3002\n3. \u5982\u679C\u539F\u6587\u6709\u9690\u542B\u80CC\u666F\uFF0C\u8BF7\u8865\u51FA\u6765\u3002\n4. \u7ED9\u4E00\u4E2A\u6211\u80FD\u590D\u7528\u7684\u4F8B\u5B50\u3002\n5. \u6700\u540E\u7ED9 3-5 \u4E2A\u5173\u952E\u8BCD\u3002\n\n\u9875\u9762\uFF1A{title}\n\u6765\u6E90\uFF1A{url}\n\u9009\u4E2D\u6587\u672C\uFF1A\n{text}\n\n{context}', enabled: true, aiEnabled: true },
+    { id: "concept-card", label: "\u6982\u5FF5\u5361", action: "showResult", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u6574\u7406\u6210\u4E00\u4E2A Obsidian \u6982\u5FF5\u5361\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u5B9A\u4E49\n## \u80CC\u666F\n## \u4F8B\u5B50\n## \u5BB9\u6613\u8BEF\u89E3\u7684\u70B9\n## \u5173\u8054\u6982\u5FF5\n\n\u9875\u9762\uFF1A{title}\n\u6765\u6E90\uFF1A{url}\n\u9009\u4E2D\u6587\u672C\uFF1A\n{text}\n\n{context}", enabled: true, aiEnabled: true },
+    { id: "quote", label: "\u91D1\u53E5", action: "showResult", prompt: '\u8BF7\u628A\u4EE5\u4E0B\u9009\u4E2D\u6587\u672C\u6574\u7406\u6210"\u91D1\u53E5/\u6D1E\u5BDF\u5361\u7247"\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n> \u539F\u53E5\n\n## \u8FD9\u53E5\u8BDD\u7684\u542B\u4E49\n## \u4E3A\u4EC0\u4E48\u91CD\u8981\n## \u6211\u53EF\u4EE5\u600E\u4E48\u7528\n## \u5173\u952E\u8BCD\n\n\u9009\u4E2D\u6587\u672C\uFF1A\n{text}\n\n{context}', enabled: true, aiEnabled: true },
+    { id: "question", label: "\u95EE\u9898", action: "showResult", prompt: "\u8BF7\u628A\u4EE5\u4E0B\u5185\u5BB9\u8F6C\u6210\u540E\u7EED\u53EF\u63A2\u7D22\u7684\u95EE\u9898\uFF1A\n\n\u8F93\u51FA\u7ED3\u6784\uFF1A\n## \u6838\u5FC3\u95EE\u9898\n## \u53EF\u80FD\u7B54\u6848\n## \u8FD8\u9700\u8981\u67E5\u4EC0\u4E48\n## \u9002\u5408\u653E\u5165 Obsidian \u7684\u8FFD\u95EE\n\n\u9875\u9762\uFF1A{title}\n\u6765\u6E90\uFF1A{url}\n\u9009\u4E2D\u6587\u672C\uFF1A\n{text}\n\n{context}", enabled: true, aiEnabled: true },
     { id: "copy", label: "\u590D\u5236", action: "copy", prompt: "{text}", enabled: true, aiEnabled: false },
     { id: "open-sidepanel", label: "\u6253\u5F00\u4FA7\u8FB9\u680F", action: "openSidepanel", prompt: "{text}", enabled: true, aiEnabled: false }
   ];
+  var AI_TIMEOUT_MS = 8e3;
+  var AI_TIMEOUT_MESSAGE = "AI \u8BF7\u6C42\u8D85\u65F6\u3002\u8BF7\u91CD\u8BD5\uFF0C\u6216\u5F00\u542F\u300C\u81EA\u5B9A\u4E49 AI \u89E3\u91CA\u5668\u300D\u540E\u4F7F\u7528\u81EA\u5B9A\u4E49 API\u3002";
+  var AI_CACHE_TTL_MS = 5 * 60 * 1e3;
+  var aiResultCache = /* @__PURE__ */ new Map();
+  function hashString(input) {
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = (hash << 5) - hash + char;
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+  function getCacheKey(sceneId, text, prompt) {
+    return `${sceneId}:${hashString(text + "|" + prompt)}`;
+  }
+  function getCachedResult(key) {
+    const entry = aiResultCache.get(key);
+    if (!entry)
+      return null;
+    if (Date.now() - entry.timestamp > AI_CACHE_TTL_MS) {
+      aiResultCache.delete(key);
+      return null;
+    }
+    return entry.result;
+  }
+  function setCachedResult(key, result) {
+    aiResultCache.set(key, { result, timestamp: Date.now() });
+    if (aiResultCache.size % 20 === 0) {
+      const now = Date.now();
+      for (const [k, v] of aiResultCache) {
+        if (now - v.timestamp > AI_CACHE_TTL_MS)
+          aiResultCache.delete(k);
+      }
+    }
+  }
+  function withTimeout(promise, ms, message) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(message)), ms);
+      promise.then(
+        (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        (error) => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      );
+    });
+  }
   async function runInlineAi(payload) {
     const stored = await chrome.storage.sync.get("aiConfig");
     const config = { ...DEFAULT_INLINE_AI_CONFIG, ...stored.aiConfig ?? {} };
@@ -3177,41 +4149,173 @@
     const prompt = payload.prompt?.trim() || `${instruction[payload.action ?? "ai-chat"] ?? instruction["ai-chat"]}
 
 ${text}`;
-    if (config.provider === "gemini-web")
-      return sendGeminiWebMessage(`${config.systemPrompt}
+    const sceneId = payload?.action || "ai-chat";
+    const cacheKey = getCacheKey(sceneId, text || "", prompt);
+    const cached = getCachedResult(cacheKey);
+    if (cached)
+      return cached;
+    const interpreterStored = await chrome.storage.sync.get("interpreterConfig");
+    const interpreterConfig = interpreterStored?.interpreterConfig ?? {};
+    const useCustomProvider = interpreterConfig?.customProviderEnabled === true;
+    let aiResult;
+    if (config.provider === "deepseek-web") {
+      try {
+        const dsToken = await getDeepSeekToken();
+        if (!isValidToken(dsToken)) {
+          throw new Error("DeepSeek Token \u672A\u914D\u7F6E\u3002\u8BF7\u5148\u6253\u5F00 chat.deepseek.com \u767B\u5F55\uFF0C\u6269\u5C55\u4F1A\u81EA\u52A8\u63D0\u53D6 Token\u3002");
+        }
+        const systemMsg = config.systemPrompt ? `${config.systemPrompt}
 
-${prompt}`, config.model, attachments);
-    if (config.provider === "gemini-nano")
-      throw new Error("\u5F53\u524D Chrome \u4E0D\u652F\u6301 Gemini Nano\u3002");
-    if (config.provider === "gemini-api") {
-      if (!config.apiKey)
-        throw new Error("Gemini API \u5C1A\u672A\u914D\u7F6E API Key\u3002");
-      const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model || "gemini-2.0-flash"}:generateContent?key=${config.apiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: `${config.systemPrompt}
+` : "";
+        aiResult = await withTimeout(
+          sendDeepSeekWebMessage({ prompt: `${systemMsg}${prompt}` }),
+          AI_TIMEOUT_MS,
+          AI_TIMEOUT_MESSAGE
+        );
+        setCachedResult(cacheKey, aiResult);
+        return aiResult;
+      } catch (error) {
+        throw error instanceof Error ? error : new Error(String(error));
+      }
+    }
+    if (!useCustomProvider) {
+      let geminiError = null;
+      try {
+        aiResult = await withTimeout(
+          sendGeminiWebMessage(`${config.systemPrompt}
+
+${prompt}`, config.model, attachments),
+          AI_TIMEOUT_MS,
+          AI_TIMEOUT_MESSAGE
+        );
+        setCachedResult(cacheKey, aiResult);
+        return aiResult;
+      } catch (error) {
+        geminiError = error instanceof Error ? error.message : String(error);
+        console.warn("[feishu-sync] Gemini Web \u5931\u8D25\uFF0C\u5C1D\u8BD5 DeepSeek Web \u964D\u7EA7\uFF1A", geminiError);
+      }
+      const dsToken = await getDeepSeekToken();
+      if (isValidToken(dsToken)) {
+        try {
+          const systemMsg = config.systemPrompt ? `${config.systemPrompt}
+
+` : "";
+          aiResult = await withTimeout(
+            sendDeepSeekWebMessage({ prompt: `${systemMsg}${prompt}` }),
+            AI_TIMEOUT_MS,
+            AI_TIMEOUT_MESSAGE
+          );
+          setCachedResult(cacheKey, aiResult);
+          return aiResult;
+        } catch (dsError) {
+          const dsErrMsg = dsError instanceof Error ? dsError.message : String(dsError);
+          throw new Error(
+            `Gemini Web \u4E0D\u53EF\u7528\uFF0CDeepSeek Web \u4E5F\u5931\u8D25\u3002
+Gemini\uFF1A${geminiError}
+DeepSeek\uFF1A${dsErrMsg}
+
+\u8BF7\u5728\u4FA7\u8FB9\u680F\u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u81EA\u5B9A\u4E49 AI \u89E3\u91CA\u5668\u300D\u4F7F\u7528\u81EA\u5B9A\u4E49 API\u3002`
+          );
+        }
+      }
+      throw new Error(
+        "Gemini Web \u8FDE\u63A5\u5931\u8D25\u3002\u8BF7\u6253\u5F00 gemini.google.com \u5237\u65B0\u767B\u5F55\u540E\u518D\u8BD5\uFF0C\u6216\u5728\u4FA7\u8FB9\u680F\u8BBE\u7F6E\u4E2D\u5F00\u542F\u300C\u81EA\u5B9A\u4E49 AI \u89E3\u91CA\u5668\u300D\u540E\u914D\u7F6E API Key\u3002"
+      );
+    } else {
+      const aiPromise = (async () => {
+        if (config.provider === "gemini-nano")
+          throw new Error("\u5F53\u524D Chrome \u4E0D\u652F\u6301 Gemini Nano\u3002");
+        if (config.provider === "gemini-api") {
+          if (!config.apiKey)
+            throw new Error("Gemini API \u5C1A\u672A\u914D\u7F6E API Key\u3002");
+          const response2 = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model || "gemini-2.0-flash"}:generateContent?key=${config.apiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: `${config.systemPrompt}
 
 ${prompt}` }] }] })
-      });
-      const data2 = await response2.json();
-      if (!response2.ok)
-        throw new Error(data2.error?.message || `Gemini API HTTP ${response2.status}`);
-      return data2.candidates?.[0]?.content?.parts?.[0]?.text || "AI \u672A\u8FD4\u56DE\u5185\u5BB9";
+          });
+          const data2 = await response2.json();
+          if (!response2.ok)
+            throw new Error(data2.error?.message || `Gemini API HTTP ${response2.status}`);
+          return data2.candidates?.[0]?.content?.parts?.[0]?.text || "AI \u672A\u8FD4\u56DE\u5185\u5BB9";
+        }
+        const baseUrl2 = config.baseUrl || (config.provider === "openai" ? "https://api.openai.com" : config.provider === "deepseek" ? "https://api.deepseek.com" : "");
+        if (!baseUrl2)
+          throw new Error("AI \u52A9\u624B\u5C1A\u672A\u914D\u7F6E\u3002\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E > AI \u52A9\u624B\u4E2D\u586B\u5199 Base URL \u548C\u6A21\u578B\u3002");
+        if (!config.apiKey && config.provider !== "custom")
+          throw new Error("\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E > AI \u52A9\u624B\u4E2D\u586B\u5199 API Key\u3002");
+        const response = await fetch(`${baseUrl2.replace(/\/+$/, "")}/chat/completions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {} },
+          body: JSON.stringify({ model: config.model, temperature: 0.7, messages: [{ role: "system", content: config.systemPrompt }, { role: "user", content: prompt }] })
+        });
+        const data = await response.json();
+        if (!response.ok)
+          throw new Error(data.error?.message || `AI \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${response.status}`);
+        return data.choices?.[0]?.message?.content || "AI \u672A\u8FD4\u56DE\u5185\u5BB9";
+      })();
+      aiResult = await withTimeout(aiPromise, AI_TIMEOUT_MS, AI_TIMEOUT_MESSAGE);
     }
-    const baseUrl2 = config.baseUrl || (config.provider === "openai" ? "https://api.openai.com" : config.provider === "deepseek" ? "https://api.deepseek.com" : "");
-    if (!baseUrl2)
-      throw new Error("AI \u52A9\u624B\u5C1A\u672A\u914D\u7F6E\u3002\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E > AI \u52A9\u624B\u4E2D\u586B\u5199 Base URL \u548C\u6A21\u578B\u3002");
-    if (!config.apiKey && config.provider !== "custom")
-      throw new Error("\u8BF7\u5728\u6269\u5C55\u8BBE\u7F6E > AI \u52A9\u624B\u4E2D\u586B\u5199 API Key\u3002");
-    const response = await fetch(`${baseUrl2.replace(/\/+$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {} },
-      body: JSON.stringify({ model: config.model, temperature: 0.7, messages: [{ role: "system", content: config.systemPrompt }, { role: "user", content: prompt }] })
-    });
-    const data = await response.json();
-    if (!response.ok)
-      throw new Error(data.error?.message || `AI \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${response.status}`);
-    return data.choices?.[0]?.message?.content || "AI \u672A\u8FD4\u56DE\u5185\u5BB9";
+    setCachedResult(cacheKey, aiResult);
+    return aiResult;
+  }
+  var MAX_RETRIES = 2;
+  var RETRY_BASE_DELAY_MS = 1e3;
+  var NON_RETRYABLE_ERRORS = /* @__PURE__ */ new Set([
+    "CONTENT_TOO_LONG",
+    "QUOTA_EXHAUSTED",
+    "EMPTY_RESULT",
+    "SESSION_EXPIRED"
+  ]);
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  function classifyAiError(error, textLength) {
+    const message = error instanceof Error ? error.message : String(error);
+    const lowerMsg = message.toLowerCase();
+    if (message.includes("\u767B\u5F55\u4F1A\u8BDD\u4E0D\u53EF\u7528") || message.includes("Token") || message.includes("401")) {
+      const provider2 = lowerMsg.includes("deepseek") ? "deepseek" : "gemini";
+      return { errorType: "SESSION_EXPIRED", message, provider: provider2 };
+    }
+    if (message.includes("429") || message.includes("\u989D\u5EA6") || lowerMsg.includes("quota")) {
+      const provider2 = lowerMsg.includes("deepseek") ? "deepseek" : "gemini";
+      return { errorType: "QUOTA_EXHAUSTED", message, provider: provider2 };
+    }
+    if (textLength > 5e3) {
+      return { errorType: "CONTENT_TOO_LONG", message, provider: "unknown" };
+    }
+    if (message.includes("\u8D85\u65F6") || lowerMsg.includes("timeout")) {
+      const provider2 = lowerMsg.includes("deepseek") ? "deepseek" : "gemini";
+      return { errorType: "TIMEOUT", message, provider: provider2 };
+    }
+    if (lowerMsg.includes("fetch") || lowerMsg.includes("network") || lowerMsg.includes("failed to fetch")) {
+      const provider2 = lowerMsg.includes("deepseek") ? "deepseek" : "gemini";
+      return { errorType: "CONNECTION_ERROR", message, provider: provider2 };
+    }
+    const provider = lowerMsg.includes("deepseek") ? "deepseek" : lowerMsg.includes("gemini") ? "gemini" : "unknown";
+    return { errorType: "UNKNOWN", message, provider };
+  }
+  async function runInlineAiWithRetry(payload) {
+    let lastError = null;
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      try {
+        const result = await runInlineAi(payload);
+        return result;
+      } catch (error) {
+        lastError = error;
+        const textLength = (payload.text || "").length;
+        const classified = classifyAiError(error, textLength);
+        if (NON_RETRYABLE_ERRORS.has(classified.errorType)) {
+          throw error;
+        }
+        if (attempt >= MAX_RETRIES)
+          break;
+        const delay = RETRY_BASE_DELAY_MS * Math.pow(2, attempt);
+        await sleep(delay);
+      }
+    }
+    throw lastError;
   }
   var WEB_MODELS = {
     "8c46e95b1a07cecc": { hash: "8c46e95b1a07cecc", mode: 6 },
@@ -3353,6 +4457,91 @@ ${prompt}` }] }] })
       throw new Error("Gemini Web \u672A\u8FD4\u56DE\u53EF\u89E3\u6790\u5185\u5BB9\uFF0C\u8BF7\u5237\u65B0 Gemini \u767B\u5F55\u540E\u91CD\u8BD5\u3002");
     return result;
   }
+  async function sendGeminiWebMessageStreaming(prompt, model, onChunk) {
+    const fullText = await sendGeminiWebMessage(prompt, model, []);
+    const CHUNK_DELAY_MS = 30;
+    const CHUNK_BATCH_SIZE = 3;
+    const chars = Array.from(fullText);
+    for (let i = 0; i < chars.length; i += CHUNK_BATCH_SIZE) {
+      const chunk = chars.slice(i, i + CHUNK_BATCH_SIZE).join("");
+      onChunk(chunk);
+      await sleep(CHUNK_DELAY_MS);
+    }
+    return fullText;
+  }
+  async function runInlineAiStreaming(payload, sender) {
+    const tabId = sender.tab?.id;
+    if (!tabId)
+      return;
+    const pushChunk = (chunk) => {
+      chrome.tabs.sendMessage(tabId, { type: "ai-stream-chunk", payload: { chunk } }).catch(() => {
+      });
+    };
+    const stored = await chrome.storage.sync.get("aiConfig");
+    const config = { ...DEFAULT_INLINE_AI_CONFIG, ...stored.aiConfig ?? {} };
+    const systemPrompt = config.systemPrompt ? `${config.systemPrompt}
+
+` : "";
+    const fullPrompt = `${systemPrompt}${payload.prompt || ""}`;
+    try {
+      const fullText = await sendGeminiWebMessageStreaming(fullPrompt, config.model, pushChunk);
+      chrome.tabs.sendMessage(tabId, { type: "ai-stream-done", payload: { text: fullText } }).catch(() => {
+      });
+    } catch (geminiError) {
+      console.warn("[feishu-sync] Gemini Web \u6D41\u5F0F\u5931\u8D25\uFF0C\u964D\u7EA7 DeepSeek Web \u6D41\u5F0F\uFF1A", geminiError);
+      try {
+        await sendDeepSeekWebMessageStream({ prompt: fullPrompt }, pushChunk);
+        chrome.tabs.sendMessage(tabId, { type: "ai-stream-done" }).catch(() => {
+        });
+      } catch (dsError) {
+        const errorInfo = classifyAiError(dsError, (payload.text || "").length);
+        chrome.tabs.sendMessage(tabId, { type: "ai-stream-error", payload: errorInfo }).catch(() => {
+        });
+      }
+    }
+  }
+  var lastSessionCheck = null;
+  var lastSessionAlive = false;
+  var lastSessionError = "";
+  async function checkGeminiSession() {
+    try {
+      const response = await fetch("https://gemini.google.com/app", { credentials: "include" });
+      if (!response.ok) {
+        lastSessionAlive = false;
+        lastSessionError = `Gemini \u9875\u9762\u8FD4\u56DE HTTP ${response.status}`;
+        return { alive: false, error: lastSessionError };
+      }
+      const html = await response.text();
+      const at = extractGeminiToken("SNlM0e", html);
+      const bl = extractGeminiToken("cfb2h", html);
+      const fSid = extractGeminiToken("FdrFJe", html);
+      lastSessionAlive = Boolean(at && bl && fSid);
+      lastSessionError = lastSessionAlive ? "" : "Gemini Web \u4F1A\u8BDD\u4EE4\u724C\u4E0D\u53EF\u7528\uFF0C\u8BF7\u6253\u5F00 gemini.google.com \u767B\u5F55\u3002";
+      lastSessionCheck = Date.now();
+      return { alive: lastSessionAlive, error: lastSessionError };
+    } catch (err) {
+      lastSessionAlive = false;
+      lastSessionError = err instanceof Error ? err.message : String(err);
+      lastSessionCheck = Date.now();
+      return { alive: false, error: lastSessionError };
+    }
+  }
+  async function broadcastSessionStatus() {
+    const status = await checkGeminiSession();
+    try {
+      const tabs = await chrome.tabs.query({});
+      for (const tab of tabs) {
+        if (tab.id) {
+          chrome.tabs.sendMessage(tab.id, {
+            type: "gemini-session-status",
+            payload: { alive: status.alive, error: status.error }
+          }).catch(() => {
+          });
+        }
+      }
+    } catch {
+    }
+  }
   chrome.runtime.onInstalled.addListener(async (details) => {
     console.log("[feishu-sync] installed/updated:", details.reason);
     const config = await loadConfig();
@@ -3374,9 +4563,13 @@ ${prompt}` }] }] })
     });
     await ensureContextScenes();
     await rebuildContextMenus();
+    setTimeout(() => broadcastSessionStatus().catch(() => {
+    }), 3e3);
   });
   chrome.runtime.onStartup?.addListener(() => {
     rebuildContextMenus().catch((error) => console.warn("[feishu-sync] context menu rebuild failed:", error));
+    setTimeout(() => broadcastSessionStatus().catch(() => {
+    }), 3e3);
   });
   async function ensureContextScenes() {
     const stored = await chrome.storage.sync.get("contextScenes");
@@ -3477,7 +4670,7 @@ ${prompt}` }] }] })
     })().catch((error) => console.warn("[feishu-sync] context menu action failed:", error));
   });
   function fillScenePrompt(template, values) {
-    return template.replace(/\{text\}/g, values.text).replace(/\{title\}/g, values.title).replace(/\{url\}/g, values.url).replace(/\{domain\}/g, values.domain).replace(/\{date\}/g, values.date);
+    return template.replace(/\{text\}/g, values.text).replace(/\{title\}/g, values.title).replace(/\{url\}/g, values.url).replace(/\{domain\}/g, values.domain).replace(/\{date\}/g, values.date).replace(/\{context\}/g, values.context || "");
   }
   function getHostname(url) {
     try {
@@ -3503,7 +4696,7 @@ ${prompt}` }] }] })
   function draftSilentKeywords(text) {
     return Array.from(new Set(String(text).replace(/[^\p{L}\p{N}\u4e00-\u9fa5]+/gu, " ").split(/\s+/).map((item) => item.trim()).filter((item) => item.length >= 2 && item.length <= 12).slice(0, 6)));
   }
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type === "ai-tool") {
       (async () => {
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -3582,7 +4775,41 @@ ${prompt}` }] }] })
       return true;
     }
     if (message.type === "ai-inline") {
-      runInlineAi(message.payload ?? {}).then((text) => sendResponse({ text })).catch((error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
+      runInlineAiWithRetry(message.payload ?? {}).then((text) => {
+        if (!text || !text.trim()) {
+          sendResponse({ error: "AI \u672A\u8FD4\u56DE\u5185\u5BB9", errorType: "EMPTY_RESULT" });
+          return;
+        }
+        sendResponse({ text });
+      }).catch((error) => {
+        const errorInfo = classifyAiError(error, (message.payload?.text || "").length);
+        sendResponse({ error: errorInfo.message, errorType: errorInfo.errorType });
+      });
+      return true;
+    }
+    if (message.type === "ai-inline-stream") {
+      runInlineAiStreaming(message.payload ?? {}, sender).catch((error) => {
+        console.warn("[feishu-sync] ai-inline-stream error:", error);
+      });
+      sendResponse({ ok: true });
+      return true;
+    }
+    if (message.type === "ai-inline-deepseek-web") {
+      const text = message.payload?.text || "";
+      if (!text) {
+        sendResponse({ error: "\u8BF7\u8F93\u5165\u5185\u5BB9" });
+        return true;
+      }
+      try {
+        const result = await withTimeout(
+          sendDeepSeekWebMessage({ prompt: text }),
+          AI_TIMEOUT_MS,
+          AI_TIMEOUT_MESSAGE
+        );
+        sendResponse({ text: result });
+      } catch (error) {
+        sendResponse({ error: error instanceof Error ? error.message : String(error) });
+      }
       return true;
     }
     if (message.type === "REBUILD_CONTEXT_MENUS") {
@@ -3675,7 +4902,9 @@ ${prompt}` }] }] })
                 description: payload.description || "",
                 docToken: payload.docToken || null,
                 domain: payload.domain || "",
-                triggerSync: true
+                triggerSync: true,
+                obsidianUri: payload.obsidianUri || null,
+                protocolFailed: payload.protocolFailed === true
               }
             });
           }, 500);
@@ -3684,6 +4913,23 @@ ${prompt}` }] }] })
         }
       })();
       sendResponse({ ok: true });
+      return true;
+    }
+    if (message.type === "query-gemini-session") {
+      if (lastSessionCheck && Date.now() - lastSessionCheck < 3e4) {
+        sendResponse({ alive: lastSessionAlive, error: lastSessionError });
+      } else {
+        checkGeminiSession().then((status) => sendResponse(status)).catch(() => sendResponse({ alive: false, error: "\u68C0\u67E5\u5931\u8D25" }));
+      }
+      return true;
+    }
+    if (message.type === "set-deepseek-token") {
+      const token = message.payload?.token || "";
+      setDeepSeekToken(token).then(() => sendResponse({ ok: true, hasToken: isValidToken(token) }));
+      return true;
+    }
+    if (message.type === "get-deepseek-token") {
+      getDeepSeekToken().then((token) => sendResponse({ token: token || "", hasToken: isValidToken(token) }));
       return true;
     }
     if (message.type === "ai-chat") {
@@ -3741,5 +4987,15 @@ ${prompt}` }] }] })
 
 js-yaml/dist/js-yaml.mjs:
   (*! js-yaml 4.2.0 https://github.com/nodeca/js-yaml @license MIT *)
+
+js-sha3/src/sha3.js:
+  (**
+   * [js-sha3]{@link https://github.com/emn178/js-sha3}
+   *
+   * @version 0.9.3
+   * @author Chen, Yi-Cyuan [emn178@gmail.com]
+   * @copyright Chen, Yi-Cyuan 2015-2023
+   * @license MIT
+   *)
 */
 //# sourceMappingURL=background.js.map

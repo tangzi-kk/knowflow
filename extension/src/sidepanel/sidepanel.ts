@@ -83,7 +83,7 @@ type PanelState = {
 // ═══════════════════════════════════════════════
 // AI Provider Types
 // ═══════════════════════════════════════════════
-type AIProvider = 'gemini-web' | 'gemini-nano' | 'gemini-api' | 'openai' | 'deepseek' | 'custom';
+type AIProvider = 'gemini-web' | 'gemini-nano' | 'gemini-api' | 'openai' | 'deepseek' | 'deepseek-web' | 'custom';
 
 interface AIConfig {
   provider: AIProvider;
@@ -210,13 +210,17 @@ function bindEvents(): void {
   });
 }
 
-async function loadPanel(): Promise<void> {
+async function loadPanel(passedDocToken?: { node_token?: string; obj_token?: string }): Promise<void> {
   setStatus('正在读取当前标签页...', 'info');
   $('sync-btn').setAttribute('disabled', 'true');
   renderLoading();
 
   const activeTab = await getActiveTab();
-  const tokenInfo = extractTokenFromUrl(activeTab.url ?? '');
+  const urlTokenInfo = extractTokenFromUrl(activeTab.url ?? '');
+  // 优先使用消息传递中带来的 docToken，降级到 URL 提取
+  const tokenInfo = (passedDocToken?.node_token || passedDocToken?.obj_token)
+    ? passedDocToken
+    : urlTokenInfo;
   const [config, template, options, interpreter] = await Promise.all([
     loadConfig(),
     loadPropertyTemplate(),
@@ -1222,6 +1226,7 @@ function updateProviderBadge(): void {
     'gemini-api': 'Gemini API',
     'openai': 'OpenAI',
     'deepseek': 'DeepSeek',
+    'deepseek-web': 'DeepSeek Web (免费)',
     'custom': '自定义',
   };
   badge.textContent = labels[aiConfig.provider] || aiConfig.provider;
@@ -1240,6 +1245,17 @@ async function chatWithAI(config: AIConfig, messages: Array<{ role: string; cont
           const error = chrome.runtime.lastError?.message || response?.error;
           if (error) reject(new Error(error));
           else resolve(response?.text || 'Gemini Web 未返回内容');
+        });
+      });
+    }
+
+    case 'deepseek-web': {
+      const prompt = messages.filter((message) => message.role !== 'system').map((message) => message.content).join('\n\n');
+      return new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ type: 'ai-inline-deepseek-web', payload: { text: prompt } }, (response) => {
+          const error = chrome.runtime.lastError?.message || response?.error;
+          if (error) reject(new Error(error));
+          else resolve(response?.text || 'DeepSeek Web 未返回内容');
         });
       });
     }
@@ -1609,7 +1625,11 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.type === 'clip-data') {
     if (message.payload?.triggerSync) {
       switchTab('sync');
-      loadPanel();
+      // 把 background 透传的 docToken 传入 loadPanel，避免重复从 URL 提取
+      const docToken = message.payload?.docToken as
+        | { node_token?: string; obj_token?: string }
+        | undefined;
+      loadPanel(docToken);
     } else {
       handleClipData(message.payload ?? {});
     }

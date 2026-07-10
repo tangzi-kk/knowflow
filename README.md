@@ -9,11 +9,25 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-3.1-blue" alt="version">
+  <img src="https://img.shields.io/badge/latest%20fs--TB-3.2.1-blue" alt="latest fs-TB">
+  <img src="https://img.shields.io/badge/browser-0.3.0-purple" alt="browser extension">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node">
 </p>
+
+---
+
+## 最新开发版本地址
+
+当前已核验的最新运行产物见 [`VERSION_INDEX.md`](VERSION_INDEX.md)：
+
+| 组件 | 最新版本 | 仓库内地址 |
+|---|---:|---|
+| Obsidian 插件 `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` |
+| 浏览器插件 `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` |
+
+仓库地址：`https://github.com/tangzi-kk/knowflow`
 
 ---
 

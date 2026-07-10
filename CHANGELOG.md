@@ -2,6 +2,18 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
+## [3.2.1] - 2026-07-02
+
+### Obsidian 插件 (fs-TB)
+- 从 Mac mini 已运行版本归档 `fs-TB 3.2.1` 到 `releases/obsidian-fs-TB/3.2.1/`。
+- 修复子层显示规则：父级显示 `S07 · 标题`，子级显示相对层级如 `a1 · 标题`，frontmatter `短编码` 保留完整值。
+- 增强自动编码和重排稳定性，避免插件重命名期间 create/rename/delete 事件相互抢占。
+- 恢复历史临时名和编码表备份；保留差异内容，不擅自覆盖或删除。
+
+### 浏览器插件 (Feishu Doc Exporter)
+- 从 Mac mini Chrome 已安装扩展归档 `Feishu Doc Exporter 0.3.0` 到 `releases/browser-feishu-doc-exporter/0.3.0/`。
+- 该扩展为飞书文档 Markdown 导出悬浮面板，来源为 Chrome 运行目录，已排除 `_metadata`。
+
 ## [3.1.1] - 2026-06-28
 
 ### Obsidian 插件 (fs-TB)

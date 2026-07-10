@@ -52,7 +52,7 @@ const OPTION_FIELDS: Array<{ key: PropertyOptionKey; label: string }> = [
 // ═══════════════════════════════════════════════
 // AI 助手配置类型
 // ═══════════════════════════════════════════════
-type AIProvider = 'gemini-web' | 'gemini-nano' | 'gemini-api' | 'openai' | 'deepseek' | 'custom';
+type AIProvider = 'gemini-web' | 'gemini-nano' | 'gemini-api' | 'openai' | 'deepseek' | 'deepseek-web' | 'custom';
 
 interface AIConfig {
   provider: AIProvider;

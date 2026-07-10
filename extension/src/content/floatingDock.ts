@@ -48,8 +48,17 @@ function getPageMetadata() {
   };
 }
 
+/** 飞书文档页面由 content.ts 的"同步到 OB"按钮接管，不注入通用底栏。 */
+function isFeishuDocPage(): boolean {
+  return (
+    /feishu\.cn|larksuite\.com/.test(window.location.hostname) &&
+    /\/(wiki|docx|doc)\//.test(window.location.pathname)
+  );
+}
+
 function render(): void {
   if (document.getElementById(HOST_ID)) return;
+  if (isFeishuDocPage()) return; // 飞书文档页由 content.ts 处理
   const host = document.createElement('div');
   host.id = HOST_ID;
   const shadow = host.attachShadow({ mode: 'open' });
@@ -63,7 +72,20 @@ function render(): void {
       transform: translateX(-50%);
       z-index: 2147483646;
       pointer-events: none;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+      font-family: '宋体', SimSun, 'Songti SC', serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+
+      /* Design Tokens (与 tokens.css 对齐) */
+      --c-brand:        #07C160;
+      --c-brand-hover:  #06A050;
+      --c-surface:      rgba(255, 255, 255, .96);
+      --c-surface-dark: rgba(30, 30, 30, .94);
+      --c-text:         #191919;
+      --c-text-2:       #444;
+      --c-text-dark:    #e5e5e5;
+      --c-link:         #075ec8;
+      --c-link-dark:    #6aa7ff;
+      --c-border:       rgba(0, 0, 0, .06);
+      --c-border-dark:  rgba(255, 255, 255, .08);
     }
     .dock {
       display: flex;
@@ -71,8 +93,8 @@ function render(): void {
       gap: 20px;
       padding: 10px 18px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, .96);
-      border: 1px solid rgba(0, 0, 0, .06);
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
       box-shadow: 0 10px 30px rgba(0, 0, 0, .14);
       backdrop-filter: blur(18px);
       -webkit-backdrop-filter: blur(18px);
@@ -86,7 +108,7 @@ function render(): void {
       min-height: 32px;
       border: none;
       background: transparent;
-      color: #444;
+      color: var(--c-text-2);
       font: inherit;
       font-size: 18px;
       font-weight: 600;
@@ -94,7 +116,7 @@ function render(): void {
       cursor: pointer;
       transition: color .15s, transform .15s;
     }
-    button:hover { color: #075ec8; transform: translateY(-1px); }
+    button:hover { color: var(--c-link); transform: translateY(-1px); }
     svg { width: 24px; height: 24px; flex: 0 0 auto; }
     .icon-only { width: 34px; justify-content: center; padding: 0; }
     @media (max-width: 760px) {
@@ -104,9 +126,9 @@ function render(): void {
       svg { width: 20px; height: 20px; }
     }
     @media (prefers-color-scheme: dark) {
-      .dock { background: rgba(30, 30, 30, .94); border-color: rgba(255,255,255,.08); }
-      button { color: #e5e5e5; }
-      button:hover { color: #6aa7ff; }
+      .dock { background: var(--c-surface-dark); border-color: var(--c-border-dark); }
+      button { color: var(--c-text-dark); }
+      button:hover { color: var(--c-link-dark); }
     }
   `;
   const dock = document.createElement('div');

@@ -67,18 +67,18 @@ export function serializeFrontmatter(fm) {
  * @returns { frontmatter, body }，frontmatter 为 null 表示无 frontmatter
  */
 export function parseFrontmatter(content) {
-    const trimmed = content.trimStart();
-    if (!trimmed.startsWith(FM_DELIMITER)) {
+    const offset = content.charCodeAt(0) === 0xfeff ? 1 : 0;
+    if (!content.startsWith(FM_DELIMITER, offset)) {
         return { frontmatter: null, body: content };
     }
-    // 找第二个 ---
-    const rest = trimmed.slice(FM_DELIMITER.length);
-    const secondDelim = rest.indexOf('\n' + FM_DELIMITER);
-    if (secondDelim === -1) {
+    const rest = content.slice(offset + FM_DELIMITER.length);
+    const match = rest.match(/^\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
+    if (!match) {
         return { frontmatter: null, body: content };
     }
-    const yamlBlock = rest.slice(0, secondDelim);
-    const body = rest.slice(secondDelim + FM_DELIMITER.length + 1).replace(/^\n+/, '');
+    const yamlBlock = match[1];
+    const bodyStart = offset + FM_DELIMITER.length + match[0].length;
+    const body = content.slice(bodyStart).replace(/^(?:\r?\n)+/, '');
     try {
         const fm = YAML.load(yamlBlock);
         return { frontmatter: fm ?? {}, body };

@@ -1,0 +1,30 @@
+{
+   "action": {
+      "default_icon": {
+         "128": "icons/icon128.png",
+         "16": "icons/icon16.png",
+         "48": "icons/icon48.png"
+      },
+      "default_title": "Feishu Doc Exporter"
+   },
+   "background": {
+      "service_worker": "background.js"
+   },
+   "content_scripts": [ {
+      "js": [ "content.js" ],
+      "matches": [ "*://*.feishu.cn/*" ],
+      "run_at": "document_idle"
+   } ],
+   "description": "一键将飞书文档转换为 Markdown 格式，悬浮面板操作更便捷。",
+   "icons": {
+      "128": "icons/icon128.png",
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+   },
+   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArWDzzOeCfPTJ4K6dsCSh6ewdEN9juPSIIFLMqFNec0471d3pqnGRGq4vSZiTa6/iP7qSJFpAzRaE7cfP1+mC4uhwltV2Wwmd31BHSuJqxZcOo4KsuFlI1alMR326iJ7k4po2EcEO3/9LorWKHusSk6rTush75lDxSMw5v2CIvh7abU796wqGmvdWAv5K814k7uZ89kjiObebJAtH+NPazerjM4Si2vh17BI1xGNBG0mxjbmqNhXzUsy2DRSg1HMG5OEPdxWflyLtpTrOwXJPf4hV8kALVKCJ/sIhXABYrK3jmJYD3pDZk9OWtakZzXEw7kUfccDzCmJoI1Oco4khGwIDAQAB",
+   "manifest_version": 3,
+   "name": "Feishu Doc Exporter",
+   "permissions": [ "activeTab", "scripting", "clipboardWrite" ],
+   "update_url": "https://clients2.google.com/service/update2/crx",
+   "version": "0.3.0"
+}

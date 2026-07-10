@@ -3110,12 +3110,13 @@
       }
     });
   }
-  async function loadPanel() {
+  async function loadPanel(passedDocToken) {
     setStatus("\u6B63\u5728\u8BFB\u53D6\u5F53\u524D\u6807\u7B7E\u9875...", "info");
     $("sync-btn").setAttribute("disabled", "true");
     renderLoading();
     const activeTab = await getActiveTab();
-    const tokenInfo = extractTokenFromUrl(activeTab.url ?? "");
+    const urlTokenInfo = extractTokenFromUrl(activeTab.url ?? "");
+    const tokenInfo = passedDocToken?.node_token || passedDocToken?.obj_token ? passedDocToken : urlTokenInfo;
     const [config, template, options, interpreter] = await Promise.all([
       loadConfig(),
       loadPropertyTemplate(),
@@ -4035,6 +4036,7 @@ ${snapshot.selection || snapshot.text || "\uFF08\u5F53\u524D\u9875\u9762\u6CA1\u
       "gemini-api": "Gemini API",
       "openai": "OpenAI",
       "deepseek": "DeepSeek",
+      "deepseek-web": "DeepSeek Web (\u514D\u8D39)",
       "custom": "\u81EA\u5B9A\u4E49"
     };
     badge.textContent = labels[aiConfig.provider] || aiConfig.provider;
@@ -4051,6 +4053,18 @@ ${snapshot.selection || snapshot.text || "\uFF08\u5F53\u524D\u9875\u9762\u6CA1\u
               reject(new Error(error));
             else
               resolve(response?.text || "Gemini Web \u672A\u8FD4\u56DE\u5185\u5BB9");
+          });
+        });
+      }
+      case "deepseek-web": {
+        const prompt = messages.filter((message) => message.role !== "system").map((message) => message.content).join("\n\n");
+        return new Promise((resolve, reject) => {
+          chrome.runtime.sendMessage({ type: "ai-inline-deepseek-web", payload: { text: prompt } }, (response) => {
+            const error = chrome.runtime.lastError?.message || response?.error;
+            if (error)
+              reject(new Error(error));
+            else
+              resolve(response?.text || "DeepSeek Web \u672A\u8FD4\u56DE\u5185\u5BB9");
           });
         });
       }
@@ -4417,7 +4431,8 @@ URL\uFF1A${message.payload.url}`,
     if (message.type === "clip-data") {
       if (message.payload?.triggerSync) {
         switchTab("sync");
-        loadPanel();
+        const docToken = message.payload?.docToken;
+        loadPanel(docToken);
       } else {
         handleClipData(message.payload ?? {});
       }

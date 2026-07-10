@@ -1,10 +1,22 @@
 "use strict";
 (() => {
   // ../packages/shared/dist/protocol.js
-  var DEFAULT_PORT = 4567;
-  var TOKEN_HEADER = "X-Sync-Token";
   var OBSIDIAN_LARK_DOC_ACTION = "lark-doc";
   var OBSIDIAN_LARK_DOC_URI_PREFIX = `obsidian://${OBSIDIAN_LARK_DOC_ACTION}`;
+  function buildObsidianLarkDocUri(params) {
+    const token = params.token || params.node_token || params.obj_token;
+    const query = [
+      ["token", token],
+      ["node_token", params.node_token],
+      ["obj_token", params.obj_token],
+      ["space_id", params.space_id],
+      ["title", params.title],
+      ["url", params.url],
+      ["dir", params.dir]
+    ];
+    const encoded = query.filter(([, value]) => value !== void 0 && value !== "").map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`).join("&");
+    return encoded ? `${OBSIDIAN_LARK_DOC_URI_PREFIX}?${encoded}` : OBSIDIAN_LARK_DOC_URI_PREFIX;
+  }
 
   // ../node_modules/js-yaml/dist/js-yaml.mjs
   var __create = Object.create;
@@ -2726,345 +2738,239 @@
   var { Type, Schema, FAILSAFE_SCHEMA, JSON_SCHEMA, CORE_SCHEMA, DEFAULT_SCHEMA, load, loadAll, dump, YAMLException, types, safeLoad, safeLoadAll, safeDump } = import_js_yaml.default;
   var index_vite_proxy_tmp_default = import_js_yaml.default;
 
-  // src/client.ts
-  var DEFAULT_CONFIG = {
-    host: "127.0.0.1",
-    port: DEFAULT_PORT,
-    token: ""
-  };
-  var DEFAULT_PROPERTY_TEMPLATE = {
-    \u6807\u7B7E: "S",
-    \u7F16\u7801: "",
-    \u8F93\u5165: "{{dir}}",
-    \u65E5\u671F: "{{date}}",
-    \u65E5\u671F\u7D22\u5F15: "",
-    \u5173\u952E\u8BCD: "{{keywords}}",
-    \u6982\u8FF0: "",
-    \u8BC4\u5206: "",
-    \u8BC4\u5206_\u663E\u793A: "",
-    \u7D22\u5F15_\u77E5\u8BC6\u5E93: "",
-    \u7D22\u5F15_\u989C\u8272: "",
-    "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "",
-    \u7D22\u5F15_\u5757: "",
-    \u7D22\u5F15_\u98CE\u9669: ""
-  };
-  var DEFAULT_PROPERTY_OPTIONS = {
-    \u6807\u7B7E: "\u{1F4E5}S_\u6536\u96C6, \u{1F3AF}X_\u9879\u76EE, \u{1F333}L_\u9886\u57DF, \u{1F4DA}Z_\u8D44\u6E90, \u{1F4A1}Q_\u7075\u611F, \u{1F6E0}\uFE0FJ_\u6280\u80FD",
-    \u65E5\u671F\u7D22\u5F15: "\u231A\u65F6\u95F4, \u{1F504}\u5468\u671F\u6027, \u{1F304}\u60C5\u666F\u5F0F, \u23F3\u5012\u8BA1\u65F6, \u{1F3C6}\u91CC\u7A0B\u7891, \u{1F60A}\u5FC3\u60C5, \u2601\uFE0F\u4E60\u60EF, \u{1F4A1}\u7075\u611F, \u{1F4C8}\u6D3B\u8DC3\u65F6\u95F4",
-    \u8BC4\u5206: "\u{1F31F}, \u{1F31F}\u{1F31F}, \u{1F31F}\u{1F31F}\u{1F31F}, \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}, \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}",
-    \u8BC4\u5206_\u663E\u793A: "\u{1F31F}\xB7\u7D20\u6750, \u{1F31F}\u{1F31F}\xB7\u6574\u7406, \u{1F31F}\u{1F31F}\u{1F31F}\xB7\u5B9E\u8DF5, \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\xB7\u901A\u7528, \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\xB7\u4F53\u7CFB",
-    \u7D22\u5F15_\u77E5\u8BC6\u5E93: "\u{1F4BC}\u6B63\u8D22\uFF08\u4E3B\u4E1A\uFF09, \u{1F9E7}\u504F\u8D22\uFF08\u526F\u4E1A\uFF09, \u{1F468}\u200D\u{1F3EB}\u6B63\u5370\uFF08\u524D\u8F88\uFF09, \u{1F465}\u504F\u5370\uFF08\u4F19\u4F34\uFF09, \u2764\uFE0F\u6B63\u5BAB\uFF08\u7231\u60C5\uFF09, \u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}\u4F24\u5B98\uFF08\u5BB6\u4EBA\uFF5C\u670B\u53CB\uFF09",
-    \u7D22\u5F15_\u989C\u8272: "\u26AA\u7070\u8272\xB7\u7761\u7720, \u{1F535}\u84DD\u8272\xB7\u5DE5\u4F5C, \u{1F7E2}\u6DF1\u7EFF\xB7\u751F\u6D3B, \u{1F534}\u7EA2\u8272\xB7\u5A31\u4E50, \u{1F7E1}\u9EC4\u8272\xB7\u793E\u4EA4, \u{1F7E3}\u7D2B\u8272\xB7\u5B66\u4E60, \u{1F7E2}\u6D45\u7EFF\xB7\u8FD0\u52A8",
-    "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "\u{1F4A1}\u60F3\u6CD5, \u{1F4CB}\u89C4\u5212, \u{1F680}\u6267\u884C, \u{1F6AB}\u53D7\u632B, \u{1F4AA}\u514B\u670D, \u{1F4DD}\u521D\u7A3F, \u{1F50D}\u5BA1\u6838, \u270F\uFE0F\u4FEE\u6539, \u2705\u5B8C\u6210, \u{1F4CA}\u590D\u76D8",
-    \u7D22\u5F15_\u5757: "\u{1F4AD}\u62BD\u8C61, \u{1F3AF}\u5177\u8C61, \u2705\u7B80\u5355, \u{1F6A7}\u56F0\u96BE",
-    \u7D22\u5F15_\u98CE\u9669: "\u{1F463}\u884C\u4E3A, \u2699\uFE0F\u7BA1\u7406, \u2764\uFE0F\u5065\u5EB7, \u{1F9E0}\u77E5\u8BC6, \u{1F5E3}\uFE0F\u793E\u4EA4, \u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}\u5BB6\u5EAD, \u{1F306}\u793E\u4F1A, \u{1F6A8}\u610F\u5916"
-  };
-  function normalizePropertyOptionValue(key, value) {
-    const raw = value.trim();
-    if (!raw)
-      return "";
-    if (key === "\u6807\u7B7E") {
-      const tag = raw.match(/([SXLZQJ])(?:_|$)/)?.[1];
-      return tag ?? raw;
-    }
-    if (key === "\u8BC4\u5206") {
-      const explicit = raw.match(/[1-5]/)?.[0];
-      if (explicit)
-        return explicit;
-      const stars = Array.from(raw.matchAll(/🌟/g)).length;
-      return stars > 0 ? String(Math.min(stars, 5)) : raw;
-    }
-    if (key === "\u65E5\u671F\u7D22\u5F15") {
-      const dateIndex = pickKnownValue(raw, ["\u65F6\u95F4", "\u5468\u671F\u6027", "\u60C5\u666F\u5F0F", "\u5012\u8BA1\u65F6", "\u91CC\u7A0B\u7891", "\u5FC3\u60C5", "\u4E60\u60EF", "\u7075\u611F", "\u6D3B\u8DC3\u65F6\u95F4"]);
-      return dateIndex ? `#\u{1F4C5}\u65E5\u671F/${dateIndex}` : raw;
-    }
-    if (key === "\u7D22\u5F15_\u77E5\u8BC6\u5E93") {
-      return pickKnownValue(raw, ["\u6B63\u8D22", "\u504F\u8D22", "\u6B63\u5370", "\u504F\u5370", "\u6B63\u5BAB", "\u4F24\u5B98"]) ?? raw;
-    }
-    if (key === "\u7D22\u5F15_\u989C\u8272") {
-      const color = pickKnownValue(raw, ["\u7070\u8272", "\u84DD\u8272", "\u6DF1\u7EFF", "\u7EA2\u8272", "\u9EC4\u8272", "\u7D2B\u8272", "\u6D45\u7EFF"]);
-      const domain = pickKnownValue(raw, ["\u7761\u7720", "\u5DE5\u4F5C", "\u751F\u6D3B", "\u5A31\u4E50", "\u793E\u4EA4", "\u5B66\u4E60", "\u8FD0\u52A8"]);
-      return color && domain ? `${color}${domain}` : raw;
-    }
-    if (key === "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988") {
-      return pickKnownValue(raw, ["\u60F3\u6CD5", "\u89C4\u5212", "\u6267\u884C", "\u53D7\u632B", "\u514B\u670D", "\u521D\u7A3F", "\u5BA1\u6838", "\u4FEE\u6539", "\u5B8C\u6210", "\u590D\u76D8"]) ?? raw;
-    }
-    if (key === "\u7D22\u5F15_\u5757") {
-      return pickKnownValue(raw, ["\u62BD\u8C61", "\u5177\u8C61", "\u7B80\u5355", "\u56F0\u96BE"]) ?? raw;
-    }
-    if (key === "\u7D22\u5F15_\u98CE\u9669") {
-      return pickKnownValue(raw, ["\u884C\u4E3A", "\u7BA1\u7406", "\u5065\u5EB7", "\u77E5\u8BC6", "\u793E\u4EA4", "\u5BB6\u5EAD", "\u793E\u4F1A", "\u610F\u5916"]) ?? raw;
-    }
-    return raw;
-  }
-  function pickKnownValue(raw, values) {
-    return values.find((value) => raw.includes(value));
-  }
-  var DEFAULT_INTERPRETER_CONFIG = {
-    enabled: true,
-    autoRun: false,
-    customProviderEnabled: false,
-    provider: "NewAPI",
-    baseUrl: "http://127.0.0.1:3000/v1",
-    model: "smart",
-    apiKey: "",
-    excerptChars: 4e3,
-    context: "\u4ECE\u9875\u9762\u6807\u9898\u3001URL\u3001\u6B63\u6587\u6458\u8981\u548C\u76EE\u6807\u76EE\u5F55\u63A8\u65AD Obsidian YAML \u5C5E\u6027\u3002\u901A\u8FC7 NewAPI \u89D2\u8272\u8DEF\u7531\u8C03\u7528\u672C\u5730\u4E2D\u8F6C\uFF1B\u4FDD\u6301\u4FDD\u5B88\uFF0C\u4E0D\u786E\u5B9A\u7684\u5B57\u6BB5\u7559\u7A7A\u3002"
-  };
-  async function loadConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["syncConfig"], (result) => {
-        resolve({ ...DEFAULT_CONFIG, ...result.syncConfig ?? {} });
-      });
-    });
-  }
-  async function loadPropertyTemplate() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["propertyTemplate"], (result) => {
-        resolve({ ...DEFAULT_PROPERTY_TEMPLATE, ...result.propertyTemplate ?? {} });
-      });
-    });
-  }
-  async function loadPropertyOptions() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["propertyOptions"], (result) => {
-        resolve({ ...DEFAULT_PROPERTY_OPTIONS, ...result.propertyOptions ?? {} });
-      });
-    });
-  }
-  async function loadInterpreterConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["interpreterConfig"], (syncResult) => {
-        chrome.storage.local.get(["interpreterApiKey"], (localResult) => {
-          resolve({
-            ...DEFAULT_INTERPRETER_CONFIG,
-            ...syncResult.interpreterConfig ?? {},
-            apiKey: localResult.interpreterApiKey ?? ""
-          });
-        });
-      });
-    });
-  }
-  async function suggestMetaWithInterpreter(config, input) {
-    if (!config.enabled)
-      throw new Error("\u89E3\u91CA\u5668\u672A\u542F\u7528");
-    if (!config.baseUrl || !config.model)
-      throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u4E2D\u8F6C\u5730\u5740\u548C\u8DEF\u7531\u6A21\u578B");
-    if (/newapi/i.test(config.provider) && !config.apiKey)
-      throw new Error("\u8BF7\u5148\u5728 AI \u89E3\u91CA\u5668\u8BBE\u7F6E\u91CC\u586B\u5199 NewAPI API Key");
-    const endpoint = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-    const headers = { "Content-Type": "application/json" };
-    if (config.apiKey)
-      headers.Authorization = `Bearer ${config.apiKey}`;
-    let res;
-    try {
-      res = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "\u4F60\u662F Obsidian \u77E5\u8BC6\u5E93\u540C\u6B65\u63D2\u4EF6\u7684\u5C5E\u6027\u5EFA\u8BAE\u5668\u3002",
-                "\u53EA\u6839\u636E\u7ED9\u5B9A\u6807\u9898\u3001URL\u3001\u76EE\u5F55\u548C\u53EF\u9009\u9879\u5EFA\u8BAE YAML \u5C5E\u6027\u3002",
-                "\u4EBA\u5DE5\u786E\u8BA4\u4F18\u5148\uFF1B\u4F60\u53EA\u63D0\u4F9B\u5EFA\u8BAE\uFF0C\u4E0D\u8981\u7F16\u9020\u6CA1\u6709\u8BC1\u636E\u7684\u5B57\u6BB5\u3002",
-                "\u8F93\u51FA\u4E25\u683C JSON\uFF0C\u4E0D\u8981 Markdown\u3002"
-              ].join("\n")
-            },
-            {
-              role: "user",
-              content: JSON.stringify({
-                task: "\u4E3A\u98DE\u4E66\u6587\u6863\u5EFA\u8BAE Obsidian YAML \u5C5E\u6027",
-                title: input.title,
-                source: input.source,
-                targetDir: input.dir,
-                excerpt: input.excerpt ?? "",
-                template: input.template,
-                options: input.options,
-                rules: {
-                  \u6807\u7B7E: "\u5FC5\u987B\u4ECE S/X/L/Z/Q/J \u4E2D\u9009\u4E00\u4E2A\uFF1B\u4E0D\u786E\u5B9A\u9009 S\u3002",
-                  \u8BC4\u5206: "\u53EF\u4E3A\u7A7A\uFF1B\u6709\u8BC1\u636E\u65F6\u4ECE 1-5 \u9009\u4E00\u4E2A\u3002",
-                  \u8BC4\u5206_\u663E\u793A: "\u4E0E\u8BC4\u5206\u5BF9\u5E94\uFF1A\u{1F31F}\uFF5C\u7D20\u6750 \u5230 \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\uFF5C\u4F53\u7CFB\u3002",
-                  \u65E5\u671F\u7D22\u5F15: "\u53EF\u591A\u9009\uFF1A#\u{1F4C5}\u65E5\u671F/\u65F6\u95F4\u3001#\u{1F4C5}\u65E5\u671F/\u5468\u671F\u6027\u3001#\u{1F4C5}\u65E5\u671F/\u60C5\u666F\u5F0F\u3001#\u{1F4C5}\u65E5\u671F/\u5012\u8BA1\u65F6\u3001#\u{1F4C5}\u65E5\u671F/\u91CC\u7A0B\u7891\u3001#\u{1F4C5}\u65E5\u671F/\u5FC3\u60C5\u3001#\u{1F4C5}\u65E5\u671F/\u4E60\u60EF\u3001#\u{1F4C5}\u65E5\u671F/\u7075\u611F\u3001#\u{1F4C5}\u65E5\u671F/\u6D3B\u8DC3\u65F6\u95F4\uFF1B\u666E\u901A\u6587\u7AE0\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
-                  \u6982\u8FF0: "\u751F\u6210 1-3 \u53E5\u300180-160 \u5B57\u7684\u6587\u6863\u6982\u8FF0\u3002\u6982\u8FF0\u8981\u8BF4\u660E\u4E3B\u9898\u3001\u7528\u9014\u548C\u53EF\u590D\u7528\u4EF7\u503C\uFF0C\u65B9\u4FBF\u672A\u6765 AI \u4E0D\u8BFB\u5168\u6587\u4E5F\u80FD\u5224\u65AD\u5185\u5BB9\u3002",
-                  \u7D22\u5F15_\u77E5\u8BC6\u5E93: "\u4ECE\u6B63\u8D22/\u504F\u8D22/\u6B63\u5370/\u504F\u5370/\u6B63\u5BAB/\u4F24\u5B98\u4E2D\u9009\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
-                  \u7D22\u5F15_\u989C\u8272: "\u4ECE\u989C\u8272\u7D22\u5F15\u4E2D\u9009\u4E00\u4E2A\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
-                  "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u60F3\u6CD5/\u89C4\u5212/\u6267\u884C/\u53D7\u632B/\u514B\u670D\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u521D\u7A3F/\u5BA1\u6838/\u4FEE\u6539/\u5B8C\u6210/\u590D\u76D8\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
-                  \u7D22\u5F15_\u5757: "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u62BD\u8C61/\u5177\u8C61\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u7B80\u5355/\u56F0\u96BE\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
-                  \u7D22\u5F15_\u98CE\u9669: "\u53EF\u591A\u9009\uFF1A\u884C\u4E3A/\u7BA1\u7406/\u5065\u5EB7/\u77E5\u8BC6/\u793E\u4EA4/\u5BB6\u5EAD/\u793E\u4F1A/\u610F\u5916\uFF0C\u6CA1\u8BC1\u636E\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
-                  \u5173\u952E\u8BCD: "\u63D0\u53D6 3-6 \u4E2A\u5173\u952E\u8BCD\uFF0C\u7528\u987F\u53F7\u5206\u9694\u3002"
-                },
-                outputSchema: {
-                  \u6807\u7B7E: "string",
-                  \u65E5\u671F\u7D22\u5F15: "string_array",
-                  \u5173\u952E\u8BCD: "string",
-                  \u6982\u8FF0: "string",
-                  \u8BC4\u5206: "number_or_empty_string",
-                  \u8BC4\u5206_\u663E\u793A: "string",
-                  \u7D22\u5F15_\u77E5\u8BC6\u5E93: "string",
-                  \u7D22\u5F15_\u989C\u8272: "string",
-                  "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "string_array",
-                  \u7D22\u5F15_\u5757: "string_array",
-                  \u7D22\u5F15_\u98CE\u9669: "string_array"
-                }
-              })
-            }
-          ]
-        })
-      });
-    } catch (err) {
-      throw new Error(`\u65E0\u6CD5\u8FDE\u63A5 AI \u4E2D\u8F6C\uFF1A${err instanceof Error ? err.message : String(err)}\u3002\u8BF7\u786E\u8BA4 ${config.baseUrl} \u53EF\u8BBF\u95EE\uFF0C\u4E14 Chrome \u5DF2\u91CD\u8F7D\u6269\u5C55\u3002`);
-    }
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error?.message || `AI \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${res.status}`);
-    }
-    const content = data.choices?.[0]?.message?.content;
-    if (!content)
-      throw new Error("AI \u672A\u8FD4\u56DE\u5EFA\u8BAE\u5185\u5BB9");
-    try {
-      return JSON.parse(content);
-    } catch {
-      throw new Error(`AI \u8FD4\u56DE\u975E JSON\uFF1A${content.slice(0, 160)}`);
-    }
-  }
-  function baseUrl(config) {
-    return `http://${config.host}:${config.port}`;
-  }
-  async function request(config, method, path, body, timeoutMs = 6e4) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const res = await fetch(`${baseUrl(config)}${path}`, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          [TOKEN_HEADER]: config.token
-        },
-        body: body ? JSON.stringify(body) : void 0,
-        signal: controller.signal
-      });
-      const text = await res.text();
-      let data;
-      try {
-        data = text ? JSON.parse(text) : {};
-      } catch {
-        throw new Error(`OB \u63D2\u4EF6\u8FD4\u56DE\u975E JSON\uFF1A${text.slice(0, 200)}`);
-      }
-      if (!res.ok) {
-        const err = data;
-        if (res.status === 401 || err.code === "UNAUTHORIZED") {
-          throw new Error("OB \u63D2\u4EF6\u542F\u52A8\u4EE4\u724C\u65E0\u6548\u6216\u672A\u586B\u5199\u3002\u8BF7\u5728 Obsidian\u300C\u98DE\u4E66\u540C\u6B65\u300D\u8BBE\u7F6E\u9875\u590D\u5236\u542F\u52A8\u4EE4\u724C\uFF0C\u518D\u5230\u6D4F\u89C8\u5668\u6269\u5C55\u8BBE\u7F6E\u9875\u4FDD\u5B58\u540C\u4E00\u4E2A\u4EE4\u724C\u3002");
-        }
-        throw new Error(err.message || `HTTP ${res.status}`);
-      }
-      return data;
-    } finally {
-      clearTimeout(timer);
-    }
-  }
-  async function getStatus(config) {
-    return request(config, "GET", "/status", void 0, 5e3);
-  }
-  async function getTree(config) {
-    return request(config, "GET", "/tree?maxDepth=12", void 0, 1e4);
-  }
-  async function postFetch(config, req) {
-    return request(config, "POST", "/fetch", req, 12e4);
-  }
-  async function postExists(config, req) {
-    return request(config, "POST", "/exists", req, 1e4);
-  }
-  async function testConnection(config) {
-    try {
-      const status = await getStatus(config);
-      if (!status.larkReady) {
-        return { ok: false, message: `OB \u63D2\u4EF6\u5DF2\u8FDE\u63A5\uFF0C\u4F46 lark-cli \u672A\u5C31\u7EEA\uFF08${status.larkVersion ?? "\u672A\u627E\u5230"}\uFF09` };
-      }
-      return {
-        ok: true,
-        message: `\u2705 \u8FDE\u63A5\u6210\u529F\uFF1Avault=${status.vault}\uFF0Clark-cli=${status.larkVersion}`
-      };
-    } catch (err) {
-      return {
-        ok: false,
-        message: `\u274C \u8FDE\u63A5\u5931\u8D25\uFF1A${err instanceof Error ? err.message : String(err)}`
-      };
-    }
-  }
-
   // src/content/content.ts
-  var BUTTON_ID = "feishu-sync-btn";
-  var PANEL_ID = "feishu-sync-panel";
-  var PANEL_BACKDROP_ID = "feishu-sync-panel-backdrop";
+  var FAB_ID = "feishu-sync-fab";
+  var LABEL_ID = "feishu-sync-fab-label";
+  var FAB_SIZE = 52;
   var DEFAULT_AI_EXCERPT_CHARS = 4e3;
-  var META_FIELDS = [
-    { key: "\u6807\u7B7E", label: "\u6807\u7B7E", type: "text", help: "S / X / L / Z / Q / J" },
-    { key: "\u7F16\u7801", label: "\u7F16\u7801", type: "text" },
-    { key: "\u8F93\u5165", label: "\u8F93\u5165", type: "text" },
-    { key: "\u65E5\u671F", label: "\u65E5\u671F", type: "date" },
-    { key: "\u65E5\u671F\u7D22\u5F15", label: "\u65E5\u671F\u7D22\u5F15", type: "text", help: "\u591A\u4E2A\u503C\u7528\u9017\u53F7\u6216\u987F\u53F7\u5206\u9694" },
-    { key: "\u5173\u952E\u8BCD", label: "\u5173\u952E\u8BCD", type: "textarea", help: "\u591A\u4E2A\u5173\u952E\u8BCD\u7528\u987F\u53F7\u5206\u9694" },
-    { key: "\u6982\u8FF0", label: "\u6982\u8FF0", type: "textarea", help: "80-160 \u5B57\uFF0C\u65B9\u4FBF\u4EE5\u540E AI \u5FEB\u901F\u8BC6\u522B\u6587\u6863\u5185\u5BB9" },
-    { key: "\u8BC4\u5206", label: "\u8BC4\u5206", type: "number" },
-    { key: "\u8BC4\u5206_\u663E\u793A", label: "\u8BC4\u5206_\u663E\u793A", type: "text" },
-    { key: "\u7D22\u5F15_\u77E5\u8BC6\u5E93", label: "\u7D22\u5F15_\u77E5\u8BC6\u5E93", type: "text" },
-    { key: "\u7D22\u5F15_\u989C\u8272", label: "\u7D22\u5F15_\u989C\u8272", type: "text" },
-    { key: "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988", label: "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988", type: "grouped", help: "\u6BCF\u7EC4\u6700\u591A\u9009\u4E00\u4E2A" },
-    { key: "\u7D22\u5F15_\u5757", label: "\u7D22\u5F15_\u5757", type: "grouped", help: "\u62BD\u8C61/\u5177\u8C61\u9009\u4E00\u4E2A\uFF0C\u7B80\u5355/\u56F0\u96BE\u9009\u4E00\u4E2A" },
-    { key: "\u7D22\u5F15_\u98CE\u9669", label: "\u7D22\u5F15_\u98CE\u9669", type: "text", help: "\u591A\u4E2A\u503C\u7528\u9017\u53F7\u6216\u987F\u53F7\u5206\u9694" }
-  ];
-  var SELECT_FIELDS = /* @__PURE__ */ new Set([
-    "\u6807\u7B7E",
-    "\u8BC4\u5206",
-    "\u8BC4\u5206_\u663E\u793A",
-    "\u7D22\u5F15_\u77E5\u8BC6\u5E93",
-    "\u7D22\u5F15_\u989C\u8272"
-  ]);
-  var GROUPED_FIELDS = {
-    "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": [
-      {
-        name: "\u52A8\u4F5C\u72B6\u6001",
-        options: [
-          { label: "\u{1F4A1}\u60F3\u6CD5", value: "\u60F3\u6CD5" },
-          { label: "\u{1F4CB}\u89C4\u5212", value: "\u89C4\u5212" },
-          { label: "\u{1F680}\u6267\u884C", value: "\u6267\u884C" },
-          { label: "\u{1F6AB}\u53D7\u632B", value: "\u53D7\u632B" },
-          { label: "\u{1F4AA}\u514B\u670D", value: "\u514B\u670D" }
-        ]
-      },
-      {
-        name: "\u4EA7\u51FA\u9636\u6BB5",
-        options: [
-          { label: "\u{1F4DD}\u521D\u7A3F", value: "\u521D\u7A3F" },
-          { label: "\u{1F50D}\u5BA1\u6838", value: "\u5BA1\u6838" },
-          { label: "\u270F\uFE0F\u4FEE\u6539", value: "\u4FEE\u6539" },
-          { label: "\u2705\u5B8C\u6210", value: "\u5B8C\u6210" },
-          { label: "\u{1F4CA}\u590D\u76D8", value: "\u590D\u76D8" }
-        ]
+  var LS_KEY = "feishu-sync-fab-pos";
+  var CAT_ICON = `<svg viewBox="0 0 32 32" width="26" height="26">
+  <defs>
+    <radialGradient id="cat-body" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#41C978"/>
+      <stop offset="100%" stop-color="#07C160"/>
+    </radialGradient>
+    <radialGradient id="cat-bell" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="100%" stop-color="#FFA500"/>
+    </radialGradient>
+  </defs>
+  <!-- \u8EAB\u4F53 -->
+  <circle cx="16" cy="17" r="13" fill="url(#cat-body)"/>
+  <!-- \u8033\u6735 -->
+  <path d="M8 9 L5 3 L12 8Z" fill="#06A050"/>
+  <path d="M24 9 L27 3 L20 8Z" fill="#06A050"/>
+  <!-- \u5185\u8033 -->
+  <path d="M9 8 L7 4 L12 8Z" fill="#FFD700" opacity="0.6"/>
+  <path d="M23 8 L25 4 L20 8Z" fill="#FFD700" opacity="0.6"/>
+  <!-- \u773C\u775B -->
+  <ellipse cx="11" cy="14" rx="2" ry="2.5" fill="white"/>
+  <ellipse cx="21" cy="14" rx="2" ry="2.5" fill="white"/>
+  <circle cx="11.5" cy="14" r="1.2" fill="#191919"/>
+  <circle cx="21.5" cy="14" r="1.2" fill="#191919"/>
+  <!-- \u9AD8\u5149 -->
+  <circle cx="12" cy="13.2" r="0.4" fill="white"/>
+  <circle cx="22" cy="13.2" r="0.4" fill="white"/>
+  <!-- \u9F3B\u5B50 -->
+  <circle cx="16" cy="17" r="1.2" fill="#FF6B6B"/>
+  <!-- \u5634\u5DF4 -->
+  <path d="M13 17.5 Q16 21 19 17.5" fill="none" stroke="white" stroke-width="0.8" stroke-linecap="round"/>
+  <!-- \u94C3\u94DB -->
+  <circle cx="16" cy="22" r="2.5" fill="url(#cat-bell)"/>
+  <circle cx="16" cy="22.8" r="0.4" fill="#8B6914"/>
+  <!-- \u80E1\u987B -->
+  <line x1="7" y1="16" x2="10" y2="17" stroke="white" stroke-width="0.5" opacity="0.7"/>
+  <line x1="7" y1="18" x2="10" y2="18" stroke="white" stroke-width="0.5" opacity="0.7"/>
+  <line x1="25" y1="16" x2="22" y2="17" stroke="white" stroke-width="0.5" opacity="0.7"/>
+  <line x1="25" y1="18" x2="22" y2="18" stroke="white" stroke-width="0.5" opacity="0.7"/>
+</svg>`;
+  var SYNC_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M21 2v6h-6M3 12a9 9 0 0115-6.7L21 8M3 22v-6h6M21 12a9 9 0 01-15 6.7L3 16"/>
+</svg>`;
+  var SPINNER_ICON = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+  <path d="M16 4a12 12 0 0 1 12 12" class="fab-spinner-arc"/>
+</svg>`;
+  var CHECK_ICON = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#07C160" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+  <polyline points="6 16 14 24 26 8"/>
+</svg>`;
+  var ERROR_ICON = `<svg width="32" height="32" viewBox="0 0 32 32" fill="none" stroke="#E24B4A" stroke-width="2.5" stroke-linecap="round">
+  <line x1="10" y1="10" x2="22" y2="22"/><line x1="22" y1="10" x2="10" y2="22"/>
+</svg>`;
+  function loadPosition() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (typeof parsed.left === "number" && typeof parsed.top === "number")
+          return parsed;
       }
-    ],
-    \u7D22\u5F15_\u5757: [
-      {
-        name: "\u62BD\u8C61\u5EA6",
-        options: [
-          { label: "\u{1F4AD}\u62BD\u8C61", value: "\u62BD\u8C61" },
-          { label: "\u{1F3AF}\u5177\u8C61", value: "\u5177\u8C61" }
-        ]
-      },
-      {
-        name: "\u96BE\u5EA6",
-        options: [
-          { label: "\u2705\u7B80\u5355", value: "\u7B80\u5355" },
-          { label: "\u{1F6A7}\u56F0\u96BE", value: "\u56F0\u96BE" }
-        ]
+    } catch {
+    }
+    return { left: 0, top: 0, dock: "floating" };
+  }
+  function savePosition(pos) {
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify(pos));
+    } catch {
+    }
+  }
+  function defaultPosition() {
+    return {
+      left: window.innerWidth - FAB_SIZE - 16,
+      top: window.innerHeight - FAB_SIZE - 100,
+      dock: "floating"
+    };
+  }
+  function computeSnap(el, pos) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const cx = pos.left + FAB_SIZE / 2;
+    let left = Math.max(0, Math.min(pos.left, w - FAB_SIZE));
+    let top = Math.max(0, Math.min(pos.top, h - FAB_SIZE));
+    let dock = "floating";
+    const distLeft = cx;
+    const distRight = w - cx;
+    const threshold = w * 0.4;
+    if (distLeft < threshold) {
+      dock = "left";
+    } else if (distRight < threshold) {
+      dock = "right";
+    }
+    return { left, top, dock };
+  }
+  function applySnap(fab, pos) {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    fab.style.left = "";
+    fab.style.right = "";
+    if (pos.dock === "left") {
+      fab.style.top = `${pos.top}px`;
+      fab.dataset.dock = "left";
+    } else if (pos.dock === "right") {
+      fab.style.top = `${pos.top}px`;
+      fab.dataset.dock = "right";
+    } else {
+      fab.dataset.dock = "floating";
+      fab.style.left = `${pos.left}px`;
+      fab.style.top = `${pos.top}px`;
+    }
+  }
+  function createOrGetLabel() {
+    const existing = document.getElementById(LABEL_ID);
+    if (existing)
+      return existing;
+    const label = document.createElement("div");
+    label.id = LABEL_ID;
+    label.className = "feishu-sync-fab-label";
+    label.innerHTML = `${SYNC_ICON}\u540C\u6B65\u5230 Obsidian`;
+    document.body.appendChild(label);
+    return label;
+  }
+  function updateLabelPosition(fab, label) {
+    const rect = fab.getBoundingClientRect();
+    const fabCenterX = rect.left + rect.width / 2;
+    const fabCenterY = rect.top + rect.height / 2;
+    const dock = fab.dataset.dock;
+    if (dock === "left") {
+      label.style.left = `${rect.right + 10}px`;
+      label.style.top = `${fabCenterY}px`;
+      label.style.transform = "translateY(-50%)";
+    } else if (dock === "right") {
+      label.style.left = "";
+      label.style.right = `${window.innerWidth - rect.left + 10}px`;
+      label.style.top = `${fabCenterY}px`;
+      label.style.transform = "translateY(-50%)";
+      label.style.right = "";
+      label.style.left = `${rect.left - 10}px`;
+      label.style.transform = "translate(-100%, -50%)";
+    } else {
+      label.style.left = `${fabCenterX}px`;
+      label.style.top = `${rect.top - 10}px`;
+      label.style.transform = "translate(-50%, -100%)";
+    }
+  }
+  function showLabel(fab) {
+    const label = createOrGetLabel();
+    updateLabelPosition(fab, label);
+    label.classList.add("is-visible");
+  }
+  function hideLabel() {
+    const label = document.getElementById(LABEL_ID);
+    if (label)
+      label.classList.remove("is-visible");
+  }
+  var dragState = null;
+  function setupDrag(fab) {
+    fab.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse" && e.button !== 0)
+        return;
+      e.preventDefault();
+      fab.setPointerCapture(e.pointerId);
+      fab.classList.add("is-dragging");
+      hideLabel();
+      const rect = fab.getBoundingClientRect();
+      dragState = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        startLeft: rect.left,
+        startTop: rect.top,
+        moved: false
+      };
+    });
+    fab.addEventListener("pointermove", (e) => {
+      if (!dragState || e.pointerId !== dragState.pointerId)
+        return;
+      const dx = e.clientX - dragState.startX;
+      const dy = e.clientY - dragState.startY;
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist < 3)
+        return;
+      dragState.moved = true;
+      let newLeft = dragState.startLeft + dx;
+      let newTop = dragState.startTop + dy;
+      const maxLeft = window.innerWidth - FAB_SIZE;
+      const maxTop = window.innerHeight - FAB_SIZE;
+      newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+      newTop = Math.max(0, Math.min(newTop, maxTop));
+      fab.dataset.dock = "floating";
+      fab.style.left = `${newLeft}px`;
+      fab.style.top = `${newTop}px`;
+      fab.style.right = "";
+      dragState.startLeft = newLeft;
+      dragState.startTop = newTop;
+      dragState.startX = e.clientX;
+      dragState.startY = e.clientY;
+    });
+    fab.addEventListener("pointerup", (e) => {
+      if (!dragState || e.pointerId !== dragState.pointerId)
+        return;
+      const wasMoved = dragState.moved;
+      const currentRect = fab.getBoundingClientRect();
+      const pos = {
+        left: currentRect.left,
+        top: currentRect.top,
+        dock: "floating"
+      };
+      fab.classList.remove("is-dragging");
+      const snapped = computeSnap(fab, pos);
+      savePosition(snapped);
+      fab.classList.add("is-snapping");
+      applySnap(fab, snapped);
+      setTimeout(() => fab.classList.remove("is-snapping"), 500);
+      dragState = null;
+      fab.releasePointerCapture(e.pointerId);
+      if (!wasMoved) {
+        onSyncClick();
       }
-    ]
-  };
+    });
+    fab.addEventListener("pointercancel", () => {
+      if (dragState) {
+        fab.classList.remove("is-dragging");
+        dragState = null;
+      }
+    });
+  }
   function extractTokenFromUrl() {
     const url = window.location.href;
     const wikiMatch = url.match(/\/wiki\/([A-Za-z0-9]+)/);
@@ -3077,107 +2983,6 @@
   }
   function isDocPage() {
     return /\/(wiki|docx|doc)\//.test(window.location.pathname);
-  }
-  function waitForElement(selector, timeout = 1e4) {
-    return new Promise((resolve) => {
-      const existing = document.querySelector(selector);
-      if (existing)
-        return resolve(existing);
-      const observer = new MutationObserver(() => {
-        const el = document.querySelector(selector);
-        if (el) {
-          observer.disconnect();
-          resolve(el);
-        }
-      });
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => {
-        observer.disconnect();
-        resolve(null);
-      }, timeout);
-    });
-  }
-  async function injectButton() {
-    if (document.getElementById(BUTTON_ID))
-      return;
-    if (!isDocPage())
-      return;
-    let mount = await waitForElement('.doc-title, .wiki-title, [data-testid="doc-title"]', 5e3);
-    if (!mount) {
-      mount = document.body;
-    }
-    const btn = document.createElement("button");
-    btn.id = BUTTON_ID;
-    btn.textContent = "\u540C\u6B65\u5230 OB";
-    btn.title = "\u9884\u89C8\u5E76\u540C\u6B65\u6B64\u98DE\u4E66\u6587\u6863\u5230 Obsidian";
-    btn.className = "feishu-sync-fab";
-    btn.onclick = onSyncClick;
-    if (mount === document.body) {
-      document.body.appendChild(btn);
-    } else {
-      btn.style.marginLeft = "12px";
-      mount.parentElement?.insertBefore(btn, mount.nextSibling);
-    }
-  }
-  async function onSyncClick(event) {
-    const tokenInfo = extractTokenFromUrl();
-    if (!tokenInfo?.node_token && !tokenInfo?.obj_token) {
-      openPanelShell("\u65E0\u6CD5\u8BC6\u522B\u5F53\u524D\u98DE\u4E66\u6587\u6863 token", "error");
-      return;
-    }
-    if (!event?.altKey) {
-      chrome.runtime.sendMessage({
-        type: "feishu-sync-trigger",
-        payload: {
-          title: getDocumentTitle(),
-          url: window.location.href,
-          docToken: tokenInfo,
-          domain: window.location.hostname
-        }
-      }).catch(() => openPanelShell("\u6269\u5C55\u8FDE\u63A5\u5DF2\u5931\u6548\uFF0C\u8BF7\u5237\u65B0\u9875\u9762\u540E\u91CD\u8BD5\u3002", "error"));
-      return;
-    }
-    const [config, propertyTemplate, propertyOptions, interpreter] = await Promise.all([
-      loadConfig(),
-      loadPropertyTemplate(),
-      loadPropertyOptions(),
-      loadInterpreterConfig()
-    ]);
-    const nodeToken = tokenInfo.node_token || tokenInfo.obj_token;
-    const state = {
-      config,
-      propertyTemplate,
-      propertyOptions,
-      interpreter,
-      tokenInfo,
-      nodeToken,
-      title: getDocumentTitle(),
-      source: window.location.href,
-      dirs: [],
-      fallbackDir: ""
-    };
-    renderPreviewPanel(state, "\u6B63\u5728\u52A0\u8F7D\u76EE\u5F55\u548C\u540C\u6B65\u72B6\u6001...", "info");
-    if (!config.token) {
-      updatePanelStatus("\u8BF7\u5148\u5728\u6269\u5C55\u5F39\u7A97\u914D\u7F6E OB \u63D2\u4EF6\u5730\u5740\u548C\u4EE4\u724C", "error");
-      return;
-    }
-    try {
-      const exists = await postExists(config, { node_token: nodeToken });
-      if (exists.exists) {
-        state.existingPath = exists.path;
-        state.fallbackDir = dirname(exists.path);
-      }
-    } catch {
-      state.existingPath = void 0;
-    }
-    try {
-      const tree = await getTree(config);
-      state.dirs = tree.dirs;
-      state.fallbackDir = state.fallbackDir || tree.dirs[0]?.path || "";
-    } catch (err) {
-      state.treeError = err instanceof Error ? err.message : String(err);
-    }
-    renderPreviewPanel(state, getReadyMessage(state), state.treeError ? "error" : "idle");
   }
   function getDocumentTitle() {
     const candidates = [
@@ -3201,6 +3006,142 @@
     const text = candidates.map((el) => el?.innerText || el?.textContent || "").map((value) => value.replace(/\s+/g, " ").trim()).find((value) => value.length > 80) || document.body.innerText.replace(/\s+/g, " ").trim();
     return text.slice(0, limit);
   }
+  function injectFab() {
+    if (document.getElementById(FAB_ID))
+      return;
+    if (!isDocPage())
+      return;
+    const fab = document.createElement("div");
+    fab.id = FAB_ID;
+    fab.className = "feishu-sync-fab";
+    fab.innerHTML = CAT_ICON;
+    fab.setAttribute("role", "button");
+    fab.setAttribute("aria-label", "\u540C\u6B65\u5230 Obsidian");
+    fab.setAttribute("tabindex", "0");
+    const saved = loadPosition();
+    const pos = saved.dock !== "floating" ? saved : defaultPosition();
+    document.body.appendChild(fab);
+    applySnap(fab, pos);
+    if (pos.dock === "floating") {
+      fab.style.left = `${pos.left}px`;
+      fab.style.top = `${pos.top}px`;
+    }
+    savePosition(pos);
+    setupDrag(fab);
+    fab.addEventListener("pointerenter", () => {
+      if (!dragState)
+        showLabel(fab);
+    });
+    fab.addEventListener("pointerleave", () => hideLabel());
+    console.log("[feishu-sync] draggable FAB injected");
+  }
+  async function onSyncClick() {
+    const tokenInfo = extractTokenFromUrl();
+    if (!tokenInfo?.node_token && !tokenInfo?.obj_token) {
+      showToast("\u65E0\u6CD5\u8BC6\u522B\u5F53\u524D\u98DE\u4E66\u6587\u6863 token", "error");
+      return;
+    }
+    const docTitle = getDocumentTitle();
+    const nodeToken = tokenInfo.node_token || tokenInfo.obj_token;
+    const fab = document.getElementById(FAB_ID);
+    if (!fab)
+      return;
+    const obsidianUri = buildObsidianLarkDocUri({
+      token: nodeToken,
+      node_token: tokenInfo.node_token,
+      obj_token: tokenInfo.obj_token,
+      title: docTitle,
+      url: window.location.href
+    });
+    setFabState("syncing", fab);
+    tryOpenObsidianUri(obsidianUri);
+    let syncDone = false;
+    const onSyncComplete = (msg) => {
+      if (msg?.type === "sync-complete" && msg?.payload?.token === nodeToken) {
+        syncDone = true;
+        if (msg.payload.success) {
+          setFabState("success", fab);
+          setTimeout(() => setFabState("idle", fab), 2e3);
+        } else {
+          setFabState("error", fab);
+          setTimeout(() => setFabState("idle", fab), 3e3);
+        }
+      }
+    };
+    chrome.runtime.onMessage.addListener(onSyncComplete);
+    setTimeout(() => {
+      chrome.runtime.onMessage.removeListener(onSyncComplete);
+      if (syncDone)
+        return;
+      chrome.runtime.sendMessage({
+        type: "feishu-sync-trigger",
+        payload: {
+          title: docTitle,
+          url: window.location.href,
+          docToken: tokenInfo,
+          domain: window.location.hostname,
+          obsidianUri,
+          protocolFailed: false
+        }
+      }).then(() => {
+        setFabState("success", fab);
+        setTimeout(() => setFabState("idle", fab), 2e3);
+      }).catch(() => {
+        setFabState("error", fab);
+        showToast("\u540C\u6B65\u5931\u8D25\u3002\u8BF7\u6253\u5F00 Obsidian \u5E76\u5728\u4FA7\u8FB9\u680F\u624B\u52A8\u540C\u6B65\u3002", "error");
+        setTimeout(() => setFabState("idle", fab), 3e3);
+      });
+    }, 3e3);
+  }
+  function setFabState(state, fab) {
+    fab.classList.remove("syncing", "success", "error");
+    switch (state) {
+      case "idle":
+        fab.innerHTML = CAT_ICON;
+        break;
+      case "syncing":
+        fab.classList.add("syncing");
+        fab.innerHTML = SPINNER_ICON;
+        break;
+      case "success":
+        fab.classList.add("success");
+        fab.innerHTML = CHECK_ICON;
+        break;
+      case "error":
+        fab.classList.add("error");
+        fab.innerHTML = ERROR_ICON;
+        break;
+    }
+  }
+  function tryOpenObsidianUri(uri) {
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.style.display = "none";
+      iframe.src = uri;
+      document.body.appendChild(iframe);
+      setTimeout(() => iframe.remove(), 5e3);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  function showToast(message, type = "info") {
+    const existing = document.querySelector(".feishu-sync-toast");
+    if (existing) {
+      existing.classList.add("feishu-sync-toast-closing");
+      existing.addEventListener("animationend", () => existing.remove(), { once: true });
+    }
+    const toast = document.createElement("div");
+    toast.className = `feishu-sync-toast feishu-sync-toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentNode) {
+        toast.classList.add("feishu-sync-toast-closing");
+        toast.addEventListener("animationend", () => toast.remove(), { once: true });
+      }
+    }, 4e3);
+  }
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type !== "GET_FEISHU_DOC_EXCERPT")
       return false;
@@ -3212,462 +3153,16 @@
     });
     return false;
   });
-  function dirname(path) {
-    if (!path)
-      return "";
-    const parts = path.split("/").filter(Boolean);
-    if (parts.length <= 1)
-      return "";
-    return parts.slice(0, -1).join("/");
-  }
-  function getReadyMessage(state) {
-    if (state.treeError) {
-      return `\u76EE\u5F55\u6811\u52A0\u8F7D\u5931\u8D25\uFF0C\u53EF\u624B\u52A8\u586B\u5199\u76EE\u5F55\uFF1A${state.treeError}`;
-    }
-    if (state.existingPath) {
-      return `\u68C0\u6D4B\u5230\u5DF2\u540C\u6B65\u6587\u4EF6\uFF1A${state.existingPath}\uFF0C\u786E\u8BA4\u540E\u5C06\u66F4\u65B0`;
-    }
-    return "\u8BF7\u786E\u8BA4\u76EE\u5F55\u548C\u5C5E\u6027\uFF0C\u786E\u8BA4\u540E\u5F00\u59CB\u540C\u6B65";
-  }
-  function openPanelShell(message, type) {
-    const config = { host: "", port: 0, token: "" };
-    const propertyTemplate = {
-      \u6807\u7B7E: "S",
-      \u7F16\u7801: "",
-      \u8F93\u5165: "",
-      \u65E5\u671F: "",
-      \u65E5\u671F\u7D22\u5F15: "",
-      \u5173\u952E\u8BCD: "",
-      \u6982\u8FF0: "",
-      \u8BC4\u5206: "",
-      \u8BC4\u5206_\u663E\u793A: "",
-      \u7D22\u5F15_\u77E5\u8BC6\u5E93: "",
-      \u7D22\u5F15_\u989C\u8272: "",
-      "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "",
-      \u7D22\u5F15_\u5757: "",
-      \u7D22\u5F15_\u98CE\u9669: ""
-    };
-    renderPreviewPanel({
-      config,
-      propertyTemplate,
-      propertyOptions: DEFAULT_PROPERTY_OPTIONS,
-      interpreter: { ...DEFAULT_INTERPRETER_CONFIG, enabled: false, autoRun: false },
-      tokenInfo: {},
-      nodeToken: "",
-      title: getDocumentTitle(),
-      source: window.location.href,
-      dirs: [],
-      fallbackDir: ""
-    }, message, type);
-  }
-  function renderPreviewPanel(state, statusMessage, statusType) {
-    closePreviewPanel();
-    const backdrop = document.createElement("div");
-    backdrop.id = PANEL_BACKDROP_ID;
-    backdrop.className = "feishu-sync-panel-backdrop";
-    const panel = document.createElement("aside");
-    panel.id = PANEL_ID;
-    panel.className = "feishu-sync-panel";
-    panel.setAttribute("aria-label", "\u540C\u6B65\u5230 Obsidian \u9884\u89C8\u9762\u677F");
-    const header = document.createElement("div");
-    header.className = "feishu-sync-panel-header";
-    header.innerHTML = `
-    <div>
-      <p class="feishu-sync-eyebrow">Obsidian Sync</p>
-      <h2>\u540C\u6B65\u524D\u9884\u89C8</h2>
-    </div>
-    <button class="feishu-sync-icon-btn" type="button" aria-label="\u5173\u95ED">\xD7</button>
-  `;
-    const closeBtn = header.querySelector(".feishu-sync-icon-btn");
-    closeBtn.onclick = closePreviewPanel;
-    const body = document.createElement("div");
-    body.className = "feishu-sync-panel-body";
-    const summary = document.createElement("section");
-    summary.className = "feishu-sync-section";
-    summary.innerHTML = `
-    <div class="feishu-sync-doc-title">${escapeHtml(state.title)}</div>
-    <a class="feishu-sync-source" href="${escapeAttribute(state.source)}" target="_blank" rel="noreferrer">${escapeHtml(state.source)}</a>
-    <div class="feishu-sync-interpreter">${escapeHtml(getInterpreterSummary(state))}</div>
-  `;
-    const directory = document.createElement("section");
-    directory.className = "feishu-sync-section";
-    directory.appendChild(createSectionTitle("\u76EE\u6807\u76EE\u5F55"));
-    directory.appendChild(createDirectoryControl(state));
-    const formSection = document.createElement("section");
-    formSection.className = "feishu-sync-section";
-    formSection.appendChild(createSectionTitle("YAML \u5C5E\u6027"));
-    formSection.appendChild(createMetaForm(state));
-    const status = document.createElement("div");
-    status.className = `feishu-sync-status feishu-sync-status-${statusType}`;
-    status.dataset.status = "true";
-    status.textContent = statusMessage;
-    body.append(summary, directory, formSection, status);
-    const footer = document.createElement("div");
-    footer.className = "feishu-sync-panel-footer";
-    footer.innerHTML = `
-    <button class="feishu-sync-secondary" type="button">\u53D6\u6D88</button>
-    <button class="feishu-sync-suggest" type="button">AI \u5EFA\u8BAE</button>
-    <button class="feishu-sync-primary" type="button">\u540C\u6B65</button>
-  `;
-    const cancelBtn = footer.querySelector(".feishu-sync-secondary");
-    const suggestBtn = footer.querySelector(".feishu-sync-suggest");
-    const syncBtn = footer.querySelector(".feishu-sync-primary");
-    cancelBtn.onclick = closePreviewPanel;
-    suggestBtn.onclick = () => suggestMeta(state);
-    syncBtn.onclick = () => confirmSync(state);
-    suggestBtn.disabled = !state.interpreter.enabled;
-    syncBtn.disabled = !state.config.token || !state.nodeToken;
-    panel.append(header, body, footer);
-    backdrop.onclick = closePreviewPanel;
-    document.body.append(backdrop, panel);
-  }
-  function createSectionTitle(title) {
-    const heading = document.createElement("h3");
-    heading.className = "feishu-sync-section-title";
-    heading.textContent = title;
-    return heading;
-  }
-  function createDirectoryControl(state) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "feishu-sync-dir-control";
-    if (state.dirs.length > 0) {
-      const select = document.createElement("select");
-      select.className = "feishu-sync-dir-select";
-      select.name = "feishu-sync-dir";
-      state.dirs.forEach((dir) => {
-        const option = document.createElement("option");
-        option.value = dir.path;
-        option.textContent = `${dir.depth > 0 ? "  ".repeat(dir.depth - 1) : ""}${dir.label}`;
-        option.selected = dir.path === state.fallbackDir;
-        select.appendChild(option);
-      });
-      wrapper.appendChild(select);
-      return wrapper;
-    }
-    const input = document.createElement("input");
-    input.className = "feishu-sync-dir-input";
-    input.name = "feishu-sync-dir";
-    input.placeholder = "\u4F8B\u5982\uFF1A0\uFE0F\u20E3\u8F93\u5165/\u{1F4A1}\u788E\u7247\u8F93\u5165\uFF08\u95EA\u5FF5\uFF09";
-    input.value = state.fallbackDir;
-    wrapper.appendChild(input);
-    return wrapper;
-  }
-  function createMetaForm(state) {
-    const form = document.createElement("div");
-    form.className = "feishu-sync-meta-form";
-    const defaults = getDefaultMeta(state);
-    META_FIELDS.forEach((field) => {
-      const row = document.createElement("label");
-      row.className = `feishu-sync-field feishu-sync-field-${field.type}`;
-      const label = document.createElement("span");
-      label.className = "feishu-sync-field-label";
-      label.textContent = field.label;
-      const control = createMetaControl(field, defaults[field.key], state.propertyOptions[field.key]);
-      row.append(label, control);
-      if (field.help) {
-        const help = document.createElement("small");
-        help.textContent = field.help;
-        row.appendChild(help);
-      }
-      form.appendChild(row);
-    });
-    return form;
-  }
-  function createMetaControl(field, value, rawOptions) {
-    const options = parseOptions(rawOptions);
-    const stringValue = Array.isArray(value) ? value.join("\u3001") : String(value ?? "");
-    if (field.type === "grouped") {
-      return createGroupedControl(field.key, stringValue);
-    }
-    if (SELECT_FIELDS.has(field.key) && options.length > 0) {
-      const select = document.createElement("select");
-      select.dataset.metaKey = field.key;
-      appendOption(select, "", "\u672A\u9009\u62E9");
-      const optionValues = options.map((option) => normalizePropertyOptionValue(field.key, option));
-      options.forEach((option, index) => appendOption(select, optionValues[index], option));
-      const normalizedValue = normalizePropertyOptionValue(field.key, stringValue);
-      if (normalizedValue && !optionValues.includes(normalizedValue))
-        appendOption(select, normalizedValue, stringValue);
-      select.value = normalizedValue;
-      return select;
-    }
-    if (field.type === "textarea") {
-      const textarea = document.createElement("textarea");
-      textarea.dataset.metaKey = field.key;
-      textarea.rows = field.key === "\u6982\u8FF0" ? 4 : field.key === "\u5173\u952E\u8BCD" ? 3 : 2;
-      textarea.value = stringValue;
-      return textarea;
-    }
-    const input = document.createElement("input");
-    input.dataset.metaKey = field.key;
-    input.type = field.type;
-    input.value = stringValue;
-    if (field.type === "number") {
-      input.min = "0";
-      input.max = "5";
-      input.step = "1";
-    }
-    if (options.length > 0) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "feishu-sync-option-input";
-      const listId = `feishu-sync-options-${encodeURIComponent(field.key)}`;
-      input.setAttribute("list", listId);
-      const datalist = document.createElement("datalist");
-      datalist.id = listId;
-      options.forEach((option) => appendOption(datalist, option, option));
-      wrapper.append(input, datalist);
-      return wrapper;
-    }
-    return input;
-  }
-  function getDefaultMeta(state) {
-    const today = (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
-    const keywords = draftKeywords(state.title);
-    const templateVars = {
-      title: state.title,
-      url: state.source,
-      date: today,
-      dir: state.fallbackDir,
-      keywords: keywords.join("\u3001")
-    };
-    return {
-      \u6807\u7B7E: applyTemplate(state.propertyTemplate.\u6807\u7B7E || "S", templateVars),
-      \u7F16\u7801: applyTemplate(state.propertyTemplate.\u7F16\u7801, templateVars),
-      \u8F93\u5165: applyTemplate(state.propertyTemplate.\u8F93\u5165 || state.fallbackDir, templateVars),
-      \u65E5\u671F: applyTemplate(state.propertyTemplate.\u65E5\u671F || today, templateVars),
-      \u65E5\u671F\u7D22\u5F15: applyTemplate(state.propertyTemplate.\u65E5\u671F\u7D22\u5F15, templateVars),
-      \u5173\u952E\u8BCD: applyTemplate(state.propertyTemplate.\u5173\u952E\u8BCD || keywords.join("\u3001"), templateVars),
-      \u6982\u8FF0: applyTemplate(state.propertyTemplate.\u6982\u8FF0, templateVars),
-      \u8BC4\u5206: state.propertyTemplate.\u8BC4\u5206,
-      \u8BC4\u5206_\u663E\u793A: applyTemplate(state.propertyTemplate.\u8BC4\u5206_\u663E\u793A, templateVars),
-      \u7D22\u5F15_\u77E5\u8BC6\u5E93: applyTemplate(state.propertyTemplate.\u7D22\u5F15_\u77E5\u8BC6\u5E93, templateVars),
-      \u7D22\u5F15_\u989C\u8272: applyTemplate(state.propertyTemplate.\u7D22\u5F15_\u989C\u8272, templateVars),
-      "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": applyTemplate(state.propertyTemplate["\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988"], templateVars),
-      \u7D22\u5F15_\u5757: applyTemplate(state.propertyTemplate.\u7D22\u5F15_\u5757, templateVars),
-      \u7D22\u5F15_\u98CE\u9669: applyTemplate(state.propertyTemplate.\u7D22\u5F15_\u98CE\u9669, templateVars)
-    };
-  }
-  function applyTemplate(template, vars) {
-    return String(template ?? "").replace(/\{\{(\w+)\}\}/g, (_full, key) => vars[key] ?? "");
-  }
-  function getInterpreterSummary(state) {
-    if (!state.interpreter.enabled)
-      return "\u89E3\u91CA\u5668\uFF1A\u5173\u95ED\u3002\u5C06\u4EC5\u4F7F\u7528\u5C5E\u6027\u6A21\u677F\u9884\u586B\u3002";
-    const mode = state.interpreter.provider || "\u672C\u5730\u89C4\u5219";
-    return `\u89E3\u91CA\u5668\uFF1A${mode}${state.interpreter.autoRun ? "\uFF0C\u5DF2\u81EA\u52A8\u751F\u6210\u5EFA\u8BAE" : "\uFF0C\u540C\u6B65\u524D\u53EF\u6309\u6A21\u677F\u624B\u52A8\u786E\u8BA4"}`;
-  }
-  function draftKeywords(title) {
-    const words = title.replace(/[^\p{Script=Han}\p{Letter}\p{Number}]+/gu, " ").split(/\s+/).map((word) => word.trim()).filter((word) => word.length >= 2);
-    return Array.from(new Set(words)).slice(0, 6);
-  }
-  async function confirmSync(state) {
-    const panel = document.getElementById(PANEL_ID);
-    if (!panel)
-      return;
-    const syncBtn = panel.querySelector(".feishu-sync-primary");
-    const dirControl = panel.querySelector('[name="feishu-sync-dir"]');
-    const dir = dirControl?.value.trim() || void 0;
-    const meta = collectMeta(panel);
-    if (!dir) {
-      updatePanelStatus("\u8BF7\u9009\u62E9\u6216\u586B\u5199\u76EE\u6807\u76EE\u5F55\u540E\u518D\u540C\u6B65\u3002", "error");
-      return;
-    }
-    syncBtn.disabled = true;
-    updatePanelStatus("\u6B63\u5728\u8FDE\u63A5 OB \u63D2\u4EF6...", "info");
-    const conn = await testConnection(state.config);
-    if (!conn.ok) {
-      syncBtn.disabled = false;
-      updatePanelStatus(conn.message, "error");
-      return;
-    }
-    updatePanelStatus("\u6B63\u5728\u6293\u53D6\u5E76\u5199\u5165 Obsidian...", "info");
-    try {
-      const payload = {
-        node_token: state.nodeToken,
-        obj_token: state.tokenInfo.obj_token,
-        dir,
-        meta
-      };
-      const result = await postFetch(state.config, payload);
-      const codeMsg = result.\u7F16\u7801 ? `\uFF08\u7F16\u7801 ${result.\u7F16\u7801}\uFF09` : "";
-      updatePanelStatus(`${result.action === "created" ? "\u5DF2\u521B\u5EFA" : "\u5DF2\u66F4\u65B0"}\uFF1A${result.path}${codeMsg}`, "success");
-    } catch (err) {
-      syncBtn.disabled = false;
-      updatePanelStatus(`\u540C\u6B65\u5931\u8D25\uFF1A${err instanceof Error ? err.message : String(err)}`, "error");
-    }
-  }
-  function collectMeta(panel) {
-    const meta = {};
-    panel.querySelectorAll("[data-meta-key]").forEach((control) => {
-      const key = control.dataset.metaKey;
-      if (!key)
-        return;
-      if (key === "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988") {
-        meta[key] = splitList(control.value).map((item) => normalizePropertyOptionValue(key, item)).join("\u3001");
-        return;
-      }
-      if (key === "\u65E5\u671F\u7D22\u5F15" || key === "\u7D22\u5F15_\u5757" || key === "\u7D22\u5F15_\u98CE\u9669") {
-        meta[key] = splitList(control.value).map((item) => normalizePropertyOptionValue(key, item));
-        return;
-      }
-      if (key === "\u8BC4\u5206") {
-        const normalized = normalizePropertyOptionValue(key, control.value);
-        meta[key] = normalized === "" ? "" : Number(normalized);
-        return;
-      }
-      meta[key] = normalizePropertyOptionValue(key, control.value);
-    });
-    return meta;
-  }
-  async function suggestMeta(state) {
-    const panel = document.getElementById(PANEL_ID);
-    if (!panel)
-      return;
-    const button = panel.querySelector(".feishu-sync-suggest");
-    const dirControl = panel.querySelector('[name="feishu-sync-dir"]');
-    const dir = dirControl?.value.trim() || state.fallbackDir;
-    if (button)
-      button.disabled = true;
-    updatePanelStatus("\u6B63\u5728\u8BFB\u53D6\u6B63\u6587\u524D\u6BB5\u5E76\u751F\u6210 AI \u6807\u7B7E\u4E0E\u7D22\u5F15\u5EFA\u8BAE...", "info");
-    try {
-      const excerpt = getDocumentExcerpt(state.interpreter.excerptChars || DEFAULT_AI_EXCERPT_CHARS);
-      const suggestion = await suggestMetaWithInterpreter(state.interpreter, {
-        title: state.title,
-        source: state.source,
-        dir,
-        excerpt,
-        template: state.propertyTemplate,
-        options: state.propertyOptions
-      });
-      applyMetaSuggestion(panel, suggestion);
-      updatePanelStatus("AI \u5EFA\u8BAE\u5DF2\u586B\u5165\uFF0C\u8BF7\u4EBA\u5DE5\u786E\u8BA4\u540E\u518D\u540C\u6B65\u3002", "success");
-    } catch (err) {
-      updatePanelStatus(`AI \u5EFA\u8BAE\u5931\u8D25\uFF1A${err instanceof Error ? err.message : String(err)}`, "error");
-    } finally {
-      if (button)
-        button.disabled = false;
-    }
-  }
-  function applyMetaSuggestion(panel, suggestion) {
-    for (const [key, raw] of Object.entries(suggestion)) {
-      const control = panel.querySelector(`[data-meta-key="${cssEscape(key)}"]`);
-      if (!control)
-        continue;
-      const value = Array.isArray(raw) ? raw.join("\u3001") : String(raw ?? "");
-      if (control.dataset.groupedMeta === "true") {
-        setGroupedControlValue(control, key, value);
-        continue;
-      }
-      if (control instanceof HTMLSelectElement && value && !Array.from(control.options).some((option) => option.value === value)) {
-        appendOption(control, value, value);
-      }
-      control.value = value;
-    }
-  }
-  function createGroupedControl(key, value) {
-    const wrapper = document.createElement("div");
-    wrapper.className = "feishu-sync-grouped-control";
-    const hidden = document.createElement("input");
-    hidden.type = "hidden";
-    hidden.dataset.metaKey = key;
-    hidden.dataset.groupedMeta = "true";
-    wrapper.appendChild(hidden);
-    const groups = GROUPED_FIELDS[key] ?? [];
-    groups.forEach((group, groupIndex) => {
-      const row = document.createElement("div");
-      row.className = "feishu-sync-choice-row";
-      const title = document.createElement("span");
-      title.className = "feishu-sync-choice-title";
-      title.textContent = group.name;
-      row.appendChild(title);
-      group.options.forEach((option) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "feishu-sync-choice-chip";
-        button.textContent = option.label;
-        button.dataset.groupIndex = String(groupIndex);
-        button.dataset.value = option.value;
-        button.addEventListener("click", () => {
-          const active = button.classList.contains("is-selected");
-          row.querySelectorAll(".feishu-sync-choice-chip").forEach((chip) => chip.classList.remove("is-selected"));
-          if (!active)
-            button.classList.add("is-selected");
-          syncGroupedHiddenValue(wrapper, hidden);
-        });
-        row.appendChild(button);
-      });
-      wrapper.appendChild(row);
-    });
-    setGroupedControlValue(hidden, key, value);
-    return wrapper;
-  }
-  function setGroupedControlValue(control, key, value) {
-    const wrapper = control.closest(".feishu-sync-grouped-control");
-    if (!wrapper) {
-      control.value = value;
-      return;
-    }
-    const selected = new Set(splitList(value).map((item) => normalizePropertyOptionValue(key, item)));
-    wrapper.querySelectorAll(".feishu-sync-choice-chip").forEach((chip) => {
-      chip.classList.toggle("is-selected", selected.has(chip.dataset.value ?? ""));
-    });
-    syncGroupedHiddenValue(wrapper, control);
-  }
-  function syncGroupedHiddenValue(wrapper, hidden) {
-    const values = Array.from(wrapper.querySelectorAll(".feishu-sync-choice-chip.is-selected")).map((chip) => chip.dataset.value ?? "").filter(Boolean);
-    hidden.value = values.join("\u3001");
-  }
-  function splitList(value) {
-    return value.split(/[\n,，、]/).map((item) => item.trim()).filter(Boolean);
-  }
-  function parseOptions(value) {
-    return Array.from(new Set(splitList(value ?? ""))).slice(0, 30);
-  }
-  function appendOption(target, value, label) {
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    target.appendChild(option);
-  }
-  function cssEscape(value) {
-    return value.replace(/["\\]/g, "\\$&");
-  }
-  function updatePanelStatus(message, type) {
-    const status = document.querySelector(`#${PANEL_ID} [data-status="true"]`);
-    if (!status)
-      return;
-    status.textContent = message;
-    status.className = `feishu-sync-status feishu-sync-status-${type}`;
-  }
-  function closePreviewPanel() {
-    document.getElementById(PANEL_ID)?.remove();
-    document.getElementById(PANEL_BACKDROP_ID)?.remove();
-  }
-  function escapeHtml(value) {
-    return value.replace(/[&<>"']/g, (char) => {
-      const map = {
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#039;"
-      };
-      return map[char];
-    });
-  }
-  function escapeAttribute(value) {
-    return escapeHtml(value).replace(/`/g, "&#096;");
-  }
   var lastPath = "";
   function watchRoute() {
     const check = () => {
       const path = window.location.pathname;
       if (path !== lastPath) {
         lastPath = path;
-        document.getElementById(BUTTON_ID)?.remove();
-        closePreviewPanel();
+        document.getElementById(FAB_ID)?.remove();
+        document.getElementById(LABEL_ID)?.remove();
         if (isDocPage()) {
-          setTimeout(injectButton, 1500);
+          setTimeout(injectFab, 1200);
         }
       }
     };

@@ -28,6 +28,7 @@ const entries = [
   { entry: 'src/sidepanel/sidepanel.ts', out: 'sidepanel.js' },
   { entry: 'src/settings/settings.ts', out: 'settings.js' },
   { entry: 'src/content/toolbar.ts', out: 'toolbar.js' },
+  { entry: 'src/content/ds-token.ts', out: 'ds-token.js' },
 ];
 
 async function main() {

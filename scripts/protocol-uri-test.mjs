@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   buildObsidianLarkDocUri,
+  parseFrontmatter,
   parseObsidianLarkDocParams,
 } from '../packages/shared/dist/index.js';
 
@@ -29,4 +30,19 @@ assert.deepEqual(parseObsidianLarkDocParams(uri), {
 assert.deepEqual(parseObsidianLarkDocParams({ token: 'NODE123', title: '标题' }), {
   token: 'NODE123',
   title: '标题',
+});
+
+assert.deepEqual(parseFrontmatter('  ---\n标题: 不是 YAML\n---\n正文'), {
+  frontmatter: null,
+  body: '  ---\n标题: 不是 YAML\n---\n正文',
+});
+
+assert.deepEqual(parseFrontmatter('\ufeff---\n标题: 测试\n---\n正文'), {
+  frontmatter: { 标题: '测试' },
+  body: '正文',
+});
+
+assert.deepEqual(parseFrontmatter('---\n标题: 测试\n---\n\n正文'), {
+  frontmatter: { 标题: '测试' },
+  body: '正文',
 });

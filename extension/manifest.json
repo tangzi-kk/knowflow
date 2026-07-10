@@ -55,6 +55,15 @@
     },
     {
       "matches": [
+        "https://chat.deepseek.com/*"
+      ],
+      "js": [
+        "ds-token.js"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
         "<all_urls>"
       ],
       "js": [
