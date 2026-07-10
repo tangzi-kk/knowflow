@@ -1,0 +1,32 @@
+flowchart TD
+    A[用户点击 AI 按钮] --> B[按钮 loading < 50ms]
+    B --> C[面板展开 + loading dots]
+    C --> D[调用 AI: Gemini Web]
+    D -->|成功| E[流式输出结果]
+    D -->|失败| F{错误类型?}
+    
+    F -->|TIMEOUT/CONNECTION| G[自动重试 1s]
+    G -->|成功| E
+    G -->|失败| H[自动重试 2s]
+    H -->|成功| E
+    H -->|失败| I[降级: DeepSeek Web]
+    
+    F -->|SESSION_EXPIRED| I
+    F -->|QUOTA_EXHAUSTED| I
+    F -->|CONTENT_TOO_LONG| J[错误卡片: 截取前5000字]
+    F -->|EMPTY_RESULT| K[错误卡片: 重新生成]
+    
+    I -->|成功| E
+    I -->|失败| L[错误卡片]
+    
+    L --> M{用户选择?}
+    M -->|重试| D
+    M -->|切换模型| N[切换 Gemini↔DeepSeek]
+    N --> D
+    M -->|复制原文| O[复制选中文本到剪贴板]
+    M -->|取消| P[收起面板 → CAPSULE]
+    
+    E --> Q[结果完成: 光标消失 + 操作栏]
+    Q -->|重新生成| C
+    Q -->|复制结果| R[复制 AI 结果]
+    Q -->|关闭| S[收起 → CAPSULE]

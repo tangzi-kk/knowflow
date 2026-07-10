@@ -1,0 +1,28 @@
+stateDiagram-v2
+    [*] --> IDLE
+
+    IDLE --> CAPSULE: mouseup + 150ms debounce\n选中文本 ≥ 3 字符
+    note right of IDLE: host 隐藏，无 Shadow DOM 内容
+
+    CAPSULE --> EXPANDING: 点击 AI 按钮(showResult)\n立即按钮 loading + 涟漪
+    CAPSULE --> IDLE: 外部点击 / Escape / 滚动\n150ms 退场动画
+    CAPSULE --> CAPSULE: 点击"更多"展开/收起子菜单\n(MORE_OPEN / MORE_CLOSED 子状态)
+
+    EXPANDING --> RESULT_LOADING: 面板展开完成\n显示 loading dots
+    note right of EXPANDING: 胶囊 shrinking + 面板 max-height 过渡\n280ms cubic-bezier(0.16,1,0.3,1)
+
+    RESULT_LOADING --> RESULT_STREAMING: AI 首字到达\n切换为流式输出
+    RESULT_LOADING --> ERROR: AI 调用失败\n(超时/连接失败/空结果)
+    note right of RESULT_LOADING: 显示 loading dots + "正在译解..."\n自动重试(指数退避, 最多2次)
+
+    RESULT_STREAMING --> RESULT_DONE: AI 输出完成\n光标消失
+    note right of RESULT_STREAMING: 逐字追加 + 闪烁光标\n用户可随时关闭
+
+    RESULT_DONE --> CAPSULE: 点击关闭\n面板收起 300ms → 胶囊恢复
+    RESULT_DONE --> RESULT_DONE: 点击"重新生成"\n→ RESULT_LOADING
+
+    ERROR --> RESULT_LOADING: 点击"重试"\n重置 aiRequestInFlight
+    ERROR --> RESULT_LOADING: 点击"切换模型"\n切换 Gemini↔DeepSeek 后重试
+    ERROR --> IDLE: 点击"复制原文" / "取消"\n收起面板 → 隐藏
+
+    CAPSULE --> IDLE: 路由变化 (SPA)\n销毁 host 重建
