@@ -13,9 +13,9 @@
     "@sync/shared": "*"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "esbuild": "^0.20.0",
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
     "obsidian": "latest",
-    "typescript": "^5.4.0"
+    "typescript": "^5.9.3"
   }
 }

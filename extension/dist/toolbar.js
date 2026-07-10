@@ -30,11 +30,9 @@
     function extractDocToken() {
       const url = window.location.href;
       const wikiMatch = url.match(/\/wiki\/([A-Za-z0-9]+)/);
-      if (wikiMatch)
-        return { node_token: wikiMatch[1] };
+      if (wikiMatch) return { node_token: wikiMatch[1] };
       const docxMatch = url.match(/\/(?:docx|doc)\/([A-Za-z0-9]+)/);
-      if (docxMatch)
-        return { obj_token: docxMatch[1] };
+      if (docxMatch) return { obj_token: docxMatch[1] };
       return null;
     }
     function getPageMetadata() {
@@ -54,12 +52,10 @@
     function getSurroundingContext(chars = 200) {
       try {
         const sel = window.getSelection();
-        if (!sel || !sel.rangeCount)
-          return "";
+        if (!sel || !sel.rangeCount) return "";
         const range = sel.getRangeAt(0);
         const selectedText = sel.toString();
-        if (!selectedText)
-          return "";
+        if (!selectedText) return "";
         let container = range.commonAncestorContainer;
         while (container && container.nodeType === Node.TEXT_NODE && container.parentElement) {
           container = container.parentElement;
@@ -74,11 +70,9 @@
         const before = parentText.slice(start, index).trim();
         const after = parentText.slice(index + selectedText.length, end).trim();
         let ctx = "";
-        if (before)
-          ctx += `\u4E0A\u6587\uFF1A${before}
+        if (before) ctx += `\u4E0A\u6587\uFF1A${before}
 `;
-        if (after)
-          ctx += `\u4E0B\u6587\uFF1A${after}`;
+        if (after) ctx += `\u4E0B\u6587\uFF1A${after}`;
         return ctx;
       } catch {
         return "";
@@ -103,15 +97,13 @@
       const normalized = rawScenes.filter((scene) => Boolean(scene && typeof scene === "object")).map((scene) => normalizeScene(scene, scene.id ? fallbackById.get(scene.id) : void 0)).filter((scene) => scene.id);
       const existingIds = new Set(normalized.map((scene) => scene.id));
       for (const scene of defaults) {
-        if (!existingIds.has(scene.id))
-          normalized.push(scene);
+        if (!existingIds.has(scene.id)) normalized.push(scene);
       }
       return normalized;
     }
     function normalizeToolbarConfig(input) {
       const defaults = getDefaultToolbarConfig();
-      if (!input || typeof input !== "object")
-        return defaults;
+      if (!input || typeof input !== "object") return defaults;
       const value = input;
       return {
         enabled: value.enabled ?? defaults.enabled,
@@ -797,11 +789,9 @@
       ];
     }
     function ensureHost() {
-      if (host && shadow)
-        return;
+      if (host && shadow) return;
       const existing = document.getElementById("__fs_toolbar_host");
-      if (existing)
-        existing.remove();
+      if (existing) existing.remove();
       host = document.createElement("div");
       host.id = "__fs_toolbar_host";
       shadow = host.attachShadow({ mode: "open" });
@@ -818,8 +808,7 @@
       const sceneById = new Map(enabledScenes.map((scene) => [scene.id, scene]));
       for (const id of MAIN_SCENE_IDS) {
         const scene = sceneById.get(id);
-        if (!scene)
-          continue;
+        if (!scene) continue;
         const primary = scene.action === toolbarConfig.defaultAction ? " primary" : "";
         const aiCls = scene.aiEnabled ? " ai-btn" : "";
         const aiWarn = !geminiSessionAlive && scene.aiEnabled ? " session-warn" : "";
@@ -843,10 +832,8 @@
       return `<div class="capsule">${buttons.join("")}<span class="toast" hidden></span></div>`;
     }
     function ensureStage() {
-      if (!shadow)
-        return;
-      if (shadow.querySelector(".toolbar-stage"))
-        return;
+      if (!shadow) return;
+      if (shadow.querySelector(".toolbar-stage")) return;
       shadow.innerHTML = "";
       const style = document.createElement("style");
       style.textContent = TOOLBAR_CSS;
@@ -868,8 +855,7 @@
       stage.querySelector(".result-close")?.addEventListener("click", () => collapseResult());
     }
     function renderCapsule() {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       ensureStage();
       const capsule = shadow.querySelector(".capsule");
       capsule.classList.remove("shrinking");
@@ -886,8 +872,7 @@
       capsule.innerHTML = buildCapsuleHTML();
     }
     function expandToResult(title, content, isHtml = false) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       ensureStage();
       const capsule = shadow.querySelector(".capsule");
       const panel = shadow.querySelector(".result-panel");
@@ -902,8 +887,7 @@
       panel.classList.add("expanded");
     }
     function updateResultContent(content, isHtml = false) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       const contentEl = shadow.querySelector(".result-content");
       contentEl.classList.add("crossfading");
       setTimeout(() => {
@@ -912,8 +896,7 @@
       }, 180);
     }
     function collapseResult() {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       aiRequestInFlight = false;
       const capsule = shadow.querySelector(".capsule");
       const panel = shadow.querySelector(".result-panel");
@@ -928,19 +911,16 @@
       }, 300);
     }
     function bindInlineRetryBtn(prompt) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       const btn = shadow.querySelector(".ai-retry-btn");
-      if (!btn)
-        return;
+      if (!btn) return;
       btn.addEventListener("click", () => {
         aiRequestInFlight = true;
         btn.textContent = "\u91CD\u8BD5\u4E2D...";
         btn.disabled = true;
         expandToResult(resultTitle, '<div class="ai-progress"><span class="ai-spinner"></span> \u6B63\u5728\u8FDE\u63A5 AI...</div>', true);
         const progressTimer = setTimeout(() => {
-          if (shadow)
-            updateResultContent('<div class="ai-progress"><span class="ai-spinner"></span> \u6B63\u5728\u5206\u6790\u5185\u5BB9...</div>', true);
+          if (shadow) updateResultContent('<div class="ai-progress"><span class="ai-spinner"></span> \u6B63\u5728\u5206\u6790\u5185\u5BB9...</div>', true);
         }, 1500);
         chrome.runtime.sendMessage(
           { type: "ai-inline", payload: { action: "ai-chat", prompt, text: lastSelection.trim(), title: document.title, url: window.location.href } },
@@ -966,8 +946,7 @@
       try {
         const bg = window.getComputedStyle(document.body).backgroundColor;
         const m = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-        if (!m)
-          return false;
+        if (!m) return false;
         const r = parseInt(m[1], 10);
         const g = parseInt(m[2], 10);
         const b = parseInt(m[3], 10);
@@ -978,19 +957,16 @@
       }
     }
     function applyTheme() {
-      if (!host)
-        return;
+      if (!host) return;
       const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       const pageDark = detectPageDarkness();
       const isDark = prefersDark || pageDark;
       host.setAttribute("data-theme", isDark ? "dark" : "light");
     }
     function appendStreamChunk(chunk) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       const wrapper = shadow.querySelector(".result-content");
-      if (!wrapper)
-        return;
+      if (!wrapper) return;
       let streamEl = wrapper.querySelector(".result-content.streaming");
       if (!streamChunkReceived) {
         streamChunkReceived = true;
@@ -1001,8 +977,7 @@
         wrapper.innerHTML = '<div class="result-content streaming"></div>';
         streamEl = wrapper.querySelector(".result-content.streaming");
       }
-      if (streamEl)
-        streamEl.textContent += chunk;
+      if (streamEl) streamEl.textContent += chunk;
     }
     function renderSimpleMarkdown(text) {
       let html = escapeHtml(text);
@@ -1019,12 +994,10 @@
       return html;
     }
     function finalizeStreamResult(fullText) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       aiRequestInFlight = false;
       const wrapper = shadow.querySelector(".result-content");
-      if (!wrapper)
-        return;
+      if (!wrapper) return;
       const streamEl = wrapper.querySelector(".result-content.streaming");
       const text = fullText || streamEl?.textContent || "";
       if (!text.trim()) {
@@ -1034,8 +1007,7 @@
       wrapper.innerHTML = `<div class="result-content">${renderSimpleMarkdown(text)}</div>`;
     }
     function showStreamErrorCard(errorInfo) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       aiRequestInFlight = false;
       if (streamProgressTimer) {
         clearTimeout(streamProgressTimer);
@@ -1044,11 +1016,9 @@
       const html = buildErrorCard(errorInfo);
       updateResultContent(html, true);
       setTimeout(() => {
-        if (!shadow)
-          return;
+        if (!shadow) return;
         const card = shadow.querySelector(".ai-error-card");
-        if (card)
-          bindErrorCardActions(card, errorInfo);
+        if (card) bindErrorCardActions(card, errorInfo);
       }, 220);
     }
     function buildErrorCard(errorInfo) {
@@ -1128,8 +1098,7 @@
       const btns = cardEl.querySelectorAll(".error-btn");
       btns.forEach((btn) => {
         const act = btn.dataset.errorAction;
-        if (!act)
-          return;
+        if (!act) return;
         btn.addEventListener("click", () => {
           handleErrorAction(act, errorInfo, btn, cardEl);
         });
@@ -1138,21 +1107,18 @@
     function handleErrorAction(act, errorInfo, btn, cardEl) {
       switch (act) {
         case "retry":
-          if (!startRetryCountdown(cardEl))
-            break;
+          if (!startRetryCountdown(cardEl)) break;
           restartStreamRequest(lastStreamPrompt);
           break;
         case "retry-trimmed": {
-          if (!startRetryCountdown(cardEl))
-            break;
+          if (!startRetryCountdown(cardEl)) break;
           const trimmed = lastSelection.slice(0, 2e3);
           const prompt = fillPrompt(lastStreamScenePromptTemplate, trimmed);
           restartStreamRequest(prompt);
           break;
         }
         case "rephrase": {
-          if (!startRetryCountdown(cardEl))
-            break;
+          if (!startRetryCountdown(cardEl)) break;
           const rephrased = "\u8BF7\u7528\u66F4\u7B80\u6D01\u7684\u65B9\u5F0F\u56DE\u7B54\uFF1A\n\n" + lastStreamPrompt;
           restartStreamRequest(rephrased);
           break;
@@ -1186,8 +1152,7 @@
     }
     function startRetryCountdown(cardEl) {
       const now = Date.now();
-      if (now < retryAvailableAt)
-        return false;
+      if (now < retryAvailableAt) return false;
       retryAvailableAt = now + 3e3;
       const btns = cardEl.querySelectorAll(
         '.error-btn[data-error-action="retry"], .error-btn[data-error-action="retry-trimmed"], .error-btn[data-error-action="rephrase"]'
@@ -1214,8 +1179,7 @@
       return true;
     }
     function restartStreamRequest(prompt) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       aiRequestInFlight = true;
       streamChunkReceived = false;
       lastStreamPrompt = prompt;
@@ -1242,13 +1206,11 @@
       }
     }
     function clearShadow() {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       shadow.innerHTML = "";
     }
     function positionAt(x, y) {
-      if (!host)
-        return;
+      if (!host) return;
       const rect = host.getBoundingClientRect();
       const elWidth = rect.width || 200;
       const elHeight = rect.height || 40;
@@ -1262,8 +1224,7 @@
       host.style.display = "block";
     }
     function showCapsule() {
-      if (!toolbarConfig.enabled)
-        return;
+      if (!toolbarConfig.enabled) return;
       ensureHost();
       renderCapsule();
       state = "CAPSULE";
@@ -1275,8 +1236,7 @@
         collapseResult();
         setTimeout(() => {
           clearShadow();
-          if (host)
-            host.style.display = "none";
+          if (host) host.style.display = "none";
           state = "IDLE";
         }, 350);
         return;
@@ -1288,32 +1248,26 @@
         capsule.style.transform = "scale(0.92) translateY(6px)";
         setTimeout(() => {
           clearShadow();
-          if (host)
-            host.style.display = "none";
+          if (host) host.style.display = "none";
           state = "IDLE";
         }, 150);
         return;
       }
       clearShadow();
-      if (host)
-        host.style.display = "none";
+      if (host) host.style.display = "none";
       state = "IDLE";
     }
     function bindCapsuleEvents() {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       const capsule = shadow.querySelector(".capsule");
-      if (!capsule)
-        return;
+      if (!capsule) return;
       capsule.addEventListener("click", (e) => {
         const btn = e.target.closest(
           "button"
         );
-        if (!btn)
-          return;
+        if (!btn) return;
         const action = btn.dataset.action;
-        if (action)
-          handleCapsuleAction(action, btn);
+        if (action) handleCapsuleAction(action, btn);
       });
       capsule.addEventListener(
         "mousedown",
@@ -1321,16 +1275,13 @@
       );
     }
     function showToast(message) {
-      if (!shadow)
-        return;
+      if (!shadow) return;
       const toast = shadow.querySelector(".toast");
-      if (!toast)
-        return;
+      if (!toast) return;
       toast.textContent = message;
       toast.hidden = false;
       setTimeout(() => {
-        if (toast)
-          toast.hidden = true;
+        if (toast) toast.hidden = true;
       }, 1600);
     }
     async function handleCapsuleAction(action, btn) {
@@ -1364,10 +1315,8 @@
         return;
       }
       if (scene?.action === "showResult") {
-        if (!text)
-          return;
-        if (aiRequestInFlight)
-          return;
+        if (!text) return;
+        if (aiRequestInFlight) return;
         aiRequestInFlight = true;
         resultTitle = scene.label;
         btn.classList.add("ripple");
@@ -1481,8 +1430,7 @@
     }
     function setupGlobalListeners() {
       document.addEventListener("mouseup", () => {
-        if (selectionDebounceTimer)
-          clearTimeout(selectionDebounceTimer);
+        if (selectionDebounceTimer) clearTimeout(selectionDebounceTimer);
         selectionDebounceTimer = window.setTimeout(() => {
           checkRouteChange();
           const sel = window.getSelection();
@@ -1504,8 +1452,7 @@
         }, SELECTION_DEBOUNCE_MS);
       });
       document.addEventListener("mousedown", (e) => {
-        if (state === "IDLE")
-          return;
+        if (state === "IDLE") return;
         if (host && !host.contains(e.target)) {
           hideToolbar();
         }
@@ -1518,8 +1465,7 @@
       window.addEventListener(
         "scroll",
         () => {
-          if (state !== "IDLE")
-            hideToolbar();
+          if (state !== "IDLE") hideToolbar();
         },
         { passive: true, capture: true }
       );
@@ -1530,10 +1476,8 @@
       loadToolbarSettings();
       setupGlobalListeners();
       chrome.storage?.onChanged?.addListener((changes, areaName) => {
-        if (areaName !== "sync")
-          return;
-        if (changes.contextScenes || changes.selectionToolbarConfig)
-          loadToolbarSettings();
+        if (areaName !== "sync") return;
+        if (changes.contextScenes || changes.selectionToolbarConfig) loadToolbarSettings();
       });
       chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (message.type === "toolbar-toggle") {

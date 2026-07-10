@@ -13,9 +13,9 @@
     "js-sha3": "^0.9.3"
   },
   "devDependencies": {
-    "@types/chrome": "^0.0.250",
-    "@types/node": "^20.0.0",
-    "esbuild": "^0.20.0",
-    "typescript": "^5.4.0"
+    "@types/chrome": "^0.2.2",
+    "@types/node": "^26.1.1",
+    "esbuild": "^0.28.1",
+    "typescript": "^5.9.3"
   }
 }

@@ -58,7 +58,7 @@ export function serializeFrontmatter(fm: Record<string, unknown>): string {
   }
   const yamlStr = YAML.dump(ordered, {
     lineWidth: -1,           // 不折行（表格等长行不破坏）
-    quotingType: '"',        // 字符串用双引号（保留 emoji）
+    quoteStyle: 'double',    // 字符串用双引号（保留 emoji）
     forceQuotes: false,
     sortKeys: false,         // 我们自己控制顺序
   }) as string;
