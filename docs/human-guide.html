@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KnowFlow 组件阅读说明</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #17202a;
+      --muted: #5c6670;
+      --line: #d8dee6;
+      --panel: #f6f8fa;
+      --accent: #1769aa;
+      --accent-soft: #e8f2fb;
+      --obsidian: #6546c3;
+      --browser: #0f766e;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: #ffffff;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 40px 20px 64px;
+    }
+
+    h1, h2, h3 {
+      line-height: 1.25;
+      margin: 0 0 14px;
+    }
+
+    h1 {
+      font-size: 30px;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin-top: 34px;
+      font-size: 22px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 8px;
+    }
+
+    p {
+      margin: 8px 0 14px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--panel);
+      font-weight: 650;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.93em;
+      background: var(--panel);
+      padding: 2px 5px;
+      border-radius: 4px;
+    }
+
+    pre {
+      overflow: auto;
+      background: #111827;
+      color: #f8fafc;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+    }
+
+    pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 16px;
+      max-width: 780px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin: 16px 0 24px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fff;
+    }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .tag-obsidian {
+      color: var(--obsidian);
+      background: #f1edff;
+    }
+
+    .tag-browser {
+      color: var(--browser);
+      background: #e8f7f4;
+    }
+
+    .notice {
+      border-left: 4px solid var(--accent);
+      background: var(--accent-soft);
+      padding: 12px 14px;
+      margin: 18px 0;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>KnowFlow 组件阅读说明</h1>
+    <p class="lead">本项目由两个独立运行组件组成：Obsidian 插件负责本地知识库读写与同步服务，浏览器扩展负责在飞书网页侧提供入口和界面。两者配合使用，但安装位置、文件结构和验证方式不同。</p>
+
+    <h2>一眼区分</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>分类</th>
+          <th>组件名</th>
+          <th>最新版本</th>
+          <th>仓库内位置</th>
+          <th>安装/运行位置</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Obsidian 插件</td>
+          <td><code>fs-TB</code></td>
+          <td><code>3.2.1</code></td>
+          <td><code>releases/obsidian-fs-TB/3.2.1/</code></td>
+          <td>目标 vault 的 <code>.obsidian/plugins/fs-TB/</code></td>
+        </tr>
+        <tr>
+          <td>浏览器扩展</td>
+          <td><code>Feishu Doc Exporter</code></td>
+          <td><code>0.3.0</code></td>
+          <td><code>releases/browser-feishu-doc-exporter/0.3.0/</code></td>
+          <td>Chrome/Edge 扩展管理页加载已解压目录</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="notice">
+      不要把浏览器扩展目录放进 Obsidian，也不要把 Obsidian 插件文件加载到 Chrome/Edge。两个组件通过本地服务和同步令牌配合。
+    </div>
+
+    <h2>组件职责</h2>
+    <div class="grid">
+      <section class="card">
+        <span class="tag tag-obsidian">Obsidian 插件</span>
+        <h3>fs-TB</h3>
+        <p>运行在 Obsidian 内，负责监听本地 HTTP 服务、调用 <code>lark-cli</code>、写入 vault 文件、处理 YAML frontmatter、图片 token、callout 转换和回写。</p>
+        <p>运行产物通常是 <code>main.js</code>、<code>manifest.json</code>、<code>styles.css</code>。</p>
+      </section>
+      <section class="card">
+        <span class="tag tag-browser">浏览器扩展</span>
+        <h3>Feishu Doc Exporter</h3>
+        <p>运行在 Chrome/Edge 中，负责在飞书网页注入同步入口、侧边栏、弹窗和配置界面，将当前飞书文档信息发送给 Obsidian 插件。</p>
+        <p>运行产物通常包含 <code>manifest.json</code>、<code>background.js</code>、<code>content.js</code>、<code>icons/</code>。</p>
+      </section>
+    </div>
+
+    <h2>开发目录</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>路径</th>
+          <th>用途</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>packages/ob-plugin/</code></td>
+          <td>Obsidian 插件源码与构建入口。</td>
+        </tr>
+        <tr>
+          <td><code>extension/</code></td>
+          <td>浏览器扩展源码与构建入口。</td>
+        </tr>
+        <tr>
+          <td><code>packages/shared/</code></td>
+          <td>两个组件共用的协议、YAML、callout、hash、图片和文件名处理逻辑。</td>
+        </tr>
+        <tr>
+          <td><code>releases/</code></td>
+          <td>已核验运行产物归档，按 Obsidian 插件和浏览器扩展分目录保存。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>常用验证命令</h2>
+    <pre><code>npm run test:protocol
+npm run build
+git diff --check</code></pre>
+
+    <h2>继续阅读</h2>
+    <ul>
+      <li><code>VERSION_INDEX.md</code>：最新版本和真实产物路径。</li>
+      <li><code>docs/AI_HANDOFF.md</code>：给 AI/Codex 接手开发和排查的操作说明。</li>
+      <li><code>docs/design/</code>：设计方案、交互改进和调研文档。</li>
+    </ul>
+  </main>
+</body>
+</html>

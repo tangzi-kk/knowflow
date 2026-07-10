@@ -9,6 +9,11 @@
 - [悬浮窗重设计方案 v2](design/floating-toolbar-redesign-v2.md)
 - [悬浮窗重设计调研报告](design/floating-toolbar-market-research.md)
 
+## Runtime Guides
+
+- [人类阅读说明 HTML](human-guide.html)
+- [AI 接手说明 Markdown](AI_HANDOFF.md)
+
 ## Diagrams
 
 - [任务依赖图](diagrams/task-dependency-graph.mermaid)

@@ -22,12 +22,17 @@
 
 当前已核验的最新运行产物见 [`VERSION_INDEX.md`](VERSION_INDEX.md)：
 
-| 组件 | 最新版本 | 仓库内地址 |
-|---|---:|---|
-| Obsidian 插件 `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` |
-| 浏览器插件 `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` |
+| 分类 | 组件 | 最新版本 | 仓库内地址 | 运行位置 |
+|---|---|---:|---|---|
+| Obsidian 插件 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
+| 浏览器扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | Chrome/Edge 扩展管理页加载 |
 
 仓库地址：`https://github.com/tangzi-kk/knowflow`
+
+阅读入口：
+
+- 人类阅读说明：[`docs/human-guide.html`](docs/human-guide.html)
+- AI 接手说明：[`docs/AI_HANDOFF.md`](docs/AI_HANDOFF.md)
 
 ---
 
@@ -87,7 +92,7 @@
 
 ## 📦 下载 & 安装
 
-本项目分为两个独立组件，各取所需：
+本项目分为两个独立组件，各取所需。不要混装：Obsidian 插件放进 vault，浏览器扩展加载到 Chrome/Edge。
 
 ### 🔌 组件 A · Obsidian 插件
 
@@ -194,6 +199,8 @@ knowflow/
 │   └── dist/            # 构建产物（可直接加载）
 ├── docs/
 │   ├── design/          # 设计方案、悬浮窗交互与调研文档
+│   ├── human-guide.html # 给人类阅读的组件说明
+│   ├── AI_HANDOFF.md    # 给 AI/Codex 接手的说明
 │   └── diagrams/        # Mermaid 架构与流程图
 ├── releases/            # 已核验运行产物归档
 ├── VERSION_INDEX.md     # 最新版本索引

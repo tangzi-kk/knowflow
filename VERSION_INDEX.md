@@ -4,10 +4,10 @@
 
 ## 当前最新版本
 
-| 组件 | 最新版本 | 仓库内地址 | 来源与核验 |
-|---|---:|---|---|
-| Obsidian 插件 `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 来自 Mac mini `/Users/tangtang/Desktop/Obsidian-fs-TB-3.2.1`；与 Mac mini vault 运行目录 `/Users/tangtang/Documents/04_📚_石柯然知识库/.obsidian/plugins/fs-TB` 的 `main.js` 和 `manifest.json` 哈希一致。 |
-| 浏览器插件 `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 来自 Mac mini Chrome 已安装扩展 `binjgfnbkdfeknemgcidljibfjkjmcjp/0.3.0_0`；只保存运行文件，不保存 Chrome `_metadata`。 |
+| 分类 | 组件 | 最新版本 | 仓库内地址 | 运行位置 | 来源与核验 |
+|---|---|---:|---|---|---|
+| Obsidian 插件 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` | 来自 Mac mini `/Users/tangtang/Desktop/Obsidian-fs-TB-3.2.1`；与 Mac mini vault 运行目录 `/Users/tangtang/Documents/04_📚_石柯然知识库/.obsidian/plugins/fs-TB` 的 `main.js` 和 `manifest.json` 哈希一致。 |
+| 浏览器扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | Chrome/Edge 扩展管理页加载 | 来自 Mac mini Chrome 已安装扩展 `binjgfnbkdfeknemgcidljibfjkjmcjp/0.3.0_0`；只保存运行文件，不保存 Chrome `_metadata`。 |
 
 ## GitHub 地址
 
@@ -15,6 +15,8 @@
 - 最新运行产物在仓库内：
   - Obsidian 插件：`releases/obsidian-fs-TB/3.2.1/`
   - 浏览器插件：`releases/browser-feishu-doc-exporter/0.3.0/`
+- 人类阅读说明：`docs/human-guide.html`
+- AI 接手说明：`docs/AI_HANDOFF.md`
 
 ## 安装入口
 
