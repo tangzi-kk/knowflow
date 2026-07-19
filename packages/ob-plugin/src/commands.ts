@@ -35,14 +35,15 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       });
 
       try {
-        const result = await handler({
+        const key = await plugin.documentCoordinationKey(undefined, file.path);
+        const result = await plugin.syncCoordinator.run(key, undefined, () => handler({
           method: 'POST',
           url: '/pushback',
           path: '/pushback',
           query: new URLSearchParams(),
           body: { path: file.path },
           token: '',
-        });
+        }));
         if (result.action === 'pushed') {
           new Notice(`✅ 已回写：${result.title}`);
         } else {
@@ -80,14 +81,15 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
 
       for (const f of files) {
         try {
-          const result = await handler({
+          const key = await plugin.documentCoordinationKey(undefined, f.path);
+          const result = await plugin.syncCoordinator.run(key, undefined, () => handler({
             method: 'POST',
             url: '/pushback',
             path: '/pushback',
             query: new URLSearchParams(),
             body: { path: f.path },
             token: '',
-          });
+          }));
           if (result.action === 'pushed') pushed++;
           else skipped++;
         } catch {

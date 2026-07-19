@@ -1,6 +1,6 @@
 {
   "name": "@sync/ob-plugin",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "private": true,
   "description": "飞书↔OB 同步 OB 插件（模块 B）",
   "type": "module",
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "node esbuild.config.mjs",
     "dev": "node esbuild.config.mjs --watch",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@sync/shared": "*"

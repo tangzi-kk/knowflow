@@ -12,6 +12,7 @@ import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings } from '../settings.js';
 import { makeFilename, makePath } from '../fileio/writer.js';
 import { assignEncoding } from '../autoRename.js';
+import { normalizeVaultDir, normalizeVaultMarkdownPath } from '../vaultPath.js';
 
 export interface ClipDeps {
   app: App;
@@ -29,7 +30,7 @@ export function createClipHandler(deps: ClipDeps) {
     const bodyMarkdown = cleanText(req.bodyMarkdown);
     const description = cleanText(req.description);
     const sourceKind = cleanText(req.sourceKind) || 'generic-page';
-    const appendPath = cleanPath(req.appendPath);
+    const appendPath = req.appendPath ? normalizeVaultMarkdownPath(req.appendPath) : '';
     if (!url && !text && !bodyMarkdown && !rawText) {
       const e = new Error('url or text is required') as Error & { code: string; status: number };
       e.code = 'MISSING_CLIP_CONTENT';
@@ -38,7 +39,7 @@ export function createClipHandler(deps: ClipDeps) {
     }
 
     const createdAt = new Date();
-    const targetDir = cleanDir(req.dir) || deps.settings.defaultDir;
+    const targetDir = normalizeVaultDir(cleanText(req.dir) || deps.settings.defaultDir);
     const meta = normalizeClipMeta(req.meta, {
       title,
       url,
@@ -165,16 +166,6 @@ function buildAppendMarkdown(input: {
 
 function cleanText(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function cleanDir(value: unknown): string {
-  return cleanText(value).replace(/^\/+|\/+$/g, '');
-}
-
-function cleanPath(value: unknown): string {
-  const raw = cleanDir(value);
-  if (!raw) return '';
-  return raw.endsWith('.md') ? raw : `${raw}.md`;
 }
 
 function formatDate(date: Date): string {

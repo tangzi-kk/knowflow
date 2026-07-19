@@ -1485,11 +1485,17 @@
   }
   async function postFetch(config, req) {
     await requireWriteCapability(config, "fetch");
-    return request(config, "POST", "/fetch", req, 12e4);
+    return request(config, "POST", "/fetch", withRequestId(req), 12e4);
   }
   async function postClip(config, req) {
     await requireWriteCapability(config, "clip");
-    return request(config, "POST", "/clip", req, 3e4);
+    return request(config, "POST", "/clip", withRequestId(req), 3e4);
+  }
+  function withRequestId(requestBody) {
+    return {
+      ...requestBody,
+      requestId: requestBody.requestId || globalThis.crypto.randomUUID()
+    };
   }
   async function postExists(config, req) {
     return request(config, "POST", "/exists", req, 1e4);

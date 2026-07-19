@@ -2,6 +2,15 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
+## [3.3.0] - 2026-07-19
+
+### 数据安全
+- 同一 `feishu_id` 出现多个本地绑定时返回 409，不再随机取第一个。
+- Pull/Pushback 共用文档锁，同目录 Pull 叠加目录锁，避免自动编码并发抢号。
+- 新增有界请求幂等缓存；20 路相同 `requestId` 只执行一次，失败请求仍可重试。
+- 统一验证 Vault 目录、Markdown 路径和图片 token，拒绝绝对路径、遍历、编码分隔符、NUL 和内部目录。
+- Clipper 占位替换不得覆盖已绑定其他飞书文档的笔记。
+
 ## [3.2.2] - 2026-07-19
 
 ### 可升级基线

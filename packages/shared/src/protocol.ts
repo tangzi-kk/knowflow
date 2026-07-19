@@ -30,7 +30,7 @@ export interface ProtocolCompatibility {
   reason?: string;
 }
 
-/** 3.2.2 服务端实际提供的能力。 */
+/** 当前服务端实际提供的能力。 */
 export const SERVER_CAPABILITIES: readonly SyncCapability[] = [
   'status',
   'tree',
@@ -117,6 +117,8 @@ export interface TreeResponse {
 
 /** POST /fetch 请求。 */
 export interface FetchRequest {
+  /** 重试时保持不变的幂等请求 ID。 */
+  requestId?: string;
   /** 必填：wiki node_token。 */
   node_token: string;
   /** 可选：docx obj_token（未给则插件用 wiki +node-get 解析）。 */
@@ -150,6 +152,8 @@ export interface FetchResponse {
 
 /** POST /clip 请求：任意网页/划词剪存到 Obsidian。 */
 export interface ClipRequest {
+  /** 重试时保持不变的幂等请求 ID。 */
+  requestId?: string;
   /** 网页标题。 */
   title?: string;
   /** 来源 URL。 */
@@ -198,6 +202,8 @@ export interface ExistsResponse {
 
 /** POST /pushback 请求。 */
 export interface PushbackRequest {
+  /** 重试时保持不变的幂等请求 ID。 */
+  requestId?: string;
   /** 二选一：本地路径（相对 vault 根）。 */
   path?: string;
   /** 二选一：node_token（从绑定找文件）。 */

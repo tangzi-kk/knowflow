@@ -26,6 +26,8 @@ import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings } from '../settings.js';
 import { overwriteDocXml, getWikiNodeInfo } from '../lark/cli.js';
 import { parseFile, assembleMd } from '../fileio/writer.js';
+import { findUniqueVaultBinding } from '../vaultBinding.js';
+import { normalizeVaultMarkdownPath } from '../vaultPath.js';
 
 export interface PushbackDeps {
   app: App;
@@ -40,10 +42,10 @@ export function createPushbackHandler(deps: PushbackDeps) {
     // 定位文件
     let file: TFile | null = null;
     if (req.path) {
-      const f = deps.app.vault.getAbstractFileByPath(req.path);
+      const f = deps.app.vault.getAbstractFileByPath(normalizeVaultMarkdownPath(req.path));
       if (f instanceof TFile) file = f;
     } else if (req.node_token) {
-      file = await findByFeishuId(deps.app, req.node_token);
+      file = await findUniqueVaultBinding(deps.app, req.node_token);
     }
 
     if (!file) {
@@ -148,22 +150,4 @@ function buildPushbackContent(parsed: ReturnType<typeof parseFile>): string {
   parts.push(body.trim());
 
   return parts.filter(Boolean).join('\n\n');
-}
-
-async function findByFeishuId(app: App, feishuId: string): Promise<TFile | null> {
-  const files = app.vault.getMarkdownFiles();
-  for (const file of files) {
-    if (file.path.startsWith('.obsidian') || file.path.startsWith('.feishu-sync')) continue;
-    try {
-      const content = await app.vault.read(file);
-      if (!content.includes('feishu_id:')) continue;
-      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!fmMatch) continue;
-      const idMatch = fmMatch[1].match(/feishu_id:\s*["']?([A-Za-z0-9]+)/);
-      if (idMatch && idMatch[1] === feishuId) return file;
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }

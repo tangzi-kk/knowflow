@@ -1,6 +1,6 @@
 {
   "name": "@sync/extension",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "private": true,
   "description": "KnowFlow · 知流 — 飞书 → Obsidian 知识同步浏览器扩展（模块 A，Chrome/Edge MV3）",
   "type": "module",

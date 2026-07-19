@@ -8,7 +8,7 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const bundle = await readFile(path.resolve(testDirectory, '../main.js'), 'utf8');
 const runtime = bundle.slice(0, bundle.lastIndexOf('//# sourceMappingURL='));
 
-test('the shipped bundle contains the 3.2.2 settings migration path', () => {
+test('the shipped bundle contains the 3.3.0 settings migration path', () => {
   assert.equal(
     /function migrateSettings\(input\)/.test(runtime),
     true,

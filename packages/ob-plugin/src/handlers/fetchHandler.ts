@@ -32,6 +32,9 @@ import {
   makePath,
 } from '../fileio/writer.js';
 import { assignEncoding } from '../autoRename.js';
+import { findUniqueVaultBinding } from '../vaultBinding.js';
+import { normalizeVaultDir, normalizeVaultMarkdownPath } from '../vaultPath.js';
+import { assertReplacementBinding } from '../bindingIndex.js';
 
 export interface FetchDeps {
   app: App;
@@ -52,7 +55,10 @@ export function createFetchHandler(deps: FetchDeps) {
 
     const { node_token, space_id, dir } = req;
     const settings = deps.settings;
-    const targetDir = dir ?? settings.defaultDir;
+    const targetDir = normalizeVaultDir(dir ?? settings.defaultDir);
+    const replacePath = req.replace_path
+      ? normalizeVaultMarkdownPath(req.replace_path)
+      : undefined;
 
     deps.notice(`⬇ 同步飞书文档 ${node_token.slice(0, 8)}...`);
 
@@ -119,7 +125,7 @@ export function createFetchHandler(deps: FetchDeps) {
     // 决策：保留 H1，因为 OB 的文件名和 H1 可以不同
 
     // 步骤 4：exists 检查
-    const existingFile = await findByFeishuId(deps.app, node_token);
+    const existingFile = await findUniqueVaultBinding(deps.app, node_token);
     const syncTime = new Date().toISOString();
     let action: 'created' | 'updated';
     let finalPath: string;
@@ -155,11 +161,13 @@ export function createFetchHandler(deps: FetchDeps) {
       const content = assembleMd(fm, processedMd);
 
       // 检查文件是否已存在（同名不同 feishu_id）
-      const replaceFile = req.replace_path
-        ? deps.app.vault.getAbstractFileByPath(req.replace_path)
+      const replaceFile = replacePath
+        ? deps.app.vault.getAbstractFileByPath(replacePath)
         : null;
       const existing = deps.app.vault.getAbstractFileByPath(relativePath);
       if (replaceFile instanceof TFile) {
+        const replacementContent = await deps.app.vault.read(replaceFile);
+        assertReplacementBinding(replacementContent, node_token, replaceFile.path);
         await deps.app.vault.modify(replaceFile, content);
         finalPath = replaceFile.path;
         action = 'updated';
@@ -209,32 +217,6 @@ export function createFetchHandler(deps: FetchDeps) {
       feishu_title: feishuTitle,
     };
   };
-}
-
-/**
- * 按 feishu_id 查找已同步文件。
- * 扫描 vault 下所有 .md，解析 frontmatter 匹配 feishu_id。
- */
-async function findByFeishuId(app: App, feishuId: string): Promise<TFile | null> {
-  const files = app.vault.getMarkdownFiles();
-  for (const file of files) {
-    // 跳过插件目录
-    if (file.path.startsWith('.obsidian') || file.path.startsWith('.feishu-sync')) continue;
-    try {
-      const content = await app.vault.read(file);
-      // 快速检测：含 feishu_id 字段才解析
-      if (!content.includes('feishu_id:')) continue;
-      const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-      if (!fmMatch) continue;
-      const idMatch = fmMatch[1].match(/feishu_id:\s*["']?([A-Za-z0-9]+)/);
-      if (idMatch && idMatch[1] === feishuId) {
-        return file;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
 }
 
 /**

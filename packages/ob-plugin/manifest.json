@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "3.2.2",
+  "version": "3.3.0",
   "minAppVersion": "1.5.0",
-  "description": "fs-TB 3.2.2：飞书 ↔ Obsidian 协议触发、文档拉取与双向回写",
+  "description": "fs-TB 3.3.0：唯一绑定、幂等请求、并发协调与路径安全",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

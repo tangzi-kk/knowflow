@@ -7,6 +7,7 @@ import {
 import type { FeishuSyncPlugin } from './main.js';
 import { createFetchHandler } from './handlers/fetchHandler.js';
 import { resolveNodeTokenFromUrl } from './lark/cli.js';
+import { normalizeVaultDir } from './vaultPath.js';
 
 type TriggerSource = 'protocol' | 'command' | 'clipper';
 
@@ -83,14 +84,16 @@ async function triggerFetch(plugin: FeishuSyncPlugin, input: TriggerInput): Prom
         state: plugin.state,
         notice: (message) => new Notice(message),
       });
-      const result = await handler({
-        method: 'POST',
-        url: '/fetch',
-        path: '/fetch',
-        query: new URLSearchParams(),
-        body: { ...req, dir: dir || req.dir },
-        token: '',
-      });
+      const targetDir = normalizeVaultDir(dir || req.dir || plugin.settings.defaultDir);
+      const result = await plugin.syncCoordinator.run(`document:${req.node_token}`, undefined, () =>
+        plugin.syncCoordinator.run(`directory:${targetDir}`, undefined, () => handler({
+          method: 'POST',
+          url: '/fetch',
+          path: '/fetch',
+          query: new URLSearchParams(),
+          body: { ...req, dir: targetDir },
+          token: '',
+        })));
       new Notice(`${result.action === 'created' ? '已创建' : '已更新'}：${result.path}`);
     } catch (err) {
       new Notice(`同步失败：${err instanceof Error ? err.message : String(err)}`);

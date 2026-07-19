@@ -11,7 +11,7 @@ export const DEFAULT_PORT = 4567;
 export const TOKEN_HEADER = 'X-Sync-Token';
 /** 跨端协议版本；不一致时写操作必须失败关闭。 */
 export const PROTOCOL_VERSION = 1;
-/** 3.2.2 服务端实际提供的能力。 */
+/** 当前服务端实际提供的能力。 */
 export const SERVER_CAPABILITIES = [
     'status',
     'tree',

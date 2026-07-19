@@ -8,7 +8,7 @@
  * 4. 注册命令、设置页、图片渲染、删除监听
  * 5. 卸载时停止 server
  */
-import { Plugin, Notice } from 'obsidian';
+import { Plugin, Notice, TFile } from 'obsidian';
 import {
   type FeishuSyncSettings,
   type PluginState,
@@ -35,12 +35,17 @@ import {
   SYSTEM_PROPERTY_HIDDEN_CLASS,
   SYSTEM_PROPERTY_STYLE_ID,
 } from './systemProperties.js';
+import { SyncCoordinator } from './syncCoordinator.js';
+import type { ClipRequest, FetchRequest, PushbackRequest } from '@sync/shared';
+import { extractFeishuId } from './bindingIndex.js';
+import { normalizeVaultDir, normalizeVaultMarkdownPath } from './vaultPath.js';
 
 export class FeishuSyncPlugin extends Plugin {
   settings!: FeishuSyncSettings;
   state!: PluginState;
   private stopServer?: () => Promise<void>;
   private systemPropertyObserver?: MutationObserver;
+  readonly syncCoordinator = new SyncCoordinator();
 
   async onload(): Promise<void> {
     let shouldSaveSettings = await this.loadSettings();
@@ -126,6 +131,20 @@ export class FeishuSyncPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
+  async documentCoordinationKey(nodeToken?: string, path?: string): Promise<string> {
+    if (nodeToken) return `document:${nodeToken}`;
+    if (path) {
+      const normalizedPath = normalizeVaultMarkdownPath(path);
+      const file = this.app.vault.getAbstractFileByPath(normalizedPath);
+      if (file instanceof TFile) {
+        const feishuId = extractFeishuId(await this.app.vault.read(file));
+        if (feishuId) return `document:${feishuId}`;
+      }
+      return `path:${normalizedPath}`;
+    }
+    return 'document:missing';
+  }
+
   applySystemPropertiesVisibility(): void {
     const enabled = this.settings.hideSystemProperties ?? true;
     document.body.classList.toggle(SYSTEM_PROPERTY_BODY_CLASS, enabled);
@@ -194,23 +213,40 @@ export class FeishuSyncPlugin extends Plugin {
     // 注册路由
     routes.set('/status', createStatusHandler(this.manifest.version, this.app.vault.getName(), this.state));
     routes.set('/tree', createTreeHandler(this.app));
-    routes.set('/fetch', createFetchHandler({
+    const fetchHandler = createFetchHandler({
       app: this.app,
       settings: this.settings,
       state: this.state,
       notice: (m) => new Notice(m),
-    }));
-    routes.set('/clip', createClipHandler({
+    });
+    routes.set('/fetch', (ctx) => {
+      const req = ctx.body as FetchRequest;
+      const documentKey = `document:${req?.node_token ?? ''}`;
+      const directoryKey = `directory:${normalizeVaultDir(req?.dir ?? this.settings.defaultDir)}`;
+      return this.syncCoordinator.run(documentKey, req?.requestId, () =>
+        this.syncCoordinator.run(directoryKey, undefined, () => fetchHandler(ctx)));
+    });
+    const clipHandler = createClipHandler({
       app: this.app,
       settings: this.settings,
       notice: (m) => new Notice(m),
-    }));
+    });
+    routes.set('/clip', (ctx) => {
+      const req = ctx.body as ClipRequest;
+      const key = req?.appendPath ? `clip:${req.appendPath}` : `clip:${req?.requestId ?? 'anonymous'}`;
+      return this.syncCoordinator.run(key, req?.requestId, () => clipHandler(ctx));
+    });
     routes.set('/exists', createExistsHandler(this.app));
-    routes.set('/pushback', createPushbackHandler({
+    const pushbackHandler = createPushbackHandler({
       app: this.app,
       settings: this.settings,
       notice: (m) => new Notice(m),
-    }));
+    });
+    routes.set('/pushback', async (ctx) => {
+      const req = ctx.body as PushbackRequest;
+      const key = await this.documentCoordinationKey(req?.node_token, req?.path);
+      return this.syncCoordinator.run(key, req?.requestId, () => pushbackHandler(ctx));
+    });
 
     try {
       const { stop } = await startServer(this.settings.port, deps);

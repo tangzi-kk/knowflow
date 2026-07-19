@@ -401,7 +401,7 @@ export async function postFetch(
   req: FetchRequest,
 ): Promise<FetchResponse> {
   await requireWriteCapability(config, 'fetch');
-  return request<FetchResponse>(config, 'POST', '/fetch', req, 120000);
+  return request<FetchResponse>(config, 'POST', '/fetch', withRequestId(req), 120000);
 }
 
 /** POST /clip — 任意网页/划词剪存。 */
@@ -410,7 +410,14 @@ export async function postClip(
   req: ClipRequest,
 ): Promise<ClipResponse> {
   await requireWriteCapability(config, 'clip');
-  return request<ClipResponse>(config, 'POST', '/clip', req, 30000);
+  return request<ClipResponse>(config, 'POST', '/clip', withRequestId(req), 30000);
+}
+
+function withRequestId<T extends { requestId?: string }>(requestBody: T): T & { requestId: string } {
+  return {
+    ...requestBody,
+    requestId: requestBody.requestId || globalThis.crypto.randomUUID(),
+  };
 }
 
 /** POST /exists — 检查是否已同步。 */

@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/development-3.2.2-blue" alt="development version">
+  <img src="https://img.shields.io/badge/development-3.3.0-blue" alt="development version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 开发线 | `fs-TB` + `KnowFlow` | `3.2.2` | `packages/ob-plugin/` + `extension/dist/` | 自动门禁通过，尚未真机安装 |
+| 开发线 | `fs-TB` + `KnowFlow` | `3.3.0` | `packages/ob-plugin/` + `extension/dist/` | 自动门禁通过，尚未真机安装 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 

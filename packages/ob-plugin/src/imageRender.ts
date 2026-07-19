@@ -8,6 +8,7 @@ import type { Plugin } from 'obsidian';
 import { Notice, Platform } from 'obsidian';
 import * as path from 'node:path';
 import { run } from './lark/cli.js';
+import { validateImageToken } from './vaultPath.js';
 
 const CACHE_DIR = '.feishu-sync/cache';
 
@@ -24,8 +25,8 @@ export function registerImageRenderer(plugin: Plugin): void {
       const src = img.getAttribute('src') || '';
       if (!src.startsWith('feishu://')) continue;
 
-      const token = src.slice('feishu://'.length);
       try {
+        const token = validateImageToken(src.slice('feishu://'.length));
         const localPath = await resolveImage(plugin, token);
         if (localPath) {
           // 用 vault:// 链接或 app://local/ 链接
@@ -39,8 +40,8 @@ export function registerImageRenderer(plugin: Plugin): void {
           img.setAttribute('src', '');
         }
       } catch (err) {
-        console.warn('[sync/image] render failed:', token, err);
-        img.setAttribute('alt', `[飞书图片 ${token.slice(0, 8)} 加载中...]`);
+        console.warn('[sync/image] render failed:', err);
+        img.setAttribute('alt', '[飞书图片加载失败]');
       }
     }
   });
