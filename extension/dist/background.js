@@ -50,12 +50,38 @@
   });
 
   // ../packages/shared/dist/protocol.js
-  var DEFAULT_PORT, TOKEN_HEADER, OBSIDIAN_LARK_DOC_ACTION, OBSIDIAN_LARK_DOC_URI_PREFIX;
+  function evaluateProtocolCompatibility(info, required = REQUIRED_WRITE_CAPABILITIES) {
+    if (!info || typeof info.protocolVersion !== "number" || !Array.isArray(info.capabilities) || typeof info.componentVersion !== "string") {
+      return { compatible: false, reason: "Missing protocol metadata" };
+    }
+    if (info.protocolVersion !== PROTOCOL_VERSION) {
+      return {
+        compatible: false,
+        reason: `Protocol version mismatch: browser=${PROTOCOL_VERSION}, obsidian=${info.protocolVersion}`
+      };
+    }
+    const capabilities = new Set(info.capabilities);
+    const missing = required.filter((capability) => !capabilities.has(capability));
+    if (missing.length > 0) {
+      return {
+        compatible: false,
+        reason: `Missing required capabilities: ${missing.join(", ")}`
+      };
+    }
+    return { compatible: true };
+  }
+  var DEFAULT_PORT, TOKEN_HEADER, PROTOCOL_VERSION, REQUIRED_WRITE_CAPABILITIES, OBSIDIAN_LARK_DOC_ACTION, OBSIDIAN_LARK_DOC_URI_PREFIX;
   var init_protocol = __esm({
     "../packages/shared/dist/protocol.js"() {
       "use strict";
       DEFAULT_PORT = 4567;
       TOKEN_HEADER = "X-Sync-Token";
+      PROTOCOL_VERSION = 1;
+      REQUIRED_WRITE_CAPABILITIES = [
+        "fetch",
+        "clip",
+        "pushback"
+      ];
       OBSIDIAN_LARK_DOC_ACTION = "lark-doc";
       OBSIDIAN_LARK_DOC_URI_PREFIX = `obsidian://${OBSIDIAN_LARK_DOC_ACTION}`;
     }
@@ -978,6 +1004,254 @@
     }
   });
 
+  // src/storage.ts
+  function chromeStorage() {
+    return {
+      sync: chrome.storage.sync,
+      local: chrome.storage.local
+    };
+  }
+  function storageOrDefault(storage) {
+    return storage ?? chromeStorage();
+  }
+  function asObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
+  }
+  function newRevision() {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+  function sameData(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  function parseEnvelope(value, key) {
+    if (value === void 0) return null;
+    const record = asObject(value);
+    if (!record || record.schema !== CANONICAL_SCHEMA || typeof record.revision !== "string" || typeof record.verified !== "boolean" || !asObject(record.config)) {
+      throw new Error(`Invalid canonical envelope: ${key}`);
+    }
+    return record;
+  }
+  async function readEnvelope(key, storage) {
+    const result = await storage.local.get(key);
+    return parseEnvelope(result[key], key);
+  }
+  async function writeCanonicalEnvelope(key, config, storage) {
+    const revision = newRevision();
+    const pending = {
+      schema: CANONICAL_SCHEMA,
+      revision,
+      verified: false,
+      config
+    };
+    await storage.local.set({ [key]: pending });
+    const pendingReadback = await readEnvelope(key, storage);
+    if (!pendingReadback || !sameData(pendingReadback, pending)) {
+      throw new Error(`Failed to verify pending canonical envelope: ${key}`);
+    }
+    const committed = { ...pending, verified: true };
+    await storage.local.set({ [key]: committed });
+    const committedReadback = await readEnvelope(key, storage);
+    if (!committedReadback || !sameData(committedReadback, committed)) {
+      throw new Error(`Failed to verify canonical envelope: ${key}`);
+    }
+    return committed;
+  }
+  function withoutSecret(config, secretField) {
+    const projection = { ...config };
+    delete projection[secretField];
+    return projection;
+  }
+  async function cleanupLegacyConfig(spec, config, storage) {
+    await storage.sync.set({
+      [spec.syncKey]: withoutSecret(config, spec.secretField)
+    });
+    await storage.local.remove(spec.localSecretKey);
+  }
+  async function migrateConfig(defaults, spec, storage) {
+    const existing = await readEnvelope(spec.envelopeKey, storage);
+    if (existing) {
+      if (!existing.verified) {
+        throw new Error(`Unverified canonical envelope: ${spec.envelopeKey}`);
+      }
+      try {
+        await cleanupLegacyConfig(
+          spec,
+          existing.config,
+          storage
+        );
+      } catch {
+      }
+      return existing;
+    }
+    const [syncResult, localResult] = await Promise.all([
+      storage.sync.get(spec.syncKey),
+      storage.local.get(spec.localSecretKey)
+    ]);
+    const legacyConfig = asObject(syncResult[spec.syncKey]) ?? {};
+    const syncSecret = legacyConfig[spec.secretField];
+    const localSecret = localResult[spec.localSecretKey];
+    if (syncSecret !== void 0 && typeof syncSecret !== "string") {
+      throw new Error(`Invalid legacy secret in ${spec.syncKey}.${spec.secretField}`);
+    }
+    if (localSecret !== void 0 && typeof localSecret !== "string") {
+      throw new Error(`Invalid local secret in ${spec.localSecretKey}`);
+    }
+    if (typeof syncSecret === "string" && syncSecret.length > 0 && typeof localSecret === "string" && localSecret.length > 0 && syncSecret !== localSecret) {
+      throw new Error(`Legacy secret conflict: ${spec.syncKey}`);
+    }
+    const secret = typeof localSecret === "string" && localSecret.length > 0 ? localSecret : typeof syncSecret === "string" ? syncSecret : "";
+    const config = {
+      ...defaults,
+      ...legacyConfig,
+      [spec.secretField]: secret
+    };
+    const envelope = await writeCanonicalEnvelope(spec.envelopeKey, config, storage);
+    await cleanupLegacyConfig(spec, config, storage);
+    return envelope;
+  }
+  async function loadSecretBackedConfig(defaults, spec, storage) {
+    const envelope = await migrateConfig(defaults, spec, storageOrDefault(storage));
+    return { ...defaults, ...envelope.config };
+  }
+  async function saveSecretBackedConfig(config, spec, storage) {
+    const record = asObject(config);
+    if (!record || typeof record[spec.secretField] !== "string") {
+      throw new Error(`Invalid secret value for ${spec.secretField}`);
+    }
+    const areas = storageOrDefault(storage);
+    await writeCanonicalEnvelope(spec.envelopeKey, config, areas);
+    await cleanupLegacyConfig(spec, record, areas);
+  }
+  async function migrateDeepSeekSecret(storage) {
+    const existing = await readEnvelope(
+      LOCAL_ENVELOPE_KEYS.deepseekToken,
+      storage
+    );
+    if (existing) {
+      if (!existing.verified) {
+        throw new Error(`Unverified canonical envelope: ${LOCAL_ENVELOPE_KEYS.deepseekToken}`);
+      }
+      try {
+        await storage.sync.remove(DEEPSEEK_TOKEN_KEY);
+        await storage.local.remove(LOCAL_SECRET_KEYS.deepseekToken);
+      } catch {
+      }
+      return;
+    }
+    const [syncResult, localResult] = await Promise.all([
+      storage.sync.get(DEEPSEEK_TOKEN_KEY),
+      storage.local.get(LOCAL_SECRET_KEYS.deepseekToken)
+    ]);
+    const syncToken = syncResult[DEEPSEEK_TOKEN_KEY];
+    const localToken = localResult[LOCAL_SECRET_KEYS.deepseekToken];
+    if (syncToken !== void 0 && typeof syncToken !== "string") {
+      throw new Error(`Invalid legacy secret in ${DEEPSEEK_TOKEN_KEY}`);
+    }
+    if (localToken !== void 0 && typeof localToken !== "string") {
+      throw new Error(`Invalid local secret in ${LOCAL_SECRET_KEYS.deepseekToken}`);
+    }
+    if (typeof syncToken === "string" && syncToken.length > 0 && typeof localToken === "string" && localToken.length > 0 && syncToken !== localToken) {
+      throw new Error(`Legacy secret conflict: ${DEEPSEEK_TOKEN_KEY}`);
+    }
+    const token = typeof localToken === "string" && localToken.length > 0 ? localToken : typeof syncToken === "string" ? syncToken : "";
+    await writeCanonicalEnvelope(
+      LOCAL_ENVELOPE_KEYS.deepseekToken,
+      { token },
+      storage
+    );
+    await storage.sync.remove(DEEPSEEK_TOKEN_KEY);
+    await storage.local.remove(LOCAL_SECRET_KEYS.deepseekToken);
+  }
+  async function getDeepSeekToken(storage) {
+    const areas = storageOrDefault(storage);
+    await migrateDeepSeekSecret(areas);
+    const envelope = await readEnvelope(
+      LOCAL_ENVELOPE_KEYS.deepseekToken,
+      areas
+    );
+    if (!envelope?.verified) return null;
+    return envelope.config.token.length > 0 ? envelope.config.token : null;
+  }
+  async function setDeepSeekToken(token, storage) {
+    const areas = storageOrDefault(storage);
+    await writeCanonicalEnvelope(
+      LOCAL_ENVELOPE_KEYS.deepseekToken,
+      { token },
+      areas
+    );
+    await areas.sync.remove(DEEPSEEK_TOKEN_KEY);
+    await areas.local.remove(LOCAL_SECRET_KEYS.deepseekToken);
+  }
+  function defaultMigrationTargets() {
+    return CONFIG_SECRET_SPECS.map((spec) => ({ spec, defaults: {} }));
+  }
+  async function migrateLegacySecrets(targets = defaultMigrationTargets(), storage) {
+    const areas = storageOrDefault(storage);
+    const issues = [];
+    for (const target of targets) {
+      try {
+        await migrateConfig(target.defaults, target.spec, areas);
+      } catch (error) {
+        issues.push({
+          key: target.spec.syncKey,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+    try {
+      await migrateDeepSeekSecret(areas);
+    } catch (error) {
+      issues.push({
+        key: DEEPSEEK_TOKEN_KEY,
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+    return { issues };
+  }
+  var CANONICAL_SCHEMA, LOCAL_SECRET_KEYS, LOCAL_ENVELOPE_KEYS, DEEPSEEK_TOKEN_KEY, SYNC_CONFIG_STORAGE, AI_CONFIG_STORAGE, INTERPRETER_CONFIG_STORAGE, CONFIG_SECRET_SPECS;
+  var init_storage = __esm({
+    "src/storage.ts"() {
+      "use strict";
+      CANONICAL_SCHEMA = 1;
+      LOCAL_SECRET_KEYS = {
+        syncToken: "syncToken",
+        aiApiKey: "aiApiKey",
+        interpreterApiKey: "interpreterApiKey",
+        deepseekToken: "deepseek_web_token"
+      };
+      LOCAL_ENVELOPE_KEYS = {
+        syncConfig: "knowflow_sync_config_v1",
+        aiConfig: "knowflow_ai_config_v1",
+        interpreterConfig: "knowflow_interpreter_config_v1",
+        deepseekToken: "knowflow_deepseek_token_v1"
+      };
+      DEEPSEEK_TOKEN_KEY = "deepseek_web_token";
+      SYNC_CONFIG_STORAGE = {
+        syncKey: "syncConfig",
+        secretField: "token",
+        localSecretKey: LOCAL_SECRET_KEYS.syncToken,
+        envelopeKey: LOCAL_ENVELOPE_KEYS.syncConfig
+      };
+      AI_CONFIG_STORAGE = {
+        syncKey: "aiConfig",
+        secretField: "apiKey",
+        localSecretKey: LOCAL_SECRET_KEYS.aiApiKey,
+        envelopeKey: LOCAL_ENVELOPE_KEYS.aiConfig
+      };
+      INTERPRETER_CONFIG_STORAGE = {
+        syncKey: "interpreterConfig",
+        secretField: "apiKey",
+        localSecretKey: LOCAL_SECRET_KEYS.interpreterApiKey,
+        envelopeKey: LOCAL_ENVELOPE_KEYS.interpreterConfig
+      };
+      CONFIG_SECRET_SPECS = [
+        SYNC_CONFIG_STORAGE,
+        AI_CONFIG_STORAGE,
+        INTERPRETER_CONFIG_STORAGE
+      ];
+    }
+  });
+
   // src/client.ts
   var client_exports = {};
   __export(client_exports, {
@@ -1042,11 +1316,7 @@
     return values.find((value) => raw.includes(value));
   }
   async function loadConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["syncConfig"], (result) => {
-        resolve({ ...DEFAULT_CONFIG, ...result.syncConfig ?? {} });
-      });
-    });
+    return loadSecretBackedConfig(DEFAULT_CONFIG, SYNC_CONFIG_STORAGE);
   }
   async function loadPropertyTemplate() {
     return new Promise((resolve) => {
@@ -1073,25 +1343,10 @@
     });
   }
   async function loadInterpreterConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["interpreterConfig"], (syncResult) => {
-        chrome.storage.local.get(["interpreterApiKey"], (localResult) => {
-          resolve({
-            ...DEFAULT_INTERPRETER_CONFIG,
-            ...syncResult.interpreterConfig ?? {},
-            apiKey: localResult.interpreterApiKey ?? ""
-          });
-        });
-      });
-    });
+    return loadSecretBackedConfig(DEFAULT_INTERPRETER_CONFIG, INTERPRETER_CONFIG_STORAGE);
   }
   async function saveInterpreterConfig(config) {
-    const { apiKey, ...syncConfig } = config;
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ interpreterConfig: syncConfig }, () => {
-        chrome.storage.local.set({ interpreterApiKey: apiKey }, () => resolve());
-      });
-    });
+    await saveSecretBackedConfig(config, INTERPRETER_CONFIG_STORAGE);
   }
   async function suggestMetaWithInterpreter(config, input) {
     if (!config.enabled) throw new Error("\u89E3\u91CA\u5668\u672A\u542F\u7528");
@@ -1176,9 +1431,7 @@
     }
   }
   async function saveConfig(config) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ syncConfig: config }, () => resolve());
-    });
+    await saveSecretBackedConfig(config, SYNC_CONFIG_STORAGE);
   }
   function baseUrl(config) {
     return `http://${config.host}:${config.port}`;
@@ -1221,10 +1474,21 @@
   async function getTree(config) {
     return request(config, "GET", "/tree?maxDepth=12", void 0, 1e4);
   }
+  async function requireWriteCapability(config, capability) {
+    const status = await getStatus(config);
+    const compatibility = evaluateProtocolCompatibility(status, [capability]);
+    if (!compatibility.compatible) {
+      throw new Error(
+        `\u6D4F\u89C8\u5668\u6269\u5C55\u4E0E Obsidian \u63D2\u4EF6\u4E0D\u517C\u5BB9\uFF1A${compatibility.reason ?? "\u672A\u77E5\u534F\u8BAE\u9519\u8BEF"}\u3002\u8BF7\u5C06\u4E24\u7AEF\u5347\u7EA7\u5230\u540C\u4E00\u7248\u672C\u3002`
+      );
+    }
+  }
   async function postFetch(config, req) {
+    await requireWriteCapability(config, "fetch");
     return request(config, "POST", "/fetch", req, 12e4);
   }
   async function postClip(config, req) {
+    await requireWriteCapability(config, "clip");
     return request(config, "POST", "/clip", req, 3e4);
   }
   async function postExists(config, req) {
@@ -1252,6 +1516,7 @@
     "src/client.ts"() {
       "use strict";
       init_dist();
+      init_storage();
       DEFAULT_CONFIG = {
         host: "127.0.0.1",
         port: DEFAULT_PORT,
@@ -1949,6 +2214,7 @@
 
   // src/deepseek-web.ts
   var import_js_sha3 = __toESM(require_sha3(), 1);
+  init_storage();
   function solvePoW(challenge, maxTimeMs = 1e4) {
     const prefix = `${challenge.salt}_${challenge.expire_at}_`;
     const threshold = Math.floor(4294967296 / challenge.difficulty);
@@ -2034,18 +2300,6 @@
       signature: bizData.signature || "",
       target_path: bizData.target_path || "/api/v0/chat/completion"
     };
-  }
-  var DS_TOKEN_KEY = "deepseek_web_token";
-  async function getDeepSeekToken() {
-    try {
-      const stored = await chrome.storage.sync.get(DS_TOKEN_KEY);
-      return stored[DS_TOKEN_KEY] || null;
-    } catch {
-      return null;
-    }
-  }
-  async function setDeepSeekToken(token) {
-    await chrome.storage.sync.set({ [DS_TOKEN_KEY]: token });
   }
   function isValidToken(token) {
     if (!token || token.length < 20) return false;
@@ -2194,6 +2448,7 @@
   }
 
   // src/background.ts
+  init_storage();
   var DEFAULT_INLINE_AI_CONFIG = {
     provider: "gemini-web",
     apiKey: "",
@@ -2214,6 +2469,15 @@
   ];
   var AI_TIMEOUT_MS = 8e3;
   var AI_TIMEOUT_MESSAGE = "AI \u8BF7\u6C42\u8D85\u65F6\u3002\u8BF7\u91CD\u8BD5\uFF0C\u6216\u5F00\u542F\u300C\u81EA\u5B9A\u4E49 AI \u89E3\u91CA\u5668\u300D\u540E\u4F7F\u7528\u81EA\u5B9A\u4E49 API\u3002";
+  async function migrateAllSecrets() {
+    const report = await migrateLegacySecrets();
+    if (report.issues.length > 0) {
+      console.warn(
+        "[feishu-sync] secret migration incomplete:",
+        report.issues.map((issue) => issue.key).join(", ")
+      );
+    }
+  }
   var AI_CACHE_TTL_MS = 5 * 60 * 1e3;
   var aiResultCache = /* @__PURE__ */ new Map();
   function hashString(input) {
@@ -2262,8 +2526,7 @@
     });
   }
   async function runInlineAi(payload) {
-    const stored = await chrome.storage.sync.get("aiConfig");
-    const config = { ...DEFAULT_INLINE_AI_CONFIG, ...stored.aiConfig ?? {} };
+    const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
     const text = payload.text?.trim();
     const attachments = normalizeAiAttachments(payload.attachments);
     if (!text && attachments.length === 0) throw new Error("\u8BF7\u5148\u8F93\u5165\u6587\u5B57\u3001\u5212\u9009\u6587\u672C\u6216\u6DFB\u52A0\u56FE\u7247\u3002");
@@ -2281,9 +2544,8 @@ ${text}`;
     const cacheKey = getCacheKey(sceneId, text || "", prompt);
     const cached = getCachedResult(cacheKey);
     if (cached) return cached;
-    const interpreterStored = await chrome.storage.sync.get("interpreterConfig");
-    const interpreterConfig = interpreterStored?.interpreterConfig ?? {};
-    const useCustomProvider = interpreterConfig?.customProviderEnabled === true;
+    const interpreterConfig = await loadInterpreterConfig();
+    const useCustomProvider = interpreterConfig.customProviderEnabled === true;
     let aiResult;
     if (config.provider === "deepseek-web") {
       try {
@@ -2557,7 +2819,8 @@ ${prompt}` }] }] })
     });
     if (!response.ok) throw new Error(`Gemini Web \u8BF7\u6C42\u5931\u8D25\uFF1A${response.status} ${response.statusText}`);
     const raw = await response.text();
-    const result = raw.split("\n").map(parseGeminiLine).filter((value) => Boolean(value)).at(-1);
+    const parsedResults = raw.split("\n").map(parseGeminiLine).filter((value) => Boolean(value));
+    const result = parsedResults[parsedResults.length - 1];
     if (!result) throw new Error("Gemini Web \u672A\u8FD4\u56DE\u53EF\u89E3\u6790\u5185\u5BB9\uFF0C\u8BF7\u5237\u65B0 Gemini \u767B\u5F55\u540E\u91CD\u8BD5\u3002");
     return result;
   }
@@ -2580,8 +2843,7 @@ ${prompt}` }] }] })
       chrome.tabs.sendMessage(tabId, { type: "ai-stream-chunk", payload: { chunk } }).catch(() => {
       });
     };
-    const stored = await chrome.storage.sync.get("aiConfig");
-    const config = { ...DEFAULT_INLINE_AI_CONFIG, ...stored.aiConfig ?? {} };
+    const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
     const systemPrompt = config.systemPrompt ? `${config.systemPrompt}
 
 ` : "";
@@ -2647,30 +2909,23 @@ ${prompt}` }] }] })
   }
   chrome.runtime.onInstalled.addListener(async (details) => {
     console.log("[feishu-sync] installed/updated:", details.reason);
+    try {
+      await migrateAllSecrets();
+    } catch (error) {
+      console.warn("[feishu-sync] secret migration incomplete:", error);
+    }
     const config = await loadConfig();
     if (!config.token) {
       await saveConfig(DEFAULT_CONFIG);
     }
-    chrome.storage.sync.get(["aiConfig"], (result) => {
-      if (!result.aiConfig) {
-        chrome.storage.sync.set({
-          aiConfig: {
-            provider: "gemini-web",
-            apiKey: "",
-            baseUrl: "",
-            model: "56fdd199312815e2",
-            systemPrompt: "\u4F60\u662F\u98DE\u4E66\u540C\u6B65\u63D2\u4EF6\u7684 AI \u52A9\u624B\u3002\u4F60\u53EF\u4EE5\u5E2E\u52A9\u7528\u6237\u7FFB\u8BD1\u3001\u603B\u7ED3\u6587\u6863\uFF0C\u89E3\u7B54 Obsidian \u548C\u98DE\u4E66\u540C\u6B65\u76F8\u5173\u7684\u95EE\u9898\u3002\u8BF7\u7528\u7B80\u6D01\u7684\u4E2D\u6587\u56DE\u7B54\u3002"
-          }
-        });
-      }
-    });
     await ensureContextScenes();
     await rebuildContextMenus();
     setTimeout(() => broadcastSessionStatus().catch(() => {
     }), 3e3);
   });
-  chrome.runtime.onStartup?.addListener(() => {
-    rebuildContextMenus().catch((error) => console.warn("[feishu-sync] context menu rebuild failed:", error));
+  chrome.runtime.onStartup?.addListener(async () => {
+    await migrateAllSecrets();
+    await rebuildContextMenus();
     setTimeout(() => broadcastSessionStatus().catch(() => {
     }), 3e3);
   });
@@ -2819,7 +3074,13 @@ ${prompt}` }] }] })
             return { title: document.title, url: location.href, selection, text, elements };
           }
         });
-        const context = page[0]?.result || { title: tab.title || "", url: tab.url || "", text: "" };
+        const context = page[0]?.result || {
+          title: tab.title || "",
+          url: tab.url || "",
+          text: "",
+          selection: "",
+          elements: []
+        };
         const payload = { action, title: context.title, url: context.url, text: context.text, selection: context.selection || "", elements: context.elements || [], userInstruction };
         if (action === "screenshot-translate" || action === "ocr" || action === "screen-shot") {
           payload.imageDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });

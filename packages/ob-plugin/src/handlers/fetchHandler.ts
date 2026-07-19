@@ -14,7 +14,7 @@
  */
 import type { FetchRequest, FetchResponse } from '@sync/shared';
 import { App, TFile, TFolder } from 'obsidian';
-import type { RequestContext, HttpError } from '../server.js';
+import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings, PluginState } from '../settings.js';
 import { run, getWikiNodeInfo } from '../lark/cli.js';
 import {

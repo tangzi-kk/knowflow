@@ -181,10 +181,6 @@ function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-function escapeYaml(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n+/g, ' ').trim();
-}
-
 function normalizeClipMeta(meta: unknown, fallback: {
   title: string;
   url: string;

@@ -10,14 +10,11 @@
  * 6. 位置持久化到 localStorage
  */
 import './content.css';
-import type { TreeNode } from '@sync/shared';
 import { buildObsidianLarkDocUri } from '@sync/shared';
 
 const FAB_ID = 'feishu-sync-fab';
 const LABEL_ID = 'feishu-sync-fab-label';
 const FAB_SIZE = 52;
-const HIDDEN_OFFSET = 40; // 半隐藏时露出 px
-const SNAP_GAP = 8;       // 贴合后与边缘间距
 const DEFAULT_AI_EXCERPT_CHARS = 4000;
 const LS_KEY = 'feishu-sync-fab-pos';
 
@@ -110,7 +107,7 @@ function defaultPosition(): FabPosition {
 }
 
 /* ──────────── 边缘吸附计算 ──────────── */
-function computeSnap(el: HTMLElement, pos: FabPosition): FabPosition {
+function computeSnap(pos: FabPosition): FabPosition {
   const w = window.innerWidth;
   const h = window.innerHeight;
   const cx = pos.left + FAB_SIZE / 2;
@@ -135,9 +132,6 @@ function computeSnap(el: HTMLElement, pos: FabPosition): FabPosition {
 }
 
 function applySnap(fab: HTMLElement, pos: FabPosition): void {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
   // 先移除贴合样式
   fab.style.left = '';
   fab.style.right = '';
@@ -282,7 +276,7 @@ function setupDrag(fab: HTMLElement): void {
     fab.classList.remove('is-dragging');
 
     // 计算吸附
-    const snapped = computeSnap(fab, pos);
+    const snapped = computeSnap(pos);
     savePosition(snapped);
 
     // 吸附动画

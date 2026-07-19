@@ -16,6 +16,7 @@ import {
   type SyncConfig,
 } from '../client.js';
 import type { TreeNode } from '@sync/shared';
+import { AI_CONFIG_STORAGE, loadSecretBackedConfig } from '../storage.js';
 
 type StatusType = 'info' | 'success' | 'error';
 type MetaValue = string | number | string[];
@@ -1208,13 +1209,8 @@ function switchTab(panel: string): void {
 // AI Config 加载 / 保存
 // ═══════════════════════════════════════════════
 async function loadAiConfig(): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['aiConfig'], (result) => {
-      aiConfig = { ...DEFAULT_AI_CONFIG, ...(result.aiConfig ?? {}) };
-      updateProviderBadge();
-      resolve();
-    });
-  });
+  aiConfig = await loadSecretBackedConfig(DEFAULT_AI_CONFIG, AI_CONFIG_STORAGE);
+  updateProviderBadge();
 }
 
 function updateProviderBadge(): void {

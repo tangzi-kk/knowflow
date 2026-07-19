@@ -34,7 +34,7 @@ export interface DeleteRecord {
  * 检测被删文件是否含 feishu_id，若是则登记。
  */
 export function registerDeleteWatcher(
-  app: App,
+  _app: App,
   getConfig: () => DeleteRegistryConfig | null,
   enabled: () => boolean,
   registerFn: (event: string, callback: (file: TFile) => void) => void,

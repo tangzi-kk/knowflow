@@ -1,9 +1,9 @@
 {
-  "id": "feishu-sync",
-  "name": "飞书同步",
-  "version": "3.0.1",
+  "id": "fs-TB",
+  "name": "飞书同步 (fs-TB)",
+  "version": "3.2.2",
   "minAppVersion": "1.5.0",
-  "description": "飞书 ↔ Obsidian 3.0 MVP：协议触发、命令拉取、Clipper 占位兼容、双向同步",
+  "description": "fs-TB 3.2.2：飞书 ↔ Obsidian 协议触发、文档拉取与双向回写",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

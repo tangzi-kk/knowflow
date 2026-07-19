@@ -18,9 +18,7 @@ const CACHE_DIR = '.feishu-sync/cache';
 export function registerImageRenderer(plugin: Plugin): void {
   if (!Platform.isDesktopApp) return;
 
-  const { adapter } = plugin.app.vault;
-
-  plugin.registerMarkdownPostProcessor(async (el, ctx) => {
+  plugin.registerMarkdownPostProcessor(async (el) => {
     const imgs = el.querySelectorAll('img');
     for (const img of Array.from(imgs)) {
       const src = img.getAttribute('src') || '';
@@ -31,7 +29,9 @@ export function registerImageRenderer(plugin: Plugin): void {
         const localPath = await resolveImage(plugin, token);
         if (localPath) {
           // 用 vault:// 链接或 app://local/ 链接
-          const vaultBase = plugin.app.vault.adapter.getBasePath?.() ?? '';
+          const vaultBase = (
+            plugin.app.vault.adapter as typeof plugin.app.vault.adapter & { getBasePath?: () => string }
+          ).getBasePath?.() ?? '';
           const fullPath = path.join(vaultBase, localPath);
           img.setAttribute('src', `app://local/${fullPath}`);
         } else {

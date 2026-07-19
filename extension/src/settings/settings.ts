@@ -17,6 +17,11 @@ import {
   type PropertyTemplate,
   type SyncConfig,
 } from '../client.js';
+import {
+  AI_CONFIG_STORAGE,
+  loadSecretBackedConfig,
+  saveSecretBackedConfig,
+} from '../storage.js';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -302,17 +307,11 @@ function readInterpreter(): InterpreterConfig {
 // AI 助手配置
 // ═══════════════════════════════════════════════
 async function loadAiConfig(): Promise<AIConfig> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['aiConfig'], (result) => {
-      resolve({ ...DEFAULT_AI_CONFIG, ...(result.aiConfig ?? {}) });
-    });
-  });
+  return loadSecretBackedConfig(DEFAULT_AI_CONFIG, AI_CONFIG_STORAGE);
 }
 
 async function saveAiConfig(config: AIConfig): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.set({ aiConfig: config }, () => resolve());
-  });
+  await saveSecretBackedConfig(config, AI_CONFIG_STORAGE);
 }
 
 async function renderAiConfig(): Promise<void> {

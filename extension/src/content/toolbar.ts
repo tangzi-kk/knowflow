@@ -89,7 +89,6 @@
   let knowledgeScenes: KnowledgeScene[] = getDefaultKnowledgeScenes();
   let moreOpen = false;
   let geminiSessionAlive = true; // Gemini Web session 状态
-  let geminiSessionError = '';
   let aiRequestInFlight = false;  // 防止重复 AI 请求
   let selectionDebounceTimer: number | null = null;  // mouseup debounce 定时器
   let lastStreamPrompt = '';  // 最近一次流式 AI 请求的 prompt（用于重试）
@@ -1094,37 +1093,6 @@
     }, 300);
   }
 
-  function bindInlineRetryBtn(prompt: string): void {
-    if (!shadow) return;
-    const btn = shadow.querySelector<HTMLButtonElement>('.ai-retry-btn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      aiRequestInFlight = true;
-      btn.textContent = '重试中...';
-      btn.disabled = true;
-      expandToResult(resultTitle, '<div class="ai-progress"><span class="ai-spinner"></span> 正在连接 AI...</div>', true);
-      const progressTimer = setTimeout(() => {
-        if (shadow) updateResultContent('<div class="ai-progress"><span class="ai-spinner"></span> 正在分析内容...</div>', true);
-      }, 1500);
-      chrome.runtime.sendMessage(
-        { type: 'ai-inline', payload: { action: 'ai-chat', prompt, text: lastSelection.trim(), title: document.title, url: window.location.href } },
-        (response) => {
-          clearTimeout(progressTimer);
-          aiRequestInFlight = false;
-          const errMsg = chrome.runtime.lastError?.message || response?.error || '';
-          if (errMsg) {
-            updateResultContent(
-              `<div class="ai-error">${escapeHtml(errMsg)}</div>
-               <button class="ai-retry-btn">重试</button>`, true);
-            bindInlineRetryBtn(prompt);
-            return;
-          }
-          updateResultContent(response?.text || 'AI 未返回内容');
-        },
-      );
-    });
-  }
-
   // ═══════════════════════════════════════════════════════════════
   // Page Theme Detection (动态暗色检测)
   // ═══════════════════════════════════════════════════════════════
@@ -1478,7 +1446,7 @@
       return;
     }
     // 普通状态：加退场动画后隐藏
-    const capsule = shadow?.querySelector('.capsule');
+    const capsule = shadow?.querySelector<HTMLElement>('.capsule');
     if (capsule) {
       capsule.style.transition = 'opacity 150ms cubic-bezier(0.16, 1, 0.3, 1), transform 150ms cubic-bezier(0.16, 1, 0.3, 1)';
       capsule.style.opacity = '0';
@@ -1805,7 +1773,6 @@
       // Gemini session 状态更新
       if (message.type === 'gemini-session-status') {
         geminiSessionAlive = message.payload?.alive !== false;
-        geminiSessionError = message.payload?.error || '';
         if (state === 'CAPSULE') {
           renderCapsule();
           bindCapsuleEvents();

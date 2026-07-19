@@ -859,6 +859,156 @@
     }
   };
 
+  // src/storage.ts
+  var CANONICAL_SCHEMA = 1;
+  var LOCAL_SECRET_KEYS = {
+    syncToken: "syncToken",
+    aiApiKey: "aiApiKey",
+    interpreterApiKey: "interpreterApiKey",
+    deepseekToken: "deepseek_web_token"
+  };
+  var LOCAL_ENVELOPE_KEYS = {
+    syncConfig: "knowflow_sync_config_v1",
+    aiConfig: "knowflow_ai_config_v1",
+    interpreterConfig: "knowflow_interpreter_config_v1",
+    deepseekToken: "knowflow_deepseek_token_v1"
+  };
+  var SYNC_CONFIG_STORAGE = {
+    syncKey: "syncConfig",
+    secretField: "token",
+    localSecretKey: LOCAL_SECRET_KEYS.syncToken,
+    envelopeKey: LOCAL_ENVELOPE_KEYS.syncConfig
+  };
+  var AI_CONFIG_STORAGE = {
+    syncKey: "aiConfig",
+    secretField: "apiKey",
+    localSecretKey: LOCAL_SECRET_KEYS.aiApiKey,
+    envelopeKey: LOCAL_ENVELOPE_KEYS.aiConfig
+  };
+  var INTERPRETER_CONFIG_STORAGE = {
+    syncKey: "interpreterConfig",
+    secretField: "apiKey",
+    localSecretKey: LOCAL_SECRET_KEYS.interpreterApiKey,
+    envelopeKey: LOCAL_ENVELOPE_KEYS.interpreterConfig
+  };
+  function chromeStorage() {
+    return {
+      sync: chrome.storage.sync,
+      local: chrome.storage.local
+    };
+  }
+  function storageOrDefault(storage) {
+    return storage ?? chromeStorage();
+  }
+  function asObject(value) {
+    return value !== null && typeof value === "object" && !Array.isArray(value) ? value : null;
+  }
+  function newRevision() {
+    return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+  function sameData(left, right) {
+    return JSON.stringify(left) === JSON.stringify(right);
+  }
+  function parseEnvelope(value, key) {
+    if (value === void 0) return null;
+    const record = asObject(value);
+    if (!record || record.schema !== CANONICAL_SCHEMA || typeof record.revision !== "string" || typeof record.verified !== "boolean" || !asObject(record.config)) {
+      throw new Error(`Invalid canonical envelope: ${key}`);
+    }
+    return record;
+  }
+  async function readEnvelope(key, storage) {
+    const result = await storage.local.get(key);
+    return parseEnvelope(result[key], key);
+  }
+  async function writeCanonicalEnvelope(key, config, storage) {
+    const revision = newRevision();
+    const pending = {
+      schema: CANONICAL_SCHEMA,
+      revision,
+      verified: false,
+      config
+    };
+    await storage.local.set({ [key]: pending });
+    const pendingReadback = await readEnvelope(key, storage);
+    if (!pendingReadback || !sameData(pendingReadback, pending)) {
+      throw new Error(`Failed to verify pending canonical envelope: ${key}`);
+    }
+    const committed = { ...pending, verified: true };
+    await storage.local.set({ [key]: committed });
+    const committedReadback = await readEnvelope(key, storage);
+    if (!committedReadback || !sameData(committedReadback, committed)) {
+      throw new Error(`Failed to verify canonical envelope: ${key}`);
+    }
+    return committed;
+  }
+  function withoutSecret(config, secretField) {
+    const projection = { ...config };
+    delete projection[secretField];
+    return projection;
+  }
+  async function cleanupLegacyConfig(spec, config, storage) {
+    await storage.sync.set({
+      [spec.syncKey]: withoutSecret(config, spec.secretField)
+    });
+    await storage.local.remove(spec.localSecretKey);
+  }
+  async function migrateConfig(defaults, spec, storage) {
+    const existing = await readEnvelope(spec.envelopeKey, storage);
+    if (existing) {
+      if (!existing.verified) {
+        throw new Error(`Unverified canonical envelope: ${spec.envelopeKey}`);
+      }
+      try {
+        await cleanupLegacyConfig(
+          spec,
+          existing.config,
+          storage
+        );
+      } catch {
+      }
+      return existing;
+    }
+    const [syncResult, localResult] = await Promise.all([
+      storage.sync.get(spec.syncKey),
+      storage.local.get(spec.localSecretKey)
+    ]);
+    const legacyConfig = asObject(syncResult[spec.syncKey]) ?? {};
+    const syncSecret = legacyConfig[spec.secretField];
+    const localSecret = localResult[spec.localSecretKey];
+    if (syncSecret !== void 0 && typeof syncSecret !== "string") {
+      throw new Error(`Invalid legacy secret in ${spec.syncKey}.${spec.secretField}`);
+    }
+    if (localSecret !== void 0 && typeof localSecret !== "string") {
+      throw new Error(`Invalid local secret in ${spec.localSecretKey}`);
+    }
+    if (typeof syncSecret === "string" && syncSecret.length > 0 && typeof localSecret === "string" && localSecret.length > 0 && syncSecret !== localSecret) {
+      throw new Error(`Legacy secret conflict: ${spec.syncKey}`);
+    }
+    const secret = typeof localSecret === "string" && localSecret.length > 0 ? localSecret : typeof syncSecret === "string" ? syncSecret : "";
+    const config = {
+      ...defaults,
+      ...legacyConfig,
+      [spec.secretField]: secret
+    };
+    const envelope = await writeCanonicalEnvelope(spec.envelopeKey, config, storage);
+    await cleanupLegacyConfig(spec, config, storage);
+    return envelope;
+  }
+  async function loadSecretBackedConfig(defaults, spec, storage) {
+    const envelope = await migrateConfig(defaults, spec, storageOrDefault(storage));
+    return { ...defaults, ...envelope.config };
+  }
+  async function saveSecretBackedConfig(config, spec, storage) {
+    const record = asObject(config);
+    if (!record || typeof record[spec.secretField] !== "string") {
+      throw new Error(`Invalid secret value for ${spec.secretField}`);
+    }
+    const areas = storageOrDefault(storage);
+    await writeCanonicalEnvelope(spec.envelopeKey, config, areas);
+    await cleanupLegacyConfig(spec, record, areas);
+  }
+
   // src/client.ts
   var DEFAULT_CONFIG = {
     host: "127.0.0.1",
@@ -904,11 +1054,7 @@
     context: "\u4ECE\u9875\u9762\u6807\u9898\u3001URL\u3001\u6B63\u6587\u6458\u8981\u548C\u76EE\u6807\u76EE\u5F55\u63A8\u65AD Obsidian YAML \u5C5E\u6027\u3002\u901A\u8FC7 NewAPI \u89D2\u8272\u8DEF\u7531\u8C03\u7528\u672C\u5730\u4E2D\u8F6C\uFF1B\u4FDD\u6301\u4FDD\u5B88\uFF0C\u4E0D\u786E\u5B9A\u7684\u5B57\u6BB5\u7559\u7A7A\u3002"
   };
   async function loadConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["syncConfig"], (result) => {
-        resolve({ ...DEFAULT_CONFIG, ...result.syncConfig ?? {} });
-      });
-    });
+    return loadSecretBackedConfig(DEFAULT_CONFIG, SYNC_CONFIG_STORAGE);
   }
   async function loadPropertyTemplate() {
     return new Promise((resolve) => {
@@ -935,30 +1081,13 @@
     });
   }
   async function loadInterpreterConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["interpreterConfig"], (syncResult) => {
-        chrome.storage.local.get(["interpreterApiKey"], (localResult) => {
-          resolve({
-            ...DEFAULT_INTERPRETER_CONFIG,
-            ...syncResult.interpreterConfig ?? {},
-            apiKey: localResult.interpreterApiKey ?? ""
-          });
-        });
-      });
-    });
+    return loadSecretBackedConfig(DEFAULT_INTERPRETER_CONFIG, INTERPRETER_CONFIG_STORAGE);
   }
   async function saveInterpreterConfig(config) {
-    const { apiKey, ...syncConfig } = config;
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ interpreterConfig: syncConfig }, () => {
-        chrome.storage.local.set({ interpreterApiKey: apiKey }, () => resolve());
-      });
-    });
+    await saveSecretBackedConfig(config, INTERPRETER_CONFIG_STORAGE);
   }
   async function saveConfig(config) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ syncConfig: config }, () => resolve());
-    });
+    await saveSecretBackedConfig(config, SYNC_CONFIG_STORAGE);
   }
   function baseUrl(config) {
     return `http://${config.host}:${config.port}`;
@@ -1237,16 +1366,10 @@
     };
   }
   async function loadAiConfig() {
-    return new Promise((resolve) => {
-      chrome.storage.sync.get(["aiConfig"], (result) => {
-        resolve({ ...DEFAULT_AI_CONFIG, ...result.aiConfig ?? {} });
-      });
-    });
+    return loadSecretBackedConfig(DEFAULT_AI_CONFIG, AI_CONFIG_STORAGE);
   }
   async function saveAiConfig(config) {
-    return new Promise((resolve) => {
-      chrome.storage.sync.set({ aiConfig: config }, () => resolve());
-    });
+    await saveSecretBackedConfig(config, AI_CONFIG_STORAGE);
   }
   async function renderAiConfig() {
     const config = await loadAiConfig();

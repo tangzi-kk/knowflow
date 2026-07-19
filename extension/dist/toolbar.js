@@ -15,7 +15,6 @@
     let knowledgeScenes = getDefaultKnowledgeScenes();
     let moreOpen = false;
     let geminiSessionAlive = true;
-    let geminiSessionError = "";
     let aiRequestInFlight = false;
     let selectionDebounceTimer = null;
     let lastStreamPrompt = "";
@@ -910,38 +909,6 @@
         renderCapsule();
       }, 300);
     }
-    function bindInlineRetryBtn(prompt) {
-      if (!shadow) return;
-      const btn = shadow.querySelector(".ai-retry-btn");
-      if (!btn) return;
-      btn.addEventListener("click", () => {
-        aiRequestInFlight = true;
-        btn.textContent = "\u91CD\u8BD5\u4E2D...";
-        btn.disabled = true;
-        expandToResult(resultTitle, '<div class="ai-progress"><span class="ai-spinner"></span> \u6B63\u5728\u8FDE\u63A5 AI...</div>', true);
-        const progressTimer = setTimeout(() => {
-          if (shadow) updateResultContent('<div class="ai-progress"><span class="ai-spinner"></span> \u6B63\u5728\u5206\u6790\u5185\u5BB9...</div>', true);
-        }, 1500);
-        chrome.runtime.sendMessage(
-          { type: "ai-inline", payload: { action: "ai-chat", prompt, text: lastSelection.trim(), title: document.title, url: window.location.href } },
-          (response) => {
-            clearTimeout(progressTimer);
-            aiRequestInFlight = false;
-            const errMsg = chrome.runtime.lastError?.message || response?.error || "";
-            if (errMsg) {
-              updateResultContent(
-                `<div class="ai-error">${escapeHtml(errMsg)}</div>
-               <button class="ai-retry-btn">\u91CD\u8BD5</button>`,
-                true
-              );
-              bindInlineRetryBtn(prompt);
-              return;
-            }
-            updateResultContent(response?.text || "AI \u672A\u8FD4\u56DE\u5185\u5BB9");
-          }
-        );
-      });
-    }
     function detectPageDarkness() {
       try {
         const bg = window.getComputedStyle(document.body).backgroundColor;
@@ -1493,7 +1460,6 @@
         }
         if (message.type === "gemini-session-status") {
           geminiSessionAlive = message.payload?.alive !== false;
-          geminiSessionError = message.payload?.error || "";
           if (state === "CAPSULE") {
             renderCapsule();
             bindCapsuleEvents();

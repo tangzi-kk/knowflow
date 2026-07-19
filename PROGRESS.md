@@ -1,39 +1,30 @@
-# sync-plugin 3.0 升级进度
+# KnowFlow 4.0 升级进度
 
 ## 当前决策
 
-- 主方案：`/Users/changbeifenggongzuoshi/my/插件设计/设计方案/04_新版设计方案_v3.md`
-- MVP 补充：`/Users/changbeifenggongzuoshi/my/插件设计/设计方案/Lark_Suite_Sync_Architecture_MVP.md`
-- Obsidian 安装目录：`/Users/changbeifenggongzuoshi/my/插件设计/Obsidian-fs-TB`
-- 浏览器扩展产物：`/Users/changbeifenggongzuoshi/my/插件设计/sync-plugin/extension/dist`
-- Ponytail 应用方式：少写新框架，复用现有 handler、标准 API 和共享模块；不削弱验证、安全和数据保护。
+- 执行规格：`SPEC.md`
+- 实施计划：`docs/plans/2026-07-19-knowflow-4.0.md`
+- 开发线：`3.2.2`，已通过自动门禁；真实 Obsidian/Chrome 验收尚未执行。
+- 下一版：`3.3.0`，只处理唯一绑定、幂等、并发和路径安全。
 
 ## 子目标状态
 
 | 子目标 | 状态 | 说明 |
 | --- | --- | --- |
-| A. Obsidian 端 3.0 MVP | 已完成 | 已补协议入口、命令入口、Clipper 占位监听；安装目录已同步 |
-| B. 浏览器扩展 3.0 MVP | 已完成 | 飞书页面按钮和 toolbar 飞书同步按钮已走 obsidian:// 主通道；HTTP 辅通道保留 |
-| C. 共享契约与构建一致性 | 已完成 | shared 新增协议 URI builder/parser，并由扩展与 OB 共用 |
-| D. 整体验证与交付记录 | 已完成 | 已运行协议测试、完整构建、产物一致性检查 |
-
-## 并行代理
-
-| 代理 | 目标 | 状态 |
-| --- | --- | --- |
-| Nash | 只读盘点 Obsidian 端 v3.0 MVP 缺口 | 因额度限制失败，主线程接管 |
-| Herschel | 只读盘点浏览器扩展端 v3.0 MVP 缺口 | 因额度限制失败，主线程接管 |
+| 3.2.2 可升级基线 | 已完成 | 身份/设置迁移、密钥本地化、协议协商、构建门禁 |
+| 3.3.0 数据安全 | 进行中 | 唯一绑定、请求幂等、按文档串行、Vault 路径验证 |
+| 3.4.0 冲突/恢复 | 未开始 | 三方冲突决策和写前恢复副本 |
+| 3.5.0–3.6.0 | 未开始 | 浏览器可信事务、安全删除、运行时加固 |
+| 4.0.0 产品收口 | 未开始 | E2E、升级/回滚、灾难验收和发布物 |
 
 ## 验证记录
 
-- `npm run test:protocol`：通过。
-- `npm run build`：通过，覆盖 shared、OB 插件、浏览器扩展。
-- `cmp -s packages/ob-plugin/main.js ../Obsidian-fs-TB/main.js`：返回 `0`，说明 OB 安装目录 main.js 与源码构建产物一致。
-- `/Users/changbeifenggongzuoshi/my/插件设计/Obsidian-fs-TB/manifest.json`：版本 `3.0.0`，保留插件 id `fs-TB`。
-- `/Users/changbeifenggongzuoshi/my/插件设计/sync-plugin/extension/dist/manifest.json`：版本 `3.0.0`。
-- 静态检查确认产物包含：`lark-doc`、`fetch-feishu-doc`、`feishu_sync_url`、`replace_path`、`buildObsidianLarkDocUri`。
+- `npm test`：59/59 通过。
+- `npm run typecheck:ob` 和 `npm run typecheck:ext`：通过。
+- `npm run build`：shared、Obsidian、浏览器扩展全部通过。
+- 验证在本地临时镜像执行，避免 SMB 目录与架构不匹配的 `node_modules` 影响结果。
 
 ## 风险与待确认
 
-- 当前目录不是 Git 仓库，无法用 git diff 追踪改动；本次用文件路径、构建输出和静态搜索记录证据。
-- 未做真实飞书云端拉取/回写，因为这需要 Obsidian 运行态、lark-cli 登录态和真实飞书文档 token；代码级构建和产物检查已完成。
+- 未做真实飞书云端拉取/回写；未使用用户令牌或改动真实 Vault。
+- 旧浏览器归档 `Feishu Doc Exporter 0.3.0` 是独立产品，不声称能原位升级到 KnowFlow。

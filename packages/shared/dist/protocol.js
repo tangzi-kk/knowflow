@@ -9,6 +9,46 @@
 export const DEFAULT_PORT = 4567;
 /** 鉴权 header 名。 */
 export const TOKEN_HEADER = 'X-Sync-Token';
+/** 跨端协议版本；不一致时写操作必须失败关闭。 */
+export const PROTOCOL_VERSION = 1;
+/** 3.2.2 服务端实际提供的能力。 */
+export const SERVER_CAPABILITIES = [
+    'status',
+    'tree',
+    'fetch',
+    'clip',
+    'exists',
+    'pushback',
+];
+/** 完整写入协议的最低能力集合。 */
+export const REQUIRED_WRITE_CAPABILITIES = [
+    'fetch',
+    'clip',
+    'pushback',
+];
+export function evaluateProtocolCompatibility(info, required = REQUIRED_WRITE_CAPABILITIES) {
+    if (!info
+        || typeof info.protocolVersion !== 'number'
+        || !Array.isArray(info.capabilities)
+        || typeof info.componentVersion !== 'string') {
+        return { compatible: false, reason: 'Missing protocol metadata' };
+    }
+    if (info.protocolVersion !== PROTOCOL_VERSION) {
+        return {
+            compatible: false,
+            reason: `Protocol version mismatch: browser=${PROTOCOL_VERSION}, obsidian=${info.protocolVersion}`,
+        };
+    }
+    const capabilities = new Set(info.capabilities);
+    const missing = required.filter((capability) => !capabilities.has(capability));
+    if (missing.length > 0) {
+        return {
+            compatible: false,
+            reason: `Missing required capabilities: ${missing.join(', ')}`,
+        };
+    }
+    return { compatible: true };
+}
 /** 所有端点定义（路径 + 方法），供两端引用避免拼写漂移。 */
 export const ENDPOINTS = {
     status: '/status',

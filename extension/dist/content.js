@@ -953,7 +953,7 @@
       dock: "floating"
     };
   }
-  function computeSnap(el, pos) {
+  function computeSnap(pos) {
     const w = window.innerWidth;
     const h = window.innerHeight;
     const cx = pos.left + FAB_SIZE / 2;
@@ -971,8 +971,6 @@
     return { left, top, dock };
   }
   function applySnap(fab, pos) {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
     fab.style.left = "";
     fab.style.right = "";
     if (pos.dock === "left") {
@@ -1079,7 +1077,7 @@
         dock: "floating"
       };
       fab.classList.remove("is-dragging");
-      const snapped = computeSnap(fab, pos);
+      const snapped = computeSnap(pos);
       savePosition(snapped);
       fab.classList.add("is-snapping");
       applySnap(fab, snapped);

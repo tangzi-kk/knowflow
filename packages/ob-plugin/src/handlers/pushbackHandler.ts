@@ -19,10 +19,9 @@ import {
   metaToCalloutXml,
   feishuProtoToXml,
   convertOBCalloutsToFeishu,
-  bodyHash,
   isChanged,
 } from '@sync/shared';
-import type { App, TFile } from 'obsidian';
+import { TFile, type App } from 'obsidian';
 import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings } from '../settings.js';
 import { overwriteDocXml, getWikiNodeInfo } from '../lark/cli.js';

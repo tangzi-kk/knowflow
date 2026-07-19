@@ -9,7 +9,7 @@
  * - GUI 启动的 Obsidian 拿不到终端 PATH（nvm/homebrew 不在内），故 spawn 时注入增强 PATH
  * - nvm 目录按数字序取 latest（字符串 sort 会让 v9 > v10）
  */
-import { execFileSync, type ExecSyncOptions } from 'node:child_process';
+import { execFileSync, type ExecFileSyncOptionsWithStringEncoding } from 'node:child_process';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
@@ -171,7 +171,7 @@ export function run(args: string[], options: RunOptions = {}): string {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const fullArgs = [...args];
-      const execOpts: ExecSyncOptions = {
+      const execOpts: ExecFileSyncOptionsWithStringEncoding = {
         encoding: 'utf8',
         timeout,
         maxBuffer: 10 * 1024 * 1024, // 10MB（大文档）
@@ -198,7 +198,8 @@ export function run(args: string[], options: RunOptions = {}): string {
       // 写入前 emoji 清洗：扫描 fullArgs 中 --content @file 的文件内容
       if (contentIdx !== -1 && contentIdx + 1 < fullArgs.length) {
         const filePath = fullArgs[contentIdx + 1].replace(/^@\.\//, '');
-        const fullFilePath = path.join(execOpts.cwd || process.cwd(), filePath);
+        const executionDirectory = typeof execOpts.cwd === 'string' ? execOpts.cwd : process.cwd();
+        const fullFilePath = path.join(executionDirectory, filePath);
         try {
           let content = fs.readFileSync(fullFilePath, 'utf8');
           content = stripVariationSelectors(content);

@@ -14,6 +14,68 @@ export const DEFAULT_PORT = 4567;
 /** 鉴权 header 名。 */
 export const TOKEN_HEADER = 'X-Sync-Token';
 
+/** 跨端协议版本；不一致时写操作必须失败关闭。 */
+export const PROTOCOL_VERSION = 1;
+
+export type SyncCapability = 'status' | 'tree' | 'fetch' | 'clip' | 'exists' | 'pushback';
+
+export interface ProtocolInfo {
+  protocolVersion: number;
+  capabilities: string[];
+  componentVersion: string;
+}
+
+export interface ProtocolCompatibility {
+  compatible: boolean;
+  reason?: string;
+}
+
+/** 3.2.2 服务端实际提供的能力。 */
+export const SERVER_CAPABILITIES: readonly SyncCapability[] = [
+  'status',
+  'tree',
+  'fetch',
+  'clip',
+  'exists',
+  'pushback',
+];
+
+/** 完整写入协议的最低能力集合。 */
+export const REQUIRED_WRITE_CAPABILITIES: readonly SyncCapability[] = [
+  'fetch',
+  'clip',
+  'pushback',
+];
+
+export function evaluateProtocolCompatibility(
+  info: Partial<ProtocolInfo> | null | undefined,
+  required: readonly SyncCapability[] = REQUIRED_WRITE_CAPABILITIES,
+): ProtocolCompatibility {
+  if (
+    !info
+    || typeof info.protocolVersion !== 'number'
+    || !Array.isArray(info.capabilities)
+    || typeof info.componentVersion !== 'string'
+  ) {
+    return { compatible: false, reason: 'Missing protocol metadata' };
+  }
+  if (info.protocolVersion !== PROTOCOL_VERSION) {
+    return {
+      compatible: false,
+      reason: `Protocol version mismatch: browser=${PROTOCOL_VERSION}, obsidian=${info.protocolVersion}`,
+    };
+  }
+  const capabilities = new Set(info.capabilities);
+  const missing = required.filter((capability) => !capabilities.has(capability));
+  if (missing.length > 0) {
+    return {
+      compatible: false,
+      reason: `Missing required capabilities: ${missing.join(', ')}`,
+    };
+  }
+  return { compatible: true };
+}
+
 /** 飞书文档 URL 解析结果。 */
 export interface FeishuDocRef {
   /** wiki node_token（优先用，唯一绑定）。 */
@@ -25,7 +87,7 @@ export interface FeishuDocRef {
 }
 
 /** GET /status 响应。 */
-export interface StatusResponse {
+export interface StatusResponse extends ProtocolInfo {
   ok: true;
   /** 插件版本。 */
   version: string;

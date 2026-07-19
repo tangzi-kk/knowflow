@@ -9,23 +9,23 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/latest%20fs--TB-3.2.1-blue" alt="latest fs-TB">
-  <img src="https://img.shields.io/badge/browser-0.3.0-purple" alt="browser extension">
+  <img src="https://img.shields.io/badge/development-3.2.2-blue" alt="development version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
-  <img src="https://img.shields.io/badge/node-%3E%3D18-brightgreen" alt="node">
+  <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
 </p>
 
 ---
 
-## 最新开发版本地址
+## 版本状态
 
 当前已核验的最新运行产物见 [`VERSION_INDEX.md`](VERSION_INDEX.md)：
 
-| 分类 | 组件 | 最新版本 | 仓库内地址 | 运行位置 |
+| 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| Obsidian 插件 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
-| 浏览器扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | Chrome/Edge 扩展管理页加载 |
+| 开发线 | `fs-TB` + `KnowFlow` | `3.2.2` | `packages/ob-plugin/` + `extension/dist/` | 自动门禁通过，尚未真机安装 |
+| 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
+| 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
 仓库地址：`https://github.com/tangzi-kk/knowflow`
 
@@ -108,7 +108,7 @@
 
 **安装步骤**：
 1. 下载 `obsidian-fs-TB-X.X.X.zip` 并解压
-2. 放入 vault 的 `.obsidian/plugins/feishu-sync/` 目录
+2. 放入 vault 的 `.obsidian/plugins/fs-TB/` 目录
 3. Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 启用「飞书同步 (fs-TB)」
 4. 在插件设置页确认 lark-cli 路径，复制启动令牌
 
@@ -168,6 +168,9 @@ npm run build
 | `npm run build:shared` | 构建共享层 `@sync/shared` |
 | `npm run build:ob` | 构建 OB 插件 → `packages/ob-plugin/main.js` |
 | `npm run build:ext` | 构建扩展 → `extension/dist/` |
+| `npm test` | 运行全部自动验收门禁 |
+| `npm run typecheck:ob` | 严格检查 Obsidian 源码 |
+| `npm run typecheck:ext` | 严格检查浏览器源码 |
 | `npm run dev` | watch 模式开发 |
 | `npm run test:protocol` | 协议 URI 解析测试 |
 

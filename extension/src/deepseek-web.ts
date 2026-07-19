@@ -17,6 +17,12 @@
  */
 
 import { sha3_256 } from 'js-sha3';
+import {
+  clearDeepSeekToken,
+  getDeepSeekToken,
+  setDeepSeekToken,
+} from './storage.js';
+export { clearDeepSeekToken, getDeepSeekToken, setDeepSeekToken };
 
 // ───── 类型定义 ─────
 
@@ -149,27 +155,6 @@ async function fetchPowChallenge(token: string): Promise<PowChallenge> {
     signature: bizData.signature || '',
     target_path: bizData.target_path || '/api/v0/chat/completion',
   };
-}
-
-// ───── Token 管理 ─────
-
-const DS_TOKEN_KEY = 'deepseek_web_token';
-
-export async function getDeepSeekToken(): Promise<string | null> {
-  try {
-    const stored = await chrome.storage.sync.get(DS_TOKEN_KEY);
-    return stored[DS_TOKEN_KEY] || null;
-  } catch {
-    return null;
-  }
-}
-
-export async function setDeepSeekToken(token: string): Promise<void> {
-  await chrome.storage.sync.set({ [DS_TOKEN_KEY]: token });
-}
-
-export async function clearDeepSeekToken(): Promise<void> {
-  await chrome.storage.sync.remove(DS_TOKEN_KEY);
 }
 
 /**

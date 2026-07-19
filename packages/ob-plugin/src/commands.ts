@@ -8,10 +8,9 @@
  * - 显示/复制启动令牌
  * - 重新加载插件（重启 HTTP server）
  */
-import type { App, TFile } from 'obsidian';
-import { Notice, Modal } from 'obsidian';
+import { Notice, Modal, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
-import { refreshMapping, loadMapping } from './mapping.js';
+import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
 import { batchAssignEncoding } from './autoRename.js';
 
@@ -22,7 +21,7 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
   plugin.addCommand({
     id: 'pushback-current',
     name: '回写当前文件到飞书',
-    editorCallback: async (editor) => {
+    editorCallback: async () => {
       const file = app.workspace.getActiveFile();
       if (!(file instanceof TFile) || !file.path.endsWith('.md')) {
         new Notice('⚠️ 请在 markdown 文件中使用此命令');

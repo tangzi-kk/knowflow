@@ -3,8 +3,10 @@
  *
  * 端口、启动令牌（生成/重置/复制）、lark-cli 路径、默认目录、开关、缓存周期。
  */
-import { App, PluginSettingTab, Setting, Notice, setIcon } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
+import type { FeishuSyncSettings } from './settings.js';
+import { generateSyncToken } from './settingsMigration.js';
 import { resolveCli } from './lark/cli.js';
 import { refreshMapping } from './mapping.js';
 
@@ -65,7 +67,7 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
         .setButtonText('重置')
         .setTooltip('生成新令牌（扩展需重新粘贴）')
         .onClick(async () => {
-          this.plugin.settings.syncToken = generateToken();
+          this.plugin.settings.syncToken = generateSyncToken();
           await this.plugin.saveSettings();
           this.display();
           new Notice('🔄 令牌已重置');
@@ -164,6 +166,19 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName('隐藏系统属性')
+      .setDesc('隐藏 _sys_ 开头和旧版飞书同步字段；字段仍保留给同步逻辑使用')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.hideSystemProperties)
+          .onChange(async (value) => {
+            this.plugin.settings.hideSystemProperties = value;
+            await this.plugin.saveSettings();
+            this.plugin.applySystemPropertiesVisibility();
+          }),
+      );
+
+    new Setting(containerEl)
       .setName('图片缓存清理周期')
       .setDesc('feishu://token 预览图片的本地缓存保留时长')
       .addDropdown((dropdown) =>
@@ -201,13 +216,4 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
           }),
       );
   }
-}
-
-import type { FeishuSyncSettings } from './settings.js';
-
-/** 生成 32 字节 hex 令牌。 */
-function generateToken(): string {
-  const bytes = new Uint8Array(32);
-  (globalThis.crypto ?? (require('node:crypto') as { webcrypto: Crypto })).webcrypto.getRandomValues(bytes);
-  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
 }

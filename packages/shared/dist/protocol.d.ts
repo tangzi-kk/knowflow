@@ -10,6 +10,23 @@ import type { KnowledgeMeta } from './types.js';
 export declare const DEFAULT_PORT = 4567;
 /** 鉴权 header 名。 */
 export declare const TOKEN_HEADER = "X-Sync-Token";
+/** 跨端协议版本；不一致时写操作必须失败关闭。 */
+export declare const PROTOCOL_VERSION = 1;
+export type SyncCapability = 'status' | 'tree' | 'fetch' | 'clip' | 'exists' | 'pushback';
+export interface ProtocolInfo {
+    protocolVersion: number;
+    capabilities: string[];
+    componentVersion: string;
+}
+export interface ProtocolCompatibility {
+    compatible: boolean;
+    reason?: string;
+}
+/** 3.2.2 服务端实际提供的能力。 */
+export declare const SERVER_CAPABILITIES: readonly SyncCapability[];
+/** 完整写入协议的最低能力集合。 */
+export declare const REQUIRED_WRITE_CAPABILITIES: readonly SyncCapability[];
+export declare function evaluateProtocolCompatibility(info: Partial<ProtocolInfo> | null | undefined, required?: readonly SyncCapability[]): ProtocolCompatibility;
 /** 飞书文档 URL 解析结果。 */
 export interface FeishuDocRef {
     /** wiki node_token（优先用，唯一绑定）。 */
@@ -20,7 +37,7 @@ export interface FeishuDocRef {
     space_id?: string;
 }
 /** GET /status 响应。 */
-export interface StatusResponse {
+export interface StatusResponse extends ProtocolInfo {
     ok: true;
     /** 插件版本。 */
     version: string;

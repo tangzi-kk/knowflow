@@ -4,7 +4,7 @@
  * 导出所有类型、协议常量、工具函数，供 OB 插件和浏览器扩展引用。
  */
 export { TAG_NAMES, CALLOUT_FIELD_MAP, DOC_INFO_CALLOUT, FEISHU_BG_TO_OB_CALLOUT, OB_CALLOUT_TO_FEISHU, } from './types.js';
-export { DEFAULT_PORT, TOKEN_HEADER, ENDPOINTS, OBSIDIAN_LARK_DOC_ACTION, OBSIDIAN_LARK_DOC_URI_PREFIX, buildObsidianLarkDocUri, parseObsidianLarkDocParams, } from './protocol.js';
+export { DEFAULT_PORT, TOKEN_HEADER, PROTOCOL_VERSION, SERVER_CAPABILITIES, REQUIRED_WRITE_CAPABILITIES, evaluateProtocolCompatibility, ENDPOINTS, OBSIDIAN_LARK_DOC_ACTION, OBSIDIAN_LARK_DOC_URI_PREFIX, buildObsidianLarkDocUri, parseObsidianLarkDocParams, } from './protocol.js';
 // ── 工具函数 ──
 export { bodyHash, bodyHashAsync, isChanged } from './hash.js';
 export { sanitizeFilename, withMdExt, joinPath } from './filename.js';

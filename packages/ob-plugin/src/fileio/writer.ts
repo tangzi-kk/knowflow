@@ -7,7 +7,6 @@
  */
 import {
   parseFrontmatter,
-  serializeFrontmatter,
   assembleFile,
   bodyHash,
   isChanged,

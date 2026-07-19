@@ -10,8 +10,7 @@
  *
  * 推导结果缓存到 `.feishu-sync/mapping.json`，不硬编码。
  */
-import type { App } from 'obsidian';
-import { Notice } from 'obsidian';
+import { Notice, TFolder, type App } from 'obsidian';
 import { listWikiChildren } from './lark/cli.js';
 
 const MAPPING_FILE = '.feishu-sync/mapping.json';
@@ -88,8 +87,9 @@ export async function refreshMapping(app: App, spaceId: string): Promise<number>
   // 递归匹配子目录（一级即可，避免过深）
   const root = app.vault.getRoot();
   for (const child of root.children) {
+    if (!(child instanceof TFolder)) continue;
     if (!child.name || child.name.startsWith('.')) continue;
-    if (!(child.children?.length)) continue;
+    if (!child.children.length) continue;
     // 找到这个根的飞书 token
     const rootMapping = mappings.find(m => m.obPath === child.name);
     if (!rootMapping) continue;

@@ -9,6 +9,8 @@
 import {
   TOKEN_HEADER,
   DEFAULT_PORT,
+  evaluateProtocolCompatibility,
+  type SyncCapability,
   type StatusResponse,
   type TreeResponse,
   type FetchRequest,
@@ -19,6 +21,12 @@ import {
   type ExistsResponse,
   type ErrorResponse,
 } from '@sync/shared';
+import {
+  INTERPRETER_CONFIG_STORAGE,
+  SYNC_CONFIG_STORAGE,
+  loadSecretBackedConfig,
+  saveSecretBackedConfig,
+} from './storage.js';
 
 /** 扩展存储的连接配置。 */
 export interface SyncConfig {
@@ -176,11 +184,7 @@ export const DEFAULT_INTERPRETER_CONFIG: InterpreterConfig = {
 
 /** 从 chrome.storage 加载配置。 */
 export async function loadConfig(): Promise<SyncConfig> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['syncConfig'], (result) => {
-      resolve({ ...DEFAULT_CONFIG, ...(result.syncConfig ?? {}) });
-    });
-  });
+  return loadSecretBackedConfig(DEFAULT_CONFIG, SYNC_CONFIG_STORAGE);
 }
 
 export async function loadPropertyTemplate(): Promise<PropertyTemplate> {
@@ -212,26 +216,11 @@ export async function savePropertyOptions(options: PropertyOptions): Promise<voi
 }
 
 export async function loadInterpreterConfig(): Promise<InterpreterConfig> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.get(['interpreterConfig'], (syncResult) => {
-      chrome.storage.local.get(['interpreterApiKey'], (localResult) => {
-        resolve({
-          ...DEFAULT_INTERPRETER_CONFIG,
-          ...(syncResult.interpreterConfig ?? {}),
-          apiKey: localResult.interpreterApiKey ?? '',
-        });
-      });
-    });
-  });
+  return loadSecretBackedConfig(DEFAULT_INTERPRETER_CONFIG, INTERPRETER_CONFIG_STORAGE);
 }
 
 export async function saveInterpreterConfig(config: InterpreterConfig): Promise<void> {
-  const { apiKey, ...syncConfig } = config;
-  return new Promise((resolve) => {
-    chrome.storage.sync.set({ interpreterConfig: syncConfig }, () => {
-      chrome.storage.local.set({ interpreterApiKey: apiKey }, () => resolve());
-    });
-  });
+  await saveSecretBackedConfig(config, INTERPRETER_CONFIG_STORAGE);
 }
 
 export async function suggestMetaWithInterpreter(
@@ -331,9 +320,7 @@ export async function suggestMetaWithInterpreter(
 
 /** 保存配置到 chrome.storage。 */
 export async function saveConfig(config: SyncConfig): Promise<void> {
-  return new Promise((resolve) => {
-    chrome.storage.sync.set({ syncConfig: config }, () => resolve());
-  });
+  await saveSecretBackedConfig(config, SYNC_CONFIG_STORAGE);
 }
 
 /** 构造 baseUrl。 */
@@ -395,11 +382,25 @@ export async function getTree(config: SyncConfig): Promise<TreeResponse> {
   return request<TreeResponse>(config, 'GET', '/tree?maxDepth=12', undefined, 10000);
 }
 
+async function requireWriteCapability(
+  config: SyncConfig,
+  capability: SyncCapability,
+): Promise<void> {
+  const status = await getStatus(config);
+  const compatibility = evaluateProtocolCompatibility(status, [capability]);
+  if (!compatibility.compatible) {
+    throw new Error(
+      `浏览器扩展与 Obsidian 插件不兼容：${compatibility.reason ?? '未知协议错误'}。请将两端升级到同一版本。`,
+    );
+  }
+}
+
 /** POST /fetch — 触发同步。 */
 export async function postFetch(
   config: SyncConfig,
   req: FetchRequest,
 ): Promise<FetchResponse> {
+  await requireWriteCapability(config, 'fetch');
   return request<FetchResponse>(config, 'POST', '/fetch', req, 120000);
 }
 
@@ -408,6 +409,7 @@ export async function postClip(
   config: SyncConfig,
   req: ClipRequest,
 ): Promise<ClipResponse> {
+  await requireWriteCapability(config, 'clip');
   return request<ClipResponse>(config, 'POST', '/clip', req, 30000);
 }
 

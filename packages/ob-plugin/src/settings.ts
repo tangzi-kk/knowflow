@@ -2,9 +2,10 @@
  * OB 插件设置接口 + 默认值。
  * 依据方案 §10（SettingsTab）。
  */
-import type { TreeNode } from '@sync/shared';
 
 export interface FeishuSyncSettings {
+  /** 持久化设置结构版本。 */
+  schemaVersion: 1;
   /** 本地 HTTP server 端口（默认 4567）。 */
   port: number;
   /** 启动令牌（32 字节 hex，首次自动生成）。 */
@@ -23,9 +24,16 @@ export interface FeishuSyncSettings {
   keepDecorativeImages: boolean;
   /** 飞书知识库 space_id（目录映射用）。 */
   spaceId: string;
+  /** 3.2.1 Lark Doc 的兼容目录字段。 */
+  defaultNoteFolder: string;
+  /** 是否隐藏同步使用的系统属性。 */
+  hideSystemProperties: boolean;
+  /** 升级时保留仍被运行版使用的未知字段。 */
+  [legacyKey: string]: unknown;
 }
 
 export const DEFAULT_SETTINGS: FeishuSyncSettings = {
+  schemaVersion: 1,
   port: 4567,
   syncToken: '',
   larkCliPath: '',
@@ -35,6 +43,8 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   cacheCleanup: 'weekly',
   keepDecorativeImages: true,
   spaceId: '7651314150060067803',
+  defaultNoteFolder: '3️⃣附件文件/Lark',
+  hideSystemProperties: true,
 };
 
 /** 插件运行时状态（不持久化）。 */

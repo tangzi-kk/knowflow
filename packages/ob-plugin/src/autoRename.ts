@@ -11,8 +11,8 @@
  *
  * 触发：fetch 落地后、右键菜单、ribbon 批量。
  */
-import type { App, TFile, TFolder } from 'obsidian';
-import { parseFrontmatter, serializeFrontmatter, assembleFile, type Tag } from '@sync/shared';
+import { TFile, TFolder, type App } from 'obsidian';
+import { parseFrontmatter, assembleFile, type Tag } from '@sync/shared';
 
 /** 标签 → 目录映射（依据 01_对比报告.md 的目录路由规则）。 */
 const TAG_BY_DIR_HINT: Record<string, Tag> = {

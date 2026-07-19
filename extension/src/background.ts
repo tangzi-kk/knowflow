@@ -4,8 +4,9 @@
  * - 消息路由（连接检测 / Web Clipper / AI Chat / 飞书同步触发）
  * - 定期健康检查 + badge 更新
  */
-import { DEFAULT_CONFIG, loadConfig, testConnection, saveConfig, postClip } from './client.js';
+import { DEFAULT_CONFIG, loadConfig, loadInterpreterConfig, testConnection, saveConfig, postClip } from './client.js';
 import { sendDeepSeekWebMessage, sendDeepSeekWebMessageStream, getDeepSeekToken, setDeepSeekToken, isValidToken } from './deepseek-web.js';
+import { AI_CONFIG_STORAGE, loadSecretBackedConfig, migrateLegacySecrets } from './storage.js';
 
 type InlineAiConfig = {
   provider: 'gemini-api' | 'openai' | 'deepseek' | 'custom' | 'gemini-nano' | 'gemini-web' | 'deepseek-web';
@@ -63,6 +64,16 @@ const DEFAULT_CONTEXT_SCENES: ContextScene[] = [
 const AI_TIMEOUT_MS = 8000;
 const AI_TIMEOUT_MESSAGE = 'AI 请求超时。请重试，或开启「自定义 AI 解释器」后使用自定义 API。';
 
+async function migrateAllSecrets(): Promise<void> {
+  const report = await migrateLegacySecrets();
+  if (report.issues.length > 0) {
+    console.warn(
+      '[feishu-sync] secret migration incomplete:',
+      report.issues.map((issue) => issue.key).join(', '),
+    );
+  }
+}
+
 // ───── AI 结果缓存（5 分钟 TTL）─────
 type CacheEntry = { result: string; timestamp: number };
 const AI_CACHE_TTL_MS = 5 * 60 * 1000; // 5 分钟
@@ -114,8 +125,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 }
 
 async function runInlineAi(payload: { action?: string; text?: string; prompt?: string; attachments?: AiAttachment[] }): Promise<string> {
-  const stored = await chrome.storage.sync.get('aiConfig');
-  const config = { ...DEFAULT_INLINE_AI_CONFIG, ...(stored.aiConfig ?? {}) } as InlineAiConfig;
+  const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
   const text = payload.text?.trim();
   const attachments = normalizeAiAttachments(payload.attachments);
   if (!text && attachments.length === 0) throw new Error('请先输入文字、划选文本或添加图片。');
@@ -133,9 +143,8 @@ async function runInlineAi(payload: { action?: string; text?: string; prompt?: s
   if (cached) return cached;
 
   // ★ 统一读取「自定义 AI 解释器」开关
-  const interpreterStored = await chrome.storage.sync.get('interpreterConfig');
-  const interpreterConfig = interpreterStored?.interpreterConfig ?? {};
-  const useCustomProvider = interpreterConfig?.customProviderEnabled === true;
+  const interpreterConfig = await loadInterpreterConfig();
+  const useCustomProvider = interpreterConfig.customProviderEnabled === true;
 
   let aiResult: string;
 
@@ -448,7 +457,8 @@ async function sendGeminiWebMessage(prompt: string, configuredModel: string, att
   });
   if (!response.ok) throw new Error(`Gemini Web 请求失败：${response.status} ${response.statusText}`);
   const raw = await response.text();
-  const result = raw.split('\n').map(parseGeminiLine).filter((value): value is string => Boolean(value)).at(-1);
+  const parsedResults = raw.split('\n').map(parseGeminiLine).filter((value): value is string => Boolean(value));
+  const result = parsedResults[parsedResults.length - 1];
   if (!result) throw new Error('Gemini Web 未返回可解析内容，请刷新 Gemini 登录后重试。');
   return result;
 }
@@ -497,8 +507,7 @@ async function runInlineAiStreaming(
   };
 
   // 读取 AI 配置，拼接 systemPrompt（与非流式路径保持一致）
-  const stored = await chrome.storage.sync.get('aiConfig');
-  const config = { ...DEFAULT_INLINE_AI_CONFIG, ...(stored.aiConfig ?? {}) } as InlineAiConfig;
+  const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
   const systemPrompt = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
   const fullPrompt = `${systemPrompt}${payload.prompt || ''}`;
 
@@ -566,32 +575,24 @@ async function broadcastSessionStatus(): Promise<void> {
 // 安装/更新时初始化默认配置
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[feishu-sync] installed/updated:', details.reason);
+  try {
+    await migrateAllSecrets();
+  } catch (error) {
+    console.warn('[feishu-sync] secret migration incomplete:', error);
+  }
   const config = await loadConfig();
   if (!config.token) {
     await saveConfig(DEFAULT_CONFIG);
   }
-  // 初始化 AI 配置默认值
-  chrome.storage.sync.get(['aiConfig'], (result) => {
-    if (!result.aiConfig) {
-      chrome.storage.sync.set({
-        aiConfig: {
-          provider: 'gemini-web',
-          apiKey: '',
-          baseUrl: '',
-          model: '56fdd199312815e2',
-          systemPrompt: '你是飞书同步插件的 AI 助手。你可以帮助用户翻译、总结文档，解答 Obsidian 和飞书同步相关的问题。请用简洁的中文回答。',
-        },
-      });
-    }
-  });
   await ensureContextScenes();
   await rebuildContextMenus();
   // 启动后延迟 3 秒执行 Gemini session 预检（等浏览器稳定）
   setTimeout(() => broadcastSessionStatus().catch(() => {}), 3000);
 });
 
-chrome.runtime.onStartup?.addListener(() => {
-  rebuildContextMenus().catch((error) => console.warn('[feishu-sync] context menu rebuild failed:', error));
+chrome.runtime.onStartup?.addListener(async () => {
+  await migrateAllSecrets();
+  await rebuildContextMenus();
   setTimeout(() => broadcastSessionStatus().catch(() => {}), 3000);
 });
 
@@ -766,7 +767,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           return { title: document.title, url: location.href, selection, text, elements };
         },
       });
-      const context = page[0]?.result || { title: tab.title || '', url: tab.url || '', text: '' };
+      const context = page[0]?.result || {
+        title: tab.title || '',
+        url: tab.url || '',
+        text: '',
+        selection: '',
+        elements: [],
+      };
       const payload: Record<string, unknown> = { action, title: context.title, url: context.url, text: context.text, selection: context.selection || '', elements: context.elements || [], userInstruction };
       if (action === 'screenshot-translate' || action === 'ocr' || action === 'screen-shot') {
         payload.imageDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });

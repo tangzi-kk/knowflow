@@ -35,6 +35,9 @@ export type {
   PushbackRequest,
   PushbackResponse,
   ErrorResponse,
+  ProtocolInfo,
+  ProtocolCompatibility,
+  SyncCapability,
   ObsidianLarkDocParams,
   ProgressStage,
 } from './protocol.js';
@@ -42,6 +45,10 @@ export type {
 export {
   DEFAULT_PORT,
   TOKEN_HEADER,
+  PROTOCOL_VERSION,
+  SERVER_CAPABILITIES,
+  REQUIRED_WRITE_CAPABILITIES,
+  evaluateProtocolCompatibility,
   ENDPOINTS,
   OBSIDIAN_LARK_DOC_ACTION,
   OBSIDIAN_LARK_DOC_URI_PREFIX,

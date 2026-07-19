@@ -52,7 +52,7 @@ export interface KnowledgeMeta {
     索引_风险?: string[];
 }
 /** OB 文件完整 frontmatter = 同步绑定 + 知识库元数据。 */
-export interface YAMLFrontmatter extends SyncBinding, KnowledgeMeta {
+export interface YAMLFrontmatter extends SyncBinding, KnowledgeMeta, Record<string, unknown> {
 }
 /** OB→飞书 callout 字段映射项。依据 `02_YAML字段规范.md` §五。 */
 export interface CalloutFieldMap {
