@@ -6,8 +6,8 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `3.3.0` | `packages/ob-plugin/` | 自动门禁通过，未安装到真实 Vault |
-| 浏览器 `KnowFlow` | `3.3.0` | `extension/dist/` | 自动门禁通过，未加载到真实 Chrome/Edge |
+| Obsidian `fs-TB` | `3.4.0` | `packages/ob-plugin/` | 自动门禁通过，未安装到真实 Vault |
+| 浏览器 `KnowFlow` | `3.4.0` | `extension/dist/` | 自动门禁通过，未加载到真实 Chrome/Edge |
 
 ## 已核验运行归档
 

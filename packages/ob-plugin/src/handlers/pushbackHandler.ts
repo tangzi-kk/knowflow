@@ -19,15 +19,18 @@ import {
   metaToCalloutXml,
   feishuProtoToXml,
   convertOBCalloutsToFeishu,
-  isChanged,
+  type YAMLFrontmatter,
 } from '@sync/shared';
 import { TFile, type App } from 'obsidian';
-import type { RequestContext } from '../server.js';
+import { HttpError, type RequestContext } from '../server.js';
 import type { FeishuSyncSettings } from '../settings.js';
 import { overwriteDocXml, getWikiNodeInfo } from '../lark/cli.js';
 import { parseFile, assembleMd } from '../fileio/writer.js';
 import { findUniqueVaultBinding } from '../vaultBinding.js';
 import { normalizeVaultMarkdownPath } from '../vaultPath.js';
+import { fetchRemoteDocument } from '../remoteDocument.js';
+import { decideThreeWaySync, planSyncExecution } from '../syncDecision.js';
+import { createRecoverySnapshot } from '../recovery.js';
 
 export interface PushbackDeps {
   app: App;
@@ -85,9 +88,27 @@ export function createPushbackHandler(deps: PushbackDeps) {
       throw e;
     }
     const title = feishuTitle || file.basename;
-
-    // 步骤 2：hash 比对
-    if (!req.force && !isChanged(parsed.hash, parsed.frontmatter.sync_hash as string | undefined)) {
+    const remote = fetchRemoteDocument({
+      nodeToken: feishuId || docToken,
+      objToken: docToken,
+      spaceId: deps.settings.spaceId,
+    });
+    const decision = decideThreeWaySync({
+      baseHash: parsed.frontmatter.sync_hash as string | undefined,
+      localHash: parsed.hash,
+      remoteHash: remote.hash,
+    });
+    const execution = planSyncExecution('push', decision);
+    if (execution === 'skip') {
+      return {
+        ok: true,
+        action: 'skipped',
+        hash: parsed.hash,
+        title,
+      };
+    }
+    if (execution === 'advance') {
+      await advanceLocalBaseline(deps, file, content, parsed, title);
       return {
         ok: true,
         action: 'skipped',
@@ -101,8 +122,21 @@ export function createPushbackHandler(deps: PushbackDeps) {
     // 步骤 3-6：组装最终 XML 内容
     const finalContent = buildPushbackContent(parsed);
 
-    // 步骤 7-8：overwrite + 标题修复
-    overwriteDocXml(docToken, finalContent, title);
+    // 步骤 7-8：先保留远端恢复副本，再 overwrite + 标题修复
+    const recoveryPath = await createRecoverySnapshot(deps.app.vault.adapter, {
+      originalPath: file.path,
+      content: remote.rawMarkdown,
+      source: 'remote',
+    });
+    try {
+      overwriteDocXml(docToken, finalContent, title);
+    } catch (error) {
+      throw new HttpError(
+        'REMOTE_WRITE_UNKNOWN',
+        `远端回写结果无法确认，请先检查飞书再重试；恢复副本：${recoveryPath}；${error instanceof Error ? error.message : String(error)}`,
+        502,
+      );
+    }
 
     // 步骤 9：更新 sync_hash + sync_time
     const syncTime = new Date().toISOString();
@@ -112,7 +146,15 @@ export function createPushbackHandler(deps: PushbackDeps) {
       sync_time: syncTime,
     };
     const newContent = assembleMd(updatedFm as never, parsed.body);
-    await deps.app.vault.modify(file, newContent);
+    try {
+      await deps.app.vault.modify(file, newContent);
+    } catch (error) {
+      throw new HttpError(
+        'REMOTE_WRITE_REPAIR_REQUIRED',
+        `远端已回写，但本地基线更新失败；恢复副本：${recoveryPath}；${error instanceof Error ? error.message : String(error)}`,
+        500,
+      );
+    }
 
     deps.notice(`✅ 已回写 ${title}`);
 
@@ -123,6 +165,27 @@ export function createPushbackHandler(deps: PushbackDeps) {
       title,
     };
   };
+}
+
+async function advanceLocalBaseline(
+  deps: PushbackDeps,
+  file: TFile,
+  existingContent: string,
+  parsed: ReturnType<typeof parseFile>,
+  title: string,
+): Promise<void> {
+  await createRecoverySnapshot(deps.app.vault.adapter, {
+    originalPath: file.path,
+    content: existingContent,
+    source: 'local',
+  });
+  const updated = assembleMd({
+    ...parsed.frontmatter,
+    sync_hash: parsed.hash,
+    sync_time: new Date().toISOString(),
+  } as YAMLFrontmatter, parsed.body);
+  await deps.app.vault.modify(file, updated);
+  deps.notice(`✅ 已确认双端内容一致：${title}`);
 }
 
 /**

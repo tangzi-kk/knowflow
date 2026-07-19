@@ -33,7 +33,7 @@ const { generateSyncToken, migrateSettings } = await import(
   pathToFileURL(path.join(compiledDirectory, 'settingsMigration.js')).href
 );
 
-test('manifest and package retain the fs-TB identity at 3.3.0', async () => {
+test('manifest and package retain the fs-TB identity at 3.4.0', async () => {
   const manifest = JSON.parse(await readFile(
     path.resolve(testDirectory, '../manifest.json'),
     'utf8',
@@ -44,7 +44,7 @@ test('manifest and package retain the fs-TB identity at 3.3.0', async () => {
   ));
 
   assert.equal(manifest.id, 'fs-TB');
-  assert.equal(manifest.version, '3.3.0');
+  assert.equal(manifest.version, '3.4.0');
   assert.equal(packageJson.version, manifest.version);
 });
 

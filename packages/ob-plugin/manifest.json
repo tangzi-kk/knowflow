@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "minAppVersion": "1.5.0",
-  "description": "fs-TB 3.3.0：唯一绑定、幂等请求、并发协调与路径安全",
+  "description": "fs-TB 3.4.0：三方冲突防护与写前恢复副本",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

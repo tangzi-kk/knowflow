@@ -16,18 +16,11 @@ import type { FetchRequest, FetchResponse } from '@sync/shared';
 import { App, TFile, TFolder } from 'obsidian';
 import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings, PluginState } from '../settings.js';
-import { run, getWikiNodeInfo } from '../lark/cli.js';
-import {
-  extractImgTokensFromXml,
-  convertFeishuCalloutsToOB,
-  calloutXmlToMeta,
-} from '@sync/shared';
 import {
   parseFile,
   buildInitialFrontmatter,
   mergeFrontmatterForUpdate,
   assembleMd,
-  processFeishuMd,
   makeFilename,
   makePath,
 } from '../fileio/writer.js';
@@ -35,6 +28,9 @@ import { assignEncoding } from '../autoRename.js';
 import { findUniqueVaultBinding } from '../vaultBinding.js';
 import { normalizeVaultDir, normalizeVaultMarkdownPath } from '../vaultPath.js';
 import { assertReplacementBinding } from '../bindingIndex.js';
+import { fetchRemoteDocument } from '../remoteDocument.js';
+import { decideThreeWaySync, planSyncExecution } from '../syncDecision.js';
+import { createRecoverySnapshot } from '../recovery.js';
 
 export interface FetchDeps {
   app: App;
@@ -62,67 +58,25 @@ export function createFetchHandler(deps: FetchDeps) {
 
     deps.notice(`⬇ 同步飞书文档 ${node_token.slice(0, 8)}...`);
 
-    // 步骤 1：拿正文 md
-    let md: string;
-    try {
-      md = run(
-        ['docs', '+fetch', '--doc', node_token, '--doc-format', 'markdown'],
-        { timeout: 60000 },
-      );
-    } catch (err) {
-      // node_token 可能是 wiki node，需先解析为 obj_token
-      const info = space_id ? getWikiNodeInfo(node_token, space_id) : null;
-      if (info?.obj_token) {
-        md = run(
-          ['docs', '+fetch', '--doc', info.obj_token, '--doc-format', 'markdown'],
-          { timeout: 60000 },
-        );
-      } else {
-        throw err;
-      }
-    }
-
-    // 步骤 2：拿 XML（图片 token + callout 颜色 + docx obj_token）
-    let xml = '';
-    let objToken = req.obj_token ?? '';
-    try {
-      xml = run(
-        ['docs', '+fetch', '--doc', node_token, '--doc-format', 'xml', '--detail', 'with-ids'],
-        { timeout: 60000 },
-      );
-      if (!objToken) {
-        // obj_token 在 XML 的 <title id="..."> 属性里（解包后的纯 XML 没有显式 obj_token 字段）
-        const titleIdMatch = xml.match(/<title[^>]*\bid="([A-Za-z0-9]+)"/);
-        if (titleIdMatch) objToken = titleIdMatch[1];
-      }
-    } catch (err) {
-      console.warn('[sync/fetch] xml fetch failed (image tokens may be missing):', err);
-    }
+    const remote = fetchRemoteDocument({
+      nodeToken: node_token,
+      spaceId: space_id,
+      objToken: req.obj_token,
+    });
 
     // 步骤 2.5：从飞书头部 callout 解析元数据（标签/编码/输入/日期/关键词/评分/索引）
     // 这些字段会写进 YAML frontmatter；正文 callout 保留不动（步骤 3.5 转 OB callout）
     const meta = {
-      ...(xml ? calloutXmlToMeta(xml) : {}),
+      ...remote.meta,
       ...(req.meta ?? {}),
     };
     if (Object.keys(meta).length > 0) {
       deps.notice(`📋 提取到 ${Object.keys(meta).length} 个元数据字段`);
     }
 
-    // 步骤 3：图片 token → feishu:// 协议
-    const imgTokens = new Set(extractImgTokensFromXml(xml));
-    let processedMd = processFeishuMd(md, imgTokens);
-
-    // 步骤 3.5：飞书正文 callout XML → OB callout
-    if (xml) {
-      processedMd = convertFeishuCalloutsToOB(processedMd);
-    }
-
-    // 提取飞书标题（md 第一个 H1，或 fallback 到 node 信息）
-    const titleMatch = processedMd.match(/^#\s+(.+)$/m);
-    let feishuTitle = titleMatch?.[1]?.trim() ?? node_token;
-    // 如果 md 里有 H1，从正文去掉（OB 文件 H1 保留，但避免重复——这里保留 H1 作为正文首行）
-    // 决策：保留 H1，因为 OB 的文件名和 H1 可以不同
+    const processedMd = remote.body;
+    const objToken = remote.objToken;
+    const feishuTitle = remote.title;
 
     // 步骤 4：exists 检查
     const existingFile = await findUniqueVaultBinding(deps.app, node_token);
@@ -136,18 +90,33 @@ export function createFetchHandler(deps: FetchDeps) {
       action = 'updated';
       const existing = await deps.app.vault.read(existingFile);
       const parsed = parseFile(existing);
-      const merged = mergeFrontmatterForUpdate(
-        parsed.frontmatter,
-        node_token,
-        objToken,
-        feishuTitle,
-        syncTime,
-        meta,
-      );
-      const content = assembleMd(merged, processedMd);
-      await deps.app.vault.modify(existingFile, content);
       finalPath = existingFile.path;
-      deps.notice(`✏ 已更新 ${existingFile.name}`);
+      const decision = decideThreeWaySync({
+        baseHash: parsed.frontmatter.sync_hash as string | undefined,
+        localHash: parsed.hash,
+        remoteHash: remote.hash,
+      });
+      const execution = planSyncExecution('pull', decision);
+      if (execution !== 'skip') {
+        const merged = mergeFrontmatterForUpdate(
+          parsed.frontmatter,
+          node_token,
+          objToken,
+          feishuTitle,
+          syncTime,
+          meta,
+        );
+        const content = assembleMd(merged, processedMd);
+        await createRecoverySnapshot(deps.app.vault.adapter, {
+          originalPath: existingFile.path,
+          content: existing,
+          source: 'local',
+        });
+        await deps.app.vault.modify(existingFile, content);
+        deps.notice(`✏ 已更新 ${existingFile.name}`);
+      } else {
+        deps.notice(`⏭ 无变化 ${existingFile.name}`);
+      }
     } else {
       // 新建分支
       action = 'created';
@@ -168,6 +137,11 @@ export function createFetchHandler(deps: FetchDeps) {
       if (replaceFile instanceof TFile) {
         const replacementContent = await deps.app.vault.read(replaceFile);
         assertReplacementBinding(replacementContent, node_token, replaceFile.path);
+        await createRecoverySnapshot(deps.app.vault.adapter, {
+          originalPath: replaceFile.path,
+          content: replacementContent,
+          source: 'local',
+        });
         await deps.app.vault.modify(replaceFile, content);
         finalPath = replaceFile.path;
         action = 'updated';
