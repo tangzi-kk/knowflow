@@ -6,11 +6,10 @@
  * 2. 鼠标 / 触摸拖拽自由移动
  * 3. 释放后自动吸附到最近边缘（左/右），仅露出 ~12px 半隐藏
  * 4. hover 时完整滑出显示 → 出现「同步到 Obsidian」标签
- * 5. 点击 → obsidian:// 协议主通道 + Sidepanel 降级
+ * 5. 点击 → 后台直连 Obsidian，收到最终路径后才显示成功
  * 6. 位置持久化到 localStorage
  */
 import './content.css';
-import { buildObsidianLarkDocUri } from '@sync/shared';
 
 const FAB_ID = 'feishu-sync-fab';
 const LABEL_ID = 'feishu-sync-fab-label';
@@ -400,60 +399,31 @@ async function onSyncClick(): Promise<void> {
   const fab = document.getElementById(FAB_ID);
   if (!fab) return;
 
-  const obsidianUri = buildObsidianLarkDocUri({
-    token: nodeToken,
-    node_token: tokenInfo.node_token,
-    obj_token: tokenInfo.obj_token,
-    title: docTitle,
-    url: window.location.href,
-  });
-
-  // ★ 进入 syncing 状态
   setFabState('syncing', fab);
 
-  // ★ 先走协议主通道
-  tryOpenObsidianUri(obsidianUri);
-
-  // ★ 等 3s 看是否有 sync-complete 回调（来自 sidepanel 或未来 /callback）
-  let syncDone = false;
-  const onSyncComplete = (msg: any) => {
-    if (msg?.type === 'sync-complete' && msg?.payload?.token === nodeToken) {
-      syncDone = true;
-      if (msg.payload.success) {
-        setFabState('success', fab);
-        setTimeout(() => setFabState('idle', fab), 2000);
-      } else {
-        setFabState('error', fab);
-        setTimeout(() => setFabState('idle', fab), 3000);
-      }
-    }
-  };
-  chrome.runtime.onMessage.addListener(onSyncComplete);
-
-  // ★ 3s 后降级
-  setTimeout(() => {
-    chrome.runtime.onMessage.removeListener(onSyncComplete);
-    if (syncDone) return;
-
-    chrome.runtime.sendMessage({
+  try {
+    const response = await chrome.runtime.sendMessage({
       type: 'feishu-sync-trigger',
       payload: {
+        directSync: true,
+        nodeToken,
         title: docTitle,
         url: window.location.href,
         docToken: tokenInfo,
         domain: window.location.hostname,
-        obsidianUri,
-        protocolFailed: false,
       },
-    }).then(() => {
-      setFabState('success', fab);
-      setTimeout(() => setFabState('idle', fab), 2000);
-    }).catch(() => {
-      setFabState('error', fab);
-      showToast('同步失败。请打开 Obsidian 并在侧边栏手动同步。', 'error');
-      setTimeout(() => setFabState('idle', fab), 3000);
     });
-  }, 3000);
+    if (!response?.ok || !response.result?.path) {
+      throw new Error(response?.error || 'Obsidian 未返回最终文件路径。');
+    }
+    setFabState('success', fab);
+    showToast(`已同步：${response.result.path}`);
+    setTimeout(() => setFabState('idle', fab), 2000);
+  } catch (error) {
+    setFabState('error', fab);
+    showToast(`同步失败：${error instanceof Error ? error.message : String(error)}`, 'error');
+    setTimeout(() => setFabState('idle', fab), 3000);
+  }
 }
 
 function setFabState(state: 'idle' | 'syncing' | 'success' | 'error', fab: HTMLElement): void {
@@ -463,19 +433,6 @@ function setFabState(state: 'idle' | 'syncing' | 'success' | 'error', fab: HTMLE
     case 'syncing': fab.classList.add('syncing'); fab.innerHTML = SPINNER_ICON; break;
     case 'success': fab.classList.add('success'); fab.innerHTML = CHECK_ICON; break;
     case 'error': fab.classList.add('error'); fab.innerHTML = ERROR_ICON; break;
-  }
-}
-
-function tryOpenObsidianUri(uri: string): boolean {
-  try {
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = uri;
-    document.body.appendChild(iframe);
-    setTimeout(() => iframe.remove(), 5000);
-    return true;
-  } catch {
-    return false;
   }
 }
 

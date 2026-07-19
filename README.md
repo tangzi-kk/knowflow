@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/development-3.4.0-blue" alt="development version">
+  <img src="https://img.shields.io/badge/development-3.5.0-blue" alt="development version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 开发线 | `fs-TB` + `KnowFlow` | `3.4.0` | `packages/ob-plugin/` + `extension/dist/` | 自动门禁通过，尚未真机安装 |
+| 开发线 | `fs-TB` + `KnowFlow` | `3.5.0` | `packages/ob-plugin/` + `extension/dist/` | 自动门禁通过，尚未真机安装 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -54,7 +54,7 @@
 │  ① 飞书悬浮按钮           ② OB 命令面板                 │
 │  ┌──────────────────┐    ┌───────────────────────┐     │
 │  │ "⬇ 同步到 OB"    │    │ Cmd+P "拉取飞书文档"    │     │
-│  │ → obsidian://协议  │    │ → 输入 URL/Token       │     │
+│  │ → localhost /fetch │    │ → 输入 URL/Token       │     │
 │  └────────┬─────────┘    └───────────┬───────────┘     │
 │           │                          │                  │
 │  ③ Clipper 兼容                                       │
@@ -218,8 +218,8 @@ knowflow/
 - **TypeScript 5** + **esbuild**（OB 插件 CJS bundle，扩展 IIFE bundle）
 - **node:http**（OB 插件本地 server，零第三方框架依赖）
 - **js-yaml**（frontmatter 解析，支持中文 YAML 键名）
-- **obsidian://** URI 协议（主通信通道，零延迟）
-- **localhost HTTP**（辅助通道，目录查询/健康检查）
+- **localhost HTTP**（可信写入主通道，返回最终路径后才显示成功）
+- **obsidian://** URI 协议（保留为唤醒/兼容入口，不作为写入成功证据）
 - **lark-cli**（飞书文档 API 命令行封装）
 - **@sync/shared**（monorepo 共享层，被 OB 插件和扩展同时引用）
 

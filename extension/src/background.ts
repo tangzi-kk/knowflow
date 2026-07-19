@@ -4,9 +4,10 @@
  * - 消息路由（连接检测 / Web Clipper / AI Chat / 飞书同步触发）
  * - 定期健康检查 + badge 更新
  */
-import { DEFAULT_CONFIG, loadConfig, loadInterpreterConfig, testConnection, saveConfig, postClip } from './client.js';
+import { DEFAULT_CONFIG, loadConfig, loadInterpreterConfig, testConnection, saveConfig, postClip, postFetch } from './client.js';
 import { sendDeepSeekWebMessage, sendDeepSeekWebMessageStream, getDeepSeekToken, setDeepSeekToken, isValidToken } from './deepseek-web.js';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig, migrateLegacySecrets } from './storage.js';
+import { recoverInterruptedOperations, runWorkflowOperation } from './workflow.js';
 
 type InlineAiConfig = {
   provider: 'gemini-api' | 'openai' | 'deepseek' | 'custom' | 'gemini-nano' | 'gemini-web' | 'deepseek-web';
@@ -494,14 +495,15 @@ async function sendGeminiWebMessageStreaming(
  * 通过 chrome.tabs.sendMessage 推送 ai-stream-chunk / ai-stream-done / ai-stream-error 事件。
  */
 async function runInlineAiStreaming(
-  payload: { action?: string; text?: string; prompt?: string },
+  payload: { action?: string; text?: string; prompt?: string; requestId?: string },
   sender: chrome.runtime.MessageSender,
 ): Promise<void> {
   const tabId = sender.tab?.id;
   if (!tabId) return;
+  const requestId = payload.requestId || crypto.randomUUID();
 
   const pushChunk = (chunk: string): void => {
-    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-chunk', payload: { chunk } }).catch(() => {
+    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-chunk', payload: { requestId, chunk } }).catch(() => {
       // tab 可能已关闭或 content script 未就绪，忽略错误
     });
   };
@@ -514,16 +516,16 @@ async function runInlineAiStreaming(
   try {
     // 优先 Gemini Web 流式（模拟流式）
     const fullText = await sendGeminiWebMessageStreaming(fullPrompt, config.model, pushChunk);
-    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { text: fullText } }).catch(() => {});
+    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { requestId, text: fullText } }).catch(() => {});
   } catch (geminiError) {
     console.warn('[feishu-sync] Gemini Web 流式失败，降级 DeepSeek Web 流式：', geminiError);
     try {
       // 降级 DeepSeek Web 流式（已实现 sendDeepSeekWebMessageStream）
       await sendDeepSeekWebMessageStream({ prompt: fullPrompt }, pushChunk);
-      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done' }).catch(() => {});
+      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { requestId } }).catch(() => {});
     } catch (dsError) {
       const errorInfo = classifyAiError(dsError, (payload.text || '').length);
-      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-error', payload: errorInfo }).catch(() => {});
+      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-error', payload: { ...errorInfo, requestId } }).catch(() => {});
     }
   }
 }
@@ -577,6 +579,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[feishu-sync] installed/updated:', details.reason);
   try {
     await migrateAllSecrets();
+    await recoverInterruptedOperations();
   } catch (error) {
     console.warn('[feishu-sync] secret migration incomplete:', error);
   }
@@ -592,6 +595,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 chrome.runtime.onStartup?.addListener(async () => {
   await migrateAllSecrets();
+  await recoverInterruptedOperations();
   await rebuildContextMenus();
   setTimeout(() => broadcastSessionStatus().catch(() => {}), 3000);
 });
@@ -741,9 +745,16 @@ function draftSilentKeywords(text: string): string[] {
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.type === 'ai-tool') {
     (async () => {
+      const action = message.payload?.action as string;
+      if (action === 'browser-control') {
+        const hasDebuggerPermission = await chrome.permissions.contains({ permissions: ['debugger'] });
+        if (!hasDebuggerPermission) {
+          const granted = await chrome.permissions.request({ permissions: ['debugger'] });
+          if (!granted) throw new Error('浏览器控制需要临时授予 debugger 权限。');
+        }
+      }
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) throw new Error('未找到当前网页标签页。');
-      const action = message.payload?.action as string;
       const userInstruction = typeof message.payload?.text === 'string' ? message.payload.text.trim() : '';
       const page = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -874,11 +885,35 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'knowflow-write') {
+    (async () => {
+      const kind = message.payload?.kind;
+      const request = message.payload?.request;
+      if ((kind !== 'fetch' && kind !== 'clip') || !request || typeof request !== 'object') {
+        throw new Error('无效的写操作请求。');
+      }
+      if (kind === 'fetch' && typeof request.node_token !== 'string') {
+        throw new Error('同步请求缺少飞书文档 token。');
+      }
+      const requestId = typeof request.requestId === 'string' && request.requestId
+        ? request.requestId
+        : crypto.randomUUID();
+      const config = await loadConfig();
+      if (kind === 'fetch') {
+        return runWorkflowOperation('fetch', requestId, () => postFetch(config, { ...request, requestId }));
+      }
+      return runWorkflowOperation('clip', requestId, () => postClip(config, { ...request, requestId }));
+    })()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+    return true;
+  }
+
   // ───── Web Clipper（增强版）─────
   if (message.type === 'clip-to-obsidian') {
     (async () => {
       const tab = sender.tab;
-      if (!tab?.id) return;
+      if (!tab?.id) throw new Error('未找到当前网页标签页。');
 
       const payload = message.payload || {};
       console.log('[feishu-sync] clip-to-obsidian:', payload);
@@ -892,7 +927,9 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
           payload.defaultDir.trim()
         ) {
           const config = await loadConfig();
-          await postClip(config, {
+          const requestId = crypto.randomUUID();
+          return runWorkflowOperation('clip', requestId, () => postClip(config, {
+            requestId,
             title: payload.title || tab.title || '网页剪藏',
             url: payload.url || tab.url || '',
             sourceKind: 'selection',
@@ -911,8 +948,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
               评分: 1,
               评分_显示: '🌟·素材',
             },
-          });
-          return;
+          }));
         }
         const sidePanel = chrome.sidePanel as any;
         if (sidePanel.open) {
@@ -941,18 +977,39 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             },
           });
         }, 500);
-      } catch (e) { console.error('[feishu-sync] clip error:', e); }
-    })();
-    sendResponse({ ok: true });
+        return undefined;
+      } catch (e) {
+        console.error('[feishu-sync] clip error:', e);
+        throw e;
+      }
+    })()
+      .then((result) => sendResponse({ ok: true, result }))
+      .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
     return true;
   }
 
   // ───── 飞书同步触发（从工具栏）─────
   if (message.type === 'feishu-sync-trigger') {
+    const payload = message.payload || {};
+    if (payload.directSync === true) {
+      (async () => {
+        const nodeToken = String(payload.nodeToken || payload.docToken?.node_token || payload.docToken?.obj_token || '').trim();
+        if (!nodeToken) throw new Error('无法识别当前飞书文档 token。');
+        const requestId = crypto.randomUUID();
+        const config = await loadConfig();
+        return runWorkflowOperation('fetch', requestId, () => postFetch(config, {
+          requestId,
+          node_token: nodeToken,
+          obj_token: payload.docToken?.obj_token || undefined,
+        }));
+      })()
+        .then((result) => sendResponse({ ok: true, result }))
+        .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+      return true;
+    }
     (async () => {
       const tab = sender.tab;
       if (!tab?.id) return;
-      const payload = message.payload || {};
 
       try {
         const sidePanel = chrome.sidePanel as any;

@@ -2,6 +2,15 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
+## [3.5.0] - 2026-07-19
+
+### 浏览器可信事务
+- 飞书悬浮按钮、侧栏同步和静默剪藏统一由后台执行；只有 Obsidian 返回最终 `path/action` 后才显示成功。
+- 新增有界操作账本，记录 `queued/running/succeeded/failed/cancelled` 终态；后台重启会把未确认操作标成明确失败，不猜测成功。
+- 工具栏改用显式状态和请求 ID；旧请求的迟到分块、结束或错误消息不会污染新结果，关闭后也不会被重新打开。
+- 移除未使用的 `desktopCapture` 权限；`debugger` 改为浏览器控制动作触发时单独申请。
+- 新增浏览器工作流、权限和工具栏状态对抗测试，并纳入根级测试门禁。
+
 ## [3.4.0] - 2026-07-19
 
 ### 冲突与恢复

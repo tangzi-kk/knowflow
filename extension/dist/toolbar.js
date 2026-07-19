@@ -1,11 +1,40 @@
 "use strict";
 (() => {
+  // src/content/toolbar-state.ts
+  function initialToolbarState() {
+    return { phase: "idle", requestId: null, content: "", error: null };
+  }
+  function reduceToolbarState(state, event) {
+    switch (event.type) {
+      case "SHOW_CAPSULE":
+        return { phase: "capsule", requestId: null, content: "", error: null };
+      case "START":
+        return event.requestId ? { phase: "loading", requestId: event.requestId, content: "", error: null } : state;
+      case "CHUNK":
+        if (!acceptsStreamEvent(state, event.requestId)) return state;
+        return { ...state, phase: "streaming", content: state.content + event.chunk };
+      case "DONE":
+        if (!acceptsStreamEvent(state, event.requestId)) return state;
+        return { ...state, phase: "result", content: event.text || state.content, error: null };
+      case "FAIL":
+        if (!acceptsStreamEvent(state, event.requestId)) return state;
+        return { ...state, phase: "error", error: event.error };
+      case "CLOSE":
+        return { phase: "closing", requestId: null, content: "", error: null };
+      case "RESET":
+        return initialToolbarState();
+    }
+  }
+  function acceptsStreamEvent(state, requestId) {
+    return Boolean(requestId) && requestId === state.requestId && (state.phase === "loading" || state.phase === "streaming");
+  }
+
   // src/content/toolbar.ts
   (function() {
     const MAIN_SCENE_IDS = ["save", "append", "refine"];
     const MORE_SCENE_IDS = ["translate-explain", "concept-card", "quote", "question", "copy", "open-sidepanel"];
     const SELECTION_DEBOUNCE_MS = 150;
-    let state = "IDLE";
+    let state = initialToolbarState();
     let lastSelection = "";
     let host = null;
     let shadow = null;
@@ -897,6 +926,7 @@
     function collapseResult() {
       if (!shadow) return;
       aiRequestInFlight = false;
+      state = reduceToolbarState(state, { type: "CLOSE" });
       const capsule = shadow.querySelector(".capsule");
       const panel = shadow.querySelector(".result-panel");
       panel.classList.remove("expanded");
@@ -906,6 +936,7 @@
         panel.classList.remove("collapsing");
         const rc = panel.querySelector(".result-content");
         rc.innerHTML = "";
+        state = reduceToolbarState(state, { type: "SHOW_CAPSULE" });
         renderCapsule();
       }, 300);
     }
@@ -930,7 +961,10 @@
       const isDark = prefersDark || pageDark;
       host.setAttribute("data-theme", isDark ? "dark" : "light");
     }
-    function appendStreamChunk(chunk) {
+    function appendStreamChunk(chunk, requestId) {
+      const nextState = reduceToolbarState(state, { type: "CHUNK", requestId, chunk });
+      if (nextState === state) return;
+      state = nextState;
       if (!shadow) return;
       const wrapper = shadow.querySelector(".result-content");
       if (!wrapper) return;
@@ -960,20 +994,25 @@
       html = html.replace(/\n/g, "<br>");
       return html;
     }
-    function finalizeStreamResult(fullText) {
+    function finalizeStreamResult(fullText, requestId) {
+      if (requestId !== state.requestId || state.phase !== "loading" && state.phase !== "streaming") return;
       if (!shadow) return;
       aiRequestInFlight = false;
       const wrapper = shadow.querySelector(".result-content");
       if (!wrapper) return;
       const streamEl = wrapper.querySelector(".result-content.streaming");
-      const text = fullText || streamEl?.textContent || "";
+      const text = fullText || state.content || streamEl?.textContent || "";
       if (!text.trim()) {
-        showStreamErrorCard({ errorType: "EMPTY_RESULT", message: "AI \u672A\u8FD4\u56DE\u5185\u5BB9", provider: "" });
+        showStreamErrorCard({ errorType: "EMPTY_RESULT", message: "AI \u672A\u8FD4\u56DE\u5185\u5BB9", provider: "" }, requestId);
         return;
       }
+      state = reduceToolbarState(state, { type: "DONE", requestId, text });
       wrapper.innerHTML = `<div class="result-content">${renderSimpleMarkdown(text)}</div>`;
     }
-    function showStreamErrorCard(errorInfo) {
+    function showStreamErrorCard(errorInfo, requestId) {
+      const nextState = reduceToolbarState(state, { type: "FAIL", requestId, error: errorInfo.message });
+      if (nextState === state) return;
+      state = nextState;
       if (!shadow) return;
       aiRequestInFlight = false;
       if (streamProgressTimer) {
@@ -1147,6 +1186,8 @@
     }
     function restartStreamRequest(prompt) {
       if (!shadow) return;
+      const requestId = crypto.randomUUID();
+      state = reduceToolbarState(state, { type: "START", requestId });
       aiRequestInFlight = true;
       streamChunkReceived = false;
       lastStreamPrompt = prompt;
@@ -1160,6 +1201,7 @@
         chrome.runtime.sendMessage({
           type: "ai-inline-stream",
           payload: {
+            requestId,
             action: "ai-chat",
             prompt,
             text: lastSelection.trim(),
@@ -1194,17 +1236,18 @@
       if (!toolbarConfig.enabled) return;
       ensureHost();
       renderCapsule();
-      state = "CAPSULE";
+      state = reduceToolbarState(state, { type: "SHOW_CAPSULE" });
       bindCapsuleEvents();
     }
     function hideToolbar() {
+      state = reduceToolbarState(state, { type: "CLOSE" });
       const panel = shadow?.querySelector(".result-panel");
       if (panel?.classList.contains("expanded")) {
         collapseResult();
         setTimeout(() => {
           clearShadow();
           if (host) host.style.display = "none";
-          state = "IDLE";
+          state = reduceToolbarState(state, { type: "RESET" });
         }, 350);
         return;
       }
@@ -1216,13 +1259,13 @@
         setTimeout(() => {
           clearShadow();
           if (host) host.style.display = "none";
-          state = "IDLE";
+          state = reduceToolbarState(state, { type: "RESET" });
         }, 150);
         return;
       }
       clearShadow();
       if (host) host.style.display = "none";
-      state = "IDLE";
+      state = reduceToolbarState(state, { type: "RESET" });
     }
     function bindCapsuleEvents() {
       if (!shadow) return;
@@ -1285,6 +1328,8 @@
         if (!text) return;
         if (aiRequestInFlight) return;
         aiRequestInFlight = true;
+        const requestId = crypto.randomUUID();
+        state = reduceToolbarState(state, { type: "START", requestId });
         resultTitle = scene.label;
         btn.classList.add("ripple");
         setTimeout(() => btn.classList.remove("ripple"), 300);
@@ -1302,6 +1347,7 @@
           chrome.runtime.sendMessage({
             type: "ai-inline-stream",
             payload: {
+              requestId,
               action: scene.id,
               prompt: scenePrompt,
               text,
@@ -1392,7 +1438,7 @@
           host = null;
           shadow = null;
         }
-        state = "IDLE";
+        state = reduceToolbarState(state, { type: "RESET" });
       }
     }
     function setupGlobalListeners() {
@@ -1419,20 +1465,20 @@
         }, SELECTION_DEBOUNCE_MS);
       });
       document.addEventListener("mousedown", (e) => {
-        if (state === "IDLE") return;
+        if (state.phase === "idle") return;
         if (host && !host.contains(e.target)) {
           hideToolbar();
         }
       });
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && state !== "IDLE") {
+        if (e.key === "Escape" && state.phase !== "idle") {
           hideToolbar();
         }
       });
       window.addEventListener(
         "scroll",
         () => {
-          if (state !== "IDLE") hideToolbar();
+          if (state.phase !== "idle") hideToolbar();
         },
         { passive: true, capture: true }
       );
@@ -1460,18 +1506,18 @@
         }
         if (message.type === "gemini-session-status") {
           geminiSessionAlive = message.payload?.alive !== false;
-          if (state === "CAPSULE") {
+          if (state.phase === "capsule") {
             renderCapsule();
             bindCapsuleEvents();
           }
         }
         if (message.type === "ai-stream-chunk") {
-          appendStreamChunk(message.payload?.chunk || "");
+          appendStreamChunk(message.payload?.chunk || "", message.payload?.requestId || "");
         } else if (message.type === "ai-stream-done") {
-          finalizeStreamResult(message.payload?.text || "");
+          finalizeStreamResult(message.payload?.text || "", message.payload?.requestId || "");
         } else if (message.type === "ai-stream-error") {
           const info = message.payload || { errorType: "UNKNOWN", message: "\u672A\u77E5\u9519\u8BEF", provider: "" };
-          showStreamErrorCard(info);
+          showStreamErrorCard(info, message.payload?.requestId || "");
         }
         return true;
       });

@@ -6,8 +6,6 @@ import {
   loadPropertyTemplate,
   normalizePropertyOptionValue,
   postExists,
-  postClip,
-  postFetch,
   suggestMetaWithInterpreter,
   testConnection,
   type InterpreterConfig,
@@ -15,13 +13,28 @@ import {
   type PropertyTemplate,
   type SyncConfig,
 } from '../client.js';
-import type { TreeNode } from '@sync/shared';
+import type { ClipResponse, FetchResponse, TreeNode } from '@sync/shared';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig } from '../storage.js';
 
 type StatusType = 'info' | 'success' | 'error';
 type MetaValue = string | number | string[];
 type SyncMeta = Record<string, MetaValue>;
 const DEFAULT_AI_EXCERPT_CHARS = 4000;
+
+async function runPersistedWrite<T extends { path: string; action: string }>(
+  kind: 'fetch' | 'clip',
+  request: Record<string, unknown>,
+): Promise<T> {
+  const requestId = crypto.randomUUID();
+  const response = await chrome.runtime.sendMessage({
+    type: 'knowflow-write',
+    payload: { kind, request: { ...request, requestId } },
+  });
+  if (!response?.ok || !response.result?.path || !response.result?.action) {
+    throw new Error(response?.error || 'Obsidian 未返回最终写入结果。');
+  }
+  return response.result as T;
+}
 
 type MetaField = {
   key: keyof PropertyTemplate;
@@ -762,6 +775,7 @@ function syncGroupedHiddenValue(wrapper: HTMLElement, hidden: HTMLInputElement):
 
 async function confirmSync(): Promise<void> {
   if (!state) return;
+  const current = state;
   const syncBtn = $('sync-btn') as HTMLButtonElement;
   const dirControl = document.querySelector<HTMLInputElement | HTMLSelectElement>('[name="target-dir"]');
   const appendEnabled = document.querySelector<HTMLInputElement>('[name="append-mode"]')?.checked === true;
@@ -783,16 +797,16 @@ async function confirmSync(): Promise<void> {
   }
 
   try {
-    if (state.mode === 'web-clip') {
-      await confirmWebClip(state, dir || state.fallbackDir);
+    if (current.mode === 'web-clip') {
+      await confirmWebClip(current, dir || current.fallbackDir);
       return;
     }
     const targetDir = dir || '';
 
     setStatus('正在抓取并写入 Obsidian...', 'info');
-    const result = await postFetch(state.config, {
-      node_token: state.nodeToken,
-      obj_token: state.tokenInfo.obj_token,
+    const result = await runPersistedWrite<FetchResponse>('fetch', {
+      node_token: current.nodeToken,
+      obj_token: current.tokenInfo.obj_token,
       dir: targetDir,
       meta: collectMeta(),
     });
@@ -816,7 +830,7 @@ async function confirmWebClip(current: PanelState, dir: string): Promise<void> {
   setStatus(appendEnabled ? '正在整理网页内容并补充到已有文档...' : '正在整理网页内容并转换为 Obsidian 文档...', 'info');
   const snapshot = current.pageSnapshot ?? await getActivePageSnapshot(await getActiveTab());
   const draft = await buildWebConversionDraft(current, snapshot, dir);
-  const result = await postClip(current.config, {
+  const result = await runPersistedWrite<ClipResponse>('clip', {
     title: snapshot.title || current.title,
     url: snapshot.url || current.source,
     sourceKind: snapshot.sourceKind === 'feishu-doc' ? 'generic-page' : snapshot.sourceKind,

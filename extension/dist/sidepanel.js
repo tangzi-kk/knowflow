@@ -3,32 +3,6 @@
   // ../packages/shared/dist/protocol.js
   var DEFAULT_PORT = 4567;
   var TOKEN_HEADER = "X-Sync-Token";
-  var PROTOCOL_VERSION = 1;
-  var REQUIRED_WRITE_CAPABILITIES = [
-    "fetch",
-    "clip",
-    "pushback"
-  ];
-  function evaluateProtocolCompatibility(info, required = REQUIRED_WRITE_CAPABILITIES) {
-    if (!info || typeof info.protocolVersion !== "number" || !Array.isArray(info.capabilities) || typeof info.componentVersion !== "string") {
-      return { compatible: false, reason: "Missing protocol metadata" };
-    }
-    if (info.protocolVersion !== PROTOCOL_VERSION) {
-      return {
-        compatible: false,
-        reason: `Protocol version mismatch: browser=${PROTOCOL_VERSION}, obsidian=${info.protocolVersion}`
-      };
-    }
-    const capabilities = new Set(info.capabilities);
-    const missing = required.filter((capability) => !capabilities.has(capability));
-    if (missing.length > 0) {
-      return {
-        compatible: false,
-        reason: `Missing required capabilities: ${missing.join(", ")}`
-      };
-    }
-    return { compatible: true };
-  }
   var OBSIDIAN_LARK_DOC_ACTION = "lark-doc";
   var OBSIDIAN_LARK_DOC_URI_PREFIX = `obsidian://${OBSIDIAN_LARK_DOC_ACTION}`;
 
@@ -1252,29 +1226,6 @@
   async function getTree(config) {
     return request(config, "GET", "/tree?maxDepth=12", void 0, 1e4);
   }
-  async function requireWriteCapability(config, capability) {
-    const status = await getStatus(config);
-    const compatibility = evaluateProtocolCompatibility(status, [capability]);
-    if (!compatibility.compatible) {
-      throw new Error(
-        `\u6D4F\u89C8\u5668\u6269\u5C55\u4E0E Obsidian \u63D2\u4EF6\u4E0D\u517C\u5BB9\uFF1A${compatibility.reason ?? "\u672A\u77E5\u534F\u8BAE\u9519\u8BEF"}\u3002\u8BF7\u5C06\u4E24\u7AEF\u5347\u7EA7\u5230\u540C\u4E00\u7248\u672C\u3002`
-      );
-    }
-  }
-  async function postFetch(config, req) {
-    await requireWriteCapability(config, "fetch");
-    return request(config, "POST", "/fetch", withRequestId(req), 12e4);
-  }
-  async function postClip(config, req) {
-    await requireWriteCapability(config, "clip");
-    return request(config, "POST", "/clip", withRequestId(req), 3e4);
-  }
-  function withRequestId(requestBody) {
-    return {
-      ...requestBody,
-      requestId: requestBody.requestId || globalThis.crypto.randomUUID()
-    };
-  }
   async function postExists(config, req) {
     return request(config, "POST", "/exists", req, 1e4);
   }
@@ -1298,6 +1249,17 @@
 
   // src/sidepanel/sidepanel.ts
   var DEFAULT_AI_EXCERPT_CHARS = 4e3;
+  async function runPersistedWrite(kind, request2) {
+    const requestId = crypto.randomUUID();
+    const response = await chrome.runtime.sendMessage({
+      type: "knowflow-write",
+      payload: { kind, request: { ...request2, requestId } }
+    });
+    if (!response?.ok || !response.result?.path || !response.result?.action) {
+      throw new Error(response?.error || "Obsidian \u672A\u8FD4\u56DE\u6700\u7EC8\u5199\u5165\u7ED3\u679C\u3002");
+    }
+    return response.result;
+  }
   var DEFAULT_AI_CONFIG = {
     provider: "gemini-web",
     apiKey: "",
@@ -1879,6 +1841,7 @@ ${input.excerpt || ""}`,
   }
   async function confirmSync() {
     if (!state) return;
+    const current = state;
     const syncBtn = $("sync-btn");
     const dirControl = document.querySelector('[name="target-dir"]');
     const appendEnabled = document.querySelector('[name="append-mode"]')?.checked === true;
@@ -1896,15 +1859,15 @@ ${input.excerpt || ""}`,
       return;
     }
     try {
-      if (state.mode === "web-clip") {
-        await confirmWebClip(state, dir || state.fallbackDir);
+      if (current.mode === "web-clip") {
+        await confirmWebClip(current, dir || current.fallbackDir);
         return;
       }
       const targetDir = dir || "";
       setStatus("\u6B63\u5728\u6293\u53D6\u5E76\u5199\u5165 Obsidian...", "info");
-      const result = await postFetch(state.config, {
-        node_token: state.nodeToken,
-        obj_token: state.tokenInfo.obj_token,
+      const result = await runPersistedWrite("fetch", {
+        node_token: current.nodeToken,
+        obj_token: current.tokenInfo.obj_token,
         dir: targetDir,
         meta: collectMeta()
       });
@@ -1926,7 +1889,7 @@ ${input.excerpt || ""}`,
     setStatus(appendEnabled ? "\u6B63\u5728\u6574\u7406\u7F51\u9875\u5185\u5BB9\u5E76\u8865\u5145\u5230\u5DF2\u6709\u6587\u6863..." : "\u6B63\u5728\u6574\u7406\u7F51\u9875\u5185\u5BB9\u5E76\u8F6C\u6362\u4E3A Obsidian \u6587\u6863...", "info");
     const snapshot = current.pageSnapshot ?? await getActivePageSnapshot(await getActiveTab());
     const draft = await buildWebConversionDraft(current, snapshot, dir);
-    const result = await postClip(current.config, {
+    const result = await runPersistedWrite("clip", {
       title: snapshot.title || current.title,
       url: snapshot.url || current.source,
       sourceKind: snapshot.sourceKind === "feishu-doc" ? "generic-page" : snapshot.sourceKind,

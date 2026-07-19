@@ -2455,6 +2455,166 @@
 
   // src/background.ts
   init_storage();
+
+  // src/workflow.ts
+  var STORAGE_KEY = "knowflow_operations_v1";
+  var TERMINAL_STATES = /* @__PURE__ */ new Set(["succeeded", "failed", "cancelled"]);
+  var TRANSITIONS = {
+    queued: ["awaiting-confirmation", "running", "failed", "cancelled"],
+    "awaiting-confirmation": ["running", "failed", "cancelled"],
+    running: ["succeeded", "failed", "cancelled"],
+    succeeded: [],
+    failed: [],
+    cancelled: []
+  };
+  var WorkflowTransitionError = class extends Error {
+    constructor() {
+      super(...arguments);
+      this.code = "INVALID_OPERATION_TRANSITION";
+    }
+  };
+  var WorkflowStore = class {
+    constructor(storage, options = {}) {
+      this.tail = Promise.resolve();
+      this.storage = storage;
+      this.idFactory = options.idFactory ?? (() => globalThis.crypto.randomUUID());
+      this.now = options.now ?? Date.now;
+      this.maxOperations = Math.max(1, options.maxOperations ?? 50);
+    }
+    create(kind, requestId) {
+      return this.mutate((operations) => {
+        const timestamp = this.now();
+        const operation = {
+          operationId: this.idFactory(),
+          requestId,
+          kind,
+          state: "queued",
+          createdAt: timestamp,
+          updatedAt: timestamp
+        };
+        operations.push(operation);
+        return operation;
+      });
+    }
+    transition(operationId, nextState, payload = {}) {
+      return this.mutate((operations) => {
+        const operation = operations.find((item) => item.operationId === operationId);
+        if (!operation) throw new WorkflowTransitionError(`Unknown operation: ${operationId}`);
+        if (!TRANSITIONS[operation.state].includes(nextState)) {
+          throw new WorkflowTransitionError(`Cannot transition ${operation.state} to ${nextState}`);
+        }
+        operation.state = nextState;
+        operation.updatedAt = this.now();
+        delete operation.result;
+        delete operation.error;
+        if (nextState === "succeeded") {
+          if (!payload.result?.path || !payload.result.action) {
+            throw new WorkflowTransitionError("Succeeded operation requires a final path and action");
+          }
+          operation.result = { path: payload.result.path, action: payload.result.action };
+        }
+        if (nextState === "failed") {
+          operation.error = {
+            code: payload.error?.code || "OPERATION_FAILED",
+            message: redactMessage(payload.error?.message || "Operation failed")
+          };
+        }
+        return operation;
+      });
+    }
+    async run(kind, requestId, task) {
+      const operation = await this.create(kind, requestId);
+      await this.transition(operation.operationId, "running");
+      try {
+        const result = await task();
+        await this.transition(operation.operationId, "succeeded", { result });
+        return result;
+      } catch (error) {
+        await this.transition(operation.operationId, "failed", {
+          error: {
+            code: errorCode(error),
+            message: error instanceof Error ? error.message : String(error)
+          }
+        });
+        throw error;
+      }
+    }
+    list() {
+      return this.withLock(async () => {
+        const operations = await this.read();
+        return structuredClone(operations.sort((left, right) => right.updatedAt - left.updatedAt));
+      });
+    }
+    recoverInterrupted() {
+      return this.mutate((operations) => {
+        let recovered = 0;
+        for (const operation of operations) {
+          if (operation.state !== "running" && operation.state !== "queued") continue;
+          operation.state = "failed";
+          operation.updatedAt = this.now();
+          operation.error = {
+            code: "WORKER_RESTARTED",
+            message: "\u6D4F\u89C8\u5668\u540E\u53F0\u5728\u64CD\u4F5C\u5B8C\u6210\u524D\u91CD\u542F\uFF0C\u672C\u6B21\u7ED3\u679C\u672A\u786E\u8BA4\uFF0C\u8BF7\u68C0\u67E5 Obsidian \u540E\u518D\u91CD\u8BD5\u3002"
+          };
+          recovered += 1;
+        }
+        return recovered;
+      });
+    }
+    mutate(change) {
+      return this.withLock(async () => {
+        const operations = await this.read();
+        const result = change(operations);
+        await this.storage.set({ [STORAGE_KEY]: this.prune(operations) });
+        return structuredClone(result);
+      });
+    }
+    withLock(task) {
+      const execution = this.tail.then(task, task);
+      this.tail = execution.then(() => void 0, () => void 0);
+      return execution;
+    }
+    async read() {
+      const stored = (await this.storage.get(STORAGE_KEY))[STORAGE_KEY];
+      if (!Array.isArray(stored)) return [];
+      return stored.filter(isWorkflowOperation).map((operation) => structuredClone(operation));
+    }
+    prune(operations) {
+      const active = operations.filter((operation) => !TERMINAL_STATES.has(operation.state));
+      const terminal = operations.filter((operation) => TERMINAL_STATES.has(operation.state)).sort((left, right) => right.updatedAt - left.updatedAt).slice(0, Math.max(0, this.maxOperations - active.length));
+      return [...active, ...terminal];
+    }
+  };
+  function isWorkflowOperation(value) {
+    if (!value || typeof value !== "object") return false;
+    const operation = value;
+    return typeof operation.operationId === "string" && typeof operation.requestId === "string" && typeof operation.kind === "string" && typeof operation.state === "string" && typeof operation.createdAt === "number" && typeof operation.updatedAt === "number";
+  }
+  function errorCode(error) {
+    return error && typeof error === "object" && typeof error.code === "string" ? error.code : "OPERATION_FAILED";
+  }
+  function redactMessage(message) {
+    return message.replace(/Bearer\s+[^\s]+/gi, "Bearer [REDACTED]").replace(/\b(token|api[_-]?key|secret)\s*[:=]\s*[^\s,;]+/gi, "$1=[REDACTED]").replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, "sk-[REDACTED]").slice(0, 500);
+  }
+  var chromeStore;
+  var recoveryPromise;
+  function getChromeWorkflowStore() {
+    chromeStore ??= new WorkflowStore(chrome.storage.local);
+    return chromeStore;
+  }
+  async function runWorkflowOperation(kind, requestId, task) {
+    await ensureWorkflowRecovery();
+    return getChromeWorkflowStore().run(kind, requestId, task);
+  }
+  async function recoverInterruptedOperations() {
+    return ensureWorkflowRecovery();
+  }
+  function ensureWorkflowRecovery() {
+    recoveryPromise ??= getChromeWorkflowStore().recoverInterrupted();
+    return recoveryPromise;
+  }
+
+  // src/background.ts
   var DEFAULT_INLINE_AI_CONFIG = {
     provider: "gemini-web",
     apiKey: "",
@@ -2845,8 +3005,9 @@ ${prompt}` }] }] })
   async function runInlineAiStreaming(payload, sender) {
     const tabId = sender.tab?.id;
     if (!tabId) return;
+    const requestId = payload.requestId || crypto.randomUUID();
     const pushChunk = (chunk) => {
-      chrome.tabs.sendMessage(tabId, { type: "ai-stream-chunk", payload: { chunk } }).catch(() => {
+      chrome.tabs.sendMessage(tabId, { type: "ai-stream-chunk", payload: { requestId, chunk } }).catch(() => {
       });
     };
     const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
@@ -2856,17 +3017,17 @@ ${prompt}` }] }] })
     const fullPrompt = `${systemPrompt}${payload.prompt || ""}`;
     try {
       const fullText = await sendGeminiWebMessageStreaming(fullPrompt, config.model, pushChunk);
-      chrome.tabs.sendMessage(tabId, { type: "ai-stream-done", payload: { text: fullText } }).catch(() => {
+      chrome.tabs.sendMessage(tabId, { type: "ai-stream-done", payload: { requestId, text: fullText } }).catch(() => {
       });
     } catch (geminiError) {
       console.warn("[feishu-sync] Gemini Web \u6D41\u5F0F\u5931\u8D25\uFF0C\u964D\u7EA7 DeepSeek Web \u6D41\u5F0F\uFF1A", geminiError);
       try {
         await sendDeepSeekWebMessageStream({ prompt: fullPrompt }, pushChunk);
-        chrome.tabs.sendMessage(tabId, { type: "ai-stream-done" }).catch(() => {
+        chrome.tabs.sendMessage(tabId, { type: "ai-stream-done", payload: { requestId } }).catch(() => {
         });
       } catch (dsError) {
         const errorInfo = classifyAiError(dsError, (payload.text || "").length);
-        chrome.tabs.sendMessage(tabId, { type: "ai-stream-error", payload: errorInfo }).catch(() => {
+        chrome.tabs.sendMessage(tabId, { type: "ai-stream-error", payload: { ...errorInfo, requestId } }).catch(() => {
         });
       }
     }
@@ -2917,6 +3078,7 @@ ${prompt}` }] }] })
     console.log("[feishu-sync] installed/updated:", details.reason);
     try {
       await migrateAllSecrets();
+      await recoverInterruptedOperations();
     } catch (error) {
       console.warn("[feishu-sync] secret migration incomplete:", error);
     }
@@ -2931,6 +3093,7 @@ ${prompt}` }] }] })
   });
   chrome.runtime.onStartup?.addListener(async () => {
     await migrateAllSecrets();
+    await recoverInterruptedOperations();
     await rebuildContextMenus();
     setTimeout(() => broadcastSessionStatus().catch(() => {
     }), 3e3);
@@ -3057,9 +3220,16 @@ ${prompt}` }] }] })
   chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type === "ai-tool") {
       (async () => {
+        const action = message.payload?.action;
+        if (action === "browser-control") {
+          const hasDebuggerPermission = await chrome.permissions.contains({ permissions: ["debugger"] });
+          if (!hasDebuggerPermission) {
+            const granted = await chrome.permissions.request({ permissions: ["debugger"] });
+            if (!granted) throw new Error("\u6D4F\u89C8\u5668\u63A7\u5236\u9700\u8981\u4E34\u65F6\u6388\u4E88 debugger \u6743\u9650\u3002");
+          }
+        }
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) throw new Error("\u672A\u627E\u5230\u5F53\u524D\u7F51\u9875\u6807\u7B7E\u9875\u3002");
-        const action = message.payload?.action;
         const userInstruction = typeof message.payload?.text === "string" ? message.payload.text.trim() : "";
         const page = await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -3179,16 +3349,37 @@ ${prompt}` }] }] })
       rebuildContextMenus().then(() => sendResponse({ ok: true })).catch((error) => sendResponse({ ok: false, message: error instanceof Error ? error.message : String(error) }));
       return true;
     }
+    if (message.type === "knowflow-write") {
+      (async () => {
+        const kind = message.payload?.kind;
+        const request2 = message.payload?.request;
+        if (kind !== "fetch" && kind !== "clip" || !request2 || typeof request2 !== "object") {
+          throw new Error("\u65E0\u6548\u7684\u5199\u64CD\u4F5C\u8BF7\u6C42\u3002");
+        }
+        if (kind === "fetch" && typeof request2.node_token !== "string") {
+          throw new Error("\u540C\u6B65\u8BF7\u6C42\u7F3A\u5C11\u98DE\u4E66\u6587\u6863 token\u3002");
+        }
+        const requestId = typeof request2.requestId === "string" && request2.requestId ? request2.requestId : crypto.randomUUID();
+        const config = await loadConfig();
+        if (kind === "fetch") {
+          return runWorkflowOperation("fetch", requestId, () => postFetch(config, { ...request2, requestId }));
+        }
+        return runWorkflowOperation("clip", requestId, () => postClip(config, { ...request2, requestId }));
+      })().then((result) => sendResponse({ ok: true, result })).catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+      return true;
+    }
     if (message.type === "clip-to-obsidian") {
       (async () => {
         const tab = sender.tab;
-        if (!tab?.id) return;
+        if (!tab?.id) throw new Error("\u672A\u627E\u5230\u5F53\u524D\u7F51\u9875\u6807\u7B7E\u9875\u3002");
         const payload = message.payload || {};
         console.log("[feishu-sync] clip-to-obsidian:", payload);
         try {
           if (payload.openMode === "silent" && payload.sceneAction === "save" && payload.aiEnabled !== true && typeof payload.defaultDir === "string" && payload.defaultDir.trim()) {
             const config = await loadConfig();
-            await postClip(config, {
+            const requestId = crypto.randomUUID();
+            return runWorkflowOperation("clip", requestId, () => postClip(config, {
+              requestId,
               title: payload.title || tab.title || "\u7F51\u9875\u526A\u85CF",
               url: payload.url || tab.url || "",
               sourceKind: "selection",
@@ -3207,8 +3398,7 @@ ${prompt}` }] }] })
                 \u8BC4\u5206: 1,
                 \u8BC4\u5206_\u663E\u793A: "\u{1F31F}\xB7\u7D20\u6750"
               }
-            });
-            return;
+            }));
           }
           const sidePanel = chrome.sidePanel;
           if (sidePanel.open) {
@@ -3236,18 +3426,33 @@ ${prompt}` }] }] })
               }
             });
           }, 500);
+          return void 0;
         } catch (e) {
           console.error("[feishu-sync] clip error:", e);
+          throw e;
         }
-      })();
-      sendResponse({ ok: true });
+      })().then((result) => sendResponse({ ok: true, result })).catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
       return true;
     }
     if (message.type === "feishu-sync-trigger") {
+      const payload = message.payload || {};
+      if (payload.directSync === true) {
+        (async () => {
+          const nodeToken = String(payload.nodeToken || payload.docToken?.node_token || payload.docToken?.obj_token || "").trim();
+          if (!nodeToken) throw new Error("\u65E0\u6CD5\u8BC6\u522B\u5F53\u524D\u98DE\u4E66\u6587\u6863 token\u3002");
+          const requestId = crypto.randomUUID();
+          const config = await loadConfig();
+          return runWorkflowOperation("fetch", requestId, () => postFetch(config, {
+            requestId,
+            node_token: nodeToken,
+            obj_token: payload.docToken?.obj_token || void 0
+          }));
+        })().then((result) => sendResponse({ ok: true, result })).catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+        return true;
+      }
       (async () => {
         const tab = sender.tab;
         if (!tab?.id) return;
-        const payload = message.payload || {};
         try {
           const sidePanel = chrome.sidePanel;
           if (sidePanel.open) {

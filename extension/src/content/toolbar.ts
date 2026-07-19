@@ -1,3 +1,5 @@
+import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
+
 /**
  * 浮动选择工具栏 v3.1 — 精简版：AI 操作委托给 Sidepanel 统一处理
  *
@@ -12,7 +14,6 @@
   // Types
   // ═══════════════════════════════════════════════════════════════
 
-  type ToolbarState = 'IDLE' | 'CAPSULE';
   type KnowledgeSceneAction = 'save' | 'append' | 'refine' | 'showResult' | 'copy' | 'openSidepanel';
   type Action = string | 'more' | 'feishu-sync';
   type KnowledgeScene = {
@@ -79,7 +80,7 @@
   // State
   // ═══════════════════════════════════════════════════════════════
 
-  let state: ToolbarState = 'IDLE';
+  let state = initialToolbarState();
   let lastSelection = '';
   let host: HTMLDivElement | null = null;
   let shadow: ShadowRoot | null = null;
@@ -1080,6 +1081,7 @@
   function collapseResult(): void {
     if (!shadow) return;
     aiRequestInFlight = false;
+    state = reduceToolbarState(state, { type: 'CLOSE' });
     const capsule = shadow.querySelector('.capsule')!;
     const panel = shadow.querySelector('.result-panel')!;
     panel.classList.remove('expanded');
@@ -1089,6 +1091,7 @@
       panel.classList.remove('collapsing');
       const rc = panel.querySelector('.result-content')!;
       rc.innerHTML = '';
+      state = reduceToolbarState(state, { type: 'SHOW_CAPSULE' });
       renderCapsule();
     }, 300);
   }
@@ -1125,7 +1128,10 @@
   // Streaming AI Result (流式输出 + 错误卡片)
   // ═══════════════════════════════════════════════════════════════
 
-  function appendStreamChunk(chunk: string): void {
+  function appendStreamChunk(chunk: string, requestId: string): void {
+    const nextState = reduceToolbarState(state, { type: 'CHUNK', requestId, chunk });
+    if (nextState === state) return;
+    state = nextState;
     if (!shadow) return;
     const wrapper = shadow.querySelector('.result-content');
     if (!wrapper) return;
@@ -1162,23 +1168,28 @@
     return html;
   }
 
-  function finalizeStreamResult(fullText: string): void {
+  function finalizeStreamResult(fullText: string, requestId: string): void {
+    if (requestId !== state.requestId || (state.phase !== 'loading' && state.phase !== 'streaming')) return;
     if (!shadow) return;
     aiRequestInFlight = false;
     const wrapper = shadow.querySelector('.result-content');
     if (!wrapper) return;
     const streamEl = wrapper.querySelector('.result-content.streaming');
-    const text = fullText || streamEl?.textContent || '';
+    const text = fullText || state.content || streamEl?.textContent || '';
     if (!text.trim()) {
       // 空结果 → 错误卡片
-      showStreamErrorCard({ errorType: 'EMPTY_RESULT', message: 'AI 未返回内容', provider: '' });
+      showStreamErrorCard({ errorType: 'EMPTY_RESULT', message: 'AI 未返回内容', provider: '' }, requestId);
       return;
     }
+    state = reduceToolbarState(state, { type: 'DONE', requestId, text });
     // 渲染 Markdown，移除 streaming class（光标消失）
     wrapper.innerHTML = `<div class="result-content">${renderSimpleMarkdown(text)}</div>`;
   }
 
-  function showStreamErrorCard(errorInfo: AiErrorResponse): void {
+  function showStreamErrorCard(errorInfo: AiErrorResponse, requestId: string): void {
+    const nextState = reduceToolbarState(state, { type: 'FAIL', requestId, error: errorInfo.message });
+    if (nextState === state) return;
+    state = nextState;
     if (!shadow) return;
     aiRequestInFlight = false;
     if (streamProgressTimer) {
@@ -1361,6 +1372,8 @@
   /** 重新发起流式 AI 请求（用于错误卡片重试/截取/换问法）。*/
   function restartStreamRequest(prompt: string): void {
     if (!shadow) return;
+    const requestId = crypto.randomUUID();
+    state = reduceToolbarState(state, { type: 'START', requestId });
     aiRequestInFlight = true;
     streamChunkReceived = false;
     lastStreamPrompt = prompt;
@@ -1374,6 +1387,7 @@
       chrome.runtime.sendMessage({
         type: 'ai-inline-stream',
         payload: {
+          requestId,
           action: 'ai-chat',
           prompt,
           text: lastSelection.trim(),
@@ -1428,11 +1442,12 @@
     if (!toolbarConfig.enabled) return;
     ensureHost();
     renderCapsule();
-    state = 'CAPSULE';
+    state = reduceToolbarState(state, { type: 'SHOW_CAPSULE' });
     bindCapsuleEvents();
   }
 
   function hideToolbar(): void {
+    state = reduceToolbarState(state, { type: 'CLOSE' });
     // 如果结果面板展开中，先收起面板再隐藏
     const panel = shadow?.querySelector('.result-panel');
     if (panel?.classList.contains('expanded')) {
@@ -1441,7 +1456,7 @@
       setTimeout(() => {
         clearShadow();
         if (host) host.style.display = 'none';
-        state = 'IDLE';
+        state = reduceToolbarState(state, { type: 'RESET' });
       }, 350);
       return;
     }
@@ -1454,13 +1469,13 @@
       setTimeout(() => {
         clearShadow();
         if (host) host.style.display = 'none';
-        state = 'IDLE';
+        state = reduceToolbarState(state, { type: 'RESET' });
       }, 150);
       return;
     }
     clearShadow();
     if (host) host.style.display = 'none';
-    state = 'IDLE';
+    state = reduceToolbarState(state, { type: 'RESET' });
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -1546,6 +1561,8 @@
         if (!text) return;
         if (aiRequestInFlight) return;  // 防重复点击
         aiRequestInFlight = true;
+        const requestId = crypto.randomUUID();
+        state = reduceToolbarState(state, { type: 'START', requestId });
         resultTitle = scene.label;
 
         // 1. 按钮涟漪反馈
@@ -1572,6 +1589,7 @@
           chrome.runtime.sendMessage({
             type: 'ai-inline-stream',
             payload: {
+              requestId,
               action: scene.id,
               prompt: scenePrompt,
               text,
@@ -1676,7 +1694,7 @@
         host = null;
         shadow = null;
       }
-      state = 'IDLE';
+      state = reduceToolbarState(state, { type: 'RESET' });
     }
   }
 
@@ -1717,7 +1735,7 @@
 
     // Mousedown: hide if clicking outside toolbar
     document.addEventListener('mousedown', (e: Event) => {
-      if (state === 'IDLE') return;
+      if (state.phase === 'idle') return;
       if (host && !host.contains(e.target as Node)) {
         hideToolbar();
       }
@@ -1725,7 +1743,7 @@
 
     // Keydown: Escape hides
     document.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && state !== 'IDLE') {
+      if (e.key === 'Escape' && state.phase !== 'idle') {
         hideToolbar();
       }
     });
@@ -1734,7 +1752,7 @@
     window.addEventListener(
       'scroll',
       () => {
-        if (state !== 'IDLE') hideToolbar();
+        if (state.phase !== 'idle') hideToolbar();
       },
       { passive: true, capture: true },
     );
@@ -1773,19 +1791,19 @@
       // Gemini session 状态更新
       if (message.type === 'gemini-session-status') {
         geminiSessionAlive = message.payload?.alive !== false;
-        if (state === 'CAPSULE') {
+        if (state.phase === 'capsule') {
           renderCapsule();
           bindCapsuleEvents();
         }
       }
       // ═══ 流式 AI 消息处理（background → toolbar）═══
       if (message.type === 'ai-stream-chunk') {
-        appendStreamChunk(message.payload?.chunk || '');
+        appendStreamChunk(message.payload?.chunk || '', message.payload?.requestId || '');
       } else if (message.type === 'ai-stream-done') {
-        finalizeStreamResult(message.payload?.text || '');
+        finalizeStreamResult(message.payload?.text || '', message.payload?.requestId || '');
       } else if (message.type === 'ai-stream-error') {
         const info: AiErrorResponse = message.payload || { errorType: 'UNKNOWN', message: '未知错误', provider: '' };
-        showStreamErrorCard(info);
+        showStreamErrorCard(info, message.payload?.requestId || '');
       }
       return true;
     });
