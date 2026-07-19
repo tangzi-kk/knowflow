@@ -143,7 +143,7 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName('删除自动登记')
-      .setDesc('删除含 feishu_id 的文件时，自动登记到飞书多维表格')
+      .setDesc('仅登记待确认删除；不会自动删除飞书节点，默认关闭')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.autoDeleteRegistry)

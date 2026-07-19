@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KnowFlow · 知流",
-  "version": "3.5.0",
+  "version": "4.0.0",
   "description": "飞书 → Obsidian 知识同步 · 网页剪藏 · Gemini Web AI 助手",
   "permissions": [
     "activeTab",

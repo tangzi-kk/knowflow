@@ -1163,7 +1163,8 @@
     try {
       const status = await getStatus(config);
       const ok = status.larkReady;
-      updateStatus(ok, status.vault);
+      const recentFailure = status.recentActivity?.find((item) => item.status === "failed");
+      updateStatus(ok, recentFailure ? `${status.vault} \xB7 \u6700\u8FD1\u5931\u8D25 ${recentFailure.errorCode || recentFailure.kind}` : status.vault);
     } catch {
       updateStatus(false);
     }

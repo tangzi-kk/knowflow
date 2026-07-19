@@ -11,6 +11,12 @@ import type { App, TFile } from 'obsidian';
 import { Notice } from 'obsidian';
 import { parseFrontmatter } from '@sync/shared';
 import { run } from './lark/cli.js';
+import {
+  buildConfirmedDeleteCommands,
+  previewPendingDeletions,
+  type DeleteConfirmation,
+  type PendingDeletion,
+} from './deleteWorkflow.js';
 
 /** 删除登记表配置（设置页配置）。 */
 export interface DeleteRegistryConfig {
@@ -105,65 +111,55 @@ export async function registerDeletion(
  */
 export async function cleanupRegisteredDeletions(
   config: DeleteRegistryConfig,
-  spaceId: string,
+  _spaceId: string,
 ): Promise<{ processed: number; deleted: number; failed: number }> {
-  let processed = 0;
-  let deleted = 0;
-  let failed = 0;
-
   try {
-    // 拉所有"待处理"记录
-    const output = run([
-      'base', '+record-list',
-      '--app-token', config.baseToken,
-      '--table-id', config.tableId,
-      '--filter', JSON.stringify({
-        conjunction: 'and',
-        conditions: [{ field_name: '状态', operator: 'is', value: ['待处理'] }],
-      }),
-    ], { json: true, timeout: 30000 });
-
-    const data = JSON.parse(output);
-    const records = data?.items ?? data?.records ?? [];
-
-    for (const record of records) {
-      processed++;
-      const feishuId = record?.fields?.feishu_id?.text ?? record?.fields?.feishu_id;
-      if (!feishuId) {
-        failed++;
-        continue;
-      }
-
-      try {
-        run([
-          'wiki', '+node-delete',
-          '--node-token', feishuId,
-          '--space-id', spaceId,
-          '--include-children',
-          '--yes',
-        ], { timeout: 15000 });
-        deleted++;
-
-        // 更新状态为"已删除"
-        run([
-          'base', '+record-update',
-          '--app-token', config.baseToken,
-          '--table-id', config.tableId,
-          '--record-id', record.record_id,
-          '--fields', JSON.stringify({ 状态: '已删除' }),
-        ], { timeout: 15000 });
-      } catch (err) {
-        console.warn(`[sync/delete] cleanup failed for ${feishuId}:`, err);
-        failed++;
-      }
-    }
+    const candidates = await previewRegisteredDeletions(config);
+    new Notice(`🗑 发现 ${candidates.length} 条待确认删除；未执行远端删除。`);
+    return { processed: candidates.length, deleted: 0, failed: 0 };
   } catch (err) {
     console.warn('[sync/delete] list failed:', err);
     new Notice('⚠️ 拉取删除登记失败');
+    return { processed: 0, deleted: 0, failed: 1 };
   }
+}
 
-  new Notice(`🗑 已清理 ${deleted}/${processed}（失败 ${failed}）`);
-  return { processed, deleted, failed };
+export async function previewRegisteredDeletions(
+  config: DeleteRegistryConfig,
+): Promise<PendingDeletion[]> {
+  const output = await run([
+    'base', '+record-list',
+    '--app-token', config.baseToken,
+    '--table-id', config.tableId,
+    '--filter', JSON.stringify({
+      conjunction: 'and',
+      conditions: [{ field_name: '状态', operator: 'is', value: ['待处理'] }],
+    }),
+  ], { json: true, timeout: 30_000 });
+  const data = JSON.parse(output);
+  const records = data?.items ?? data?.records ?? [];
+  return previewPendingDeletions(records.map((record: Record<string, any>) => ({
+    recordId: String(record.record_id || ''),
+    nodeToken: String(record.fields?.feishu_id?.text ?? record.fields?.feishu_id ?? ''),
+    title: String(record.fields?.飞书文档标题?.text ?? record.fields?.飞书文档标题 ?? ''),
+    path: String(record.fields?.OB原路径?.text ?? record.fields?.OB原路径 ?? ''),
+  })));
+}
+
+export async function confirmRegisteredDeletion(
+  config: DeleteRegistryConfig,
+  spaceId: string,
+  candidate: PendingDeletion,
+  confirmation: DeleteConfirmation,
+): Promise<void> {
+  const commands = buildConfirmedDeleteCommands(candidate, confirmation);
+  await run([...commands.deleteArgs, '--space-id', spaceId], { timeout: 15_000 });
+  await run([
+    ...commands.updateArgs.slice(0, 2),
+    '--app-token', config.baseToken,
+    '--table-id', config.tableId,
+    ...commands.updateArgs.slice(2),
+  ], { timeout: 15_000 });
 }
 
 /**

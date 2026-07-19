@@ -149,7 +149,7 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
         return;
       }
       const lines = recent.slice(0, 10).map(
-        r => `${r.action === 'created' ? '➕' : r.action === 'updated' ? '✏' : '❌'} ${r.title} → ${r.path}`,
+        r => `${r.status === 'failed' ? '❌' : r.status === 'skipped' ? '⏭' : '✅'} ${r.title || r.kind} → ${r.path || r.action || ''}`,
       );
       const modal = new Modal(app);
       modal.titleEl.setText('最近同步记录');

@@ -170,18 +170,6 @@ export function createFetchHandler(deps: FetchDeps) {
       }
     }
 
-    // 记录最近同步
-    deps.state.recentSyncs.unshift({
-      time: syncTime,
-      node_token,
-      title: feishuTitle,
-      path: finalPath,
-      action,
-    });
-    if (deps.state.recentSyncs.length > 50) {
-      deps.state.recentSyncs = deps.state.recentSyncs.slice(0, 50);
-    }
-
     return {
       ok: true,
       path: finalPath,

@@ -15,7 +15,7 @@ after(async () => {
   await rm(compiledDirectory, { recursive: true, force: true });
 });
 
-for (const sourceName of ['settings.ts', 'settingsMigration.ts']) {
+for (const sourceName of ['activity.ts', 'settings.ts', 'settingsMigration.ts']) {
   const source = await readFile(path.join(sourceDirectory, sourceName), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
@@ -33,7 +33,7 @@ const { generateSyncToken, migrateSettings } = await import(
   pathToFileURL(path.join(compiledDirectory, 'settingsMigration.js')).href
 );
 
-test('manifest and package retain the fs-TB identity at 3.5.0', async () => {
+test('manifest and package retain the fs-TB identity at 4.0.0', async () => {
   const manifest = JSON.parse(await readFile(
     path.resolve(testDirectory, '../manifest.json'),
     'utf8',
@@ -44,7 +44,7 @@ test('manifest and package retain the fs-TB identity at 3.5.0', async () => {
   ));
 
   assert.equal(manifest.id, 'fs-TB');
-  assert.equal(manifest.version, '3.5.0');
+  assert.equal(manifest.version, '4.0.0');
   assert.equal(packageJson.version, manifest.version);
 });
 
@@ -59,12 +59,13 @@ test('fresh installs receive only the current defaults', () => {
     larkCliPath: '',
     defaultDir: '0️⃣输入',
     autoRename: true,
-    autoDeleteRegistry: true,
+    autoDeleteRegistry: false,
     cacheCleanup: 'weekly',
     keepDecorativeImages: true,
     spaceId: '7651314150060067803',
     defaultNoteFolder: '3️⃣附件文件/Lark',
     hideSystemProperties: true,
+    recentActivity: [],
   });
 });
 

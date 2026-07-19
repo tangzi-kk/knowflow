@@ -4,6 +4,7 @@ import {
   DEFAULT_SETTINGS,
   type FeishuSyncSettings,
 } from './settings.js';
+import { normalizeActivity } from './activity.js';
 
 export interface SettingsMigrationResult {
   settings: FeishuSyncSettings;
@@ -81,6 +82,10 @@ export function migrateSettings(input: unknown): SettingsMigrationResult {
     source?.hideSystemProperties,
     feishuSync?.hideSystemProperties,
   ) ?? DEFAULT_SETTINGS.hideSystemProperties;
+  const normalizedActivity = normalizeActivity(source?.recentActivity);
+  migrated.recentActivity = sameJsonData(source?.recentActivity, normalizedActivity)
+    ? source?.recentActivity
+    : normalizedActivity;
 
   return {
     settings: migrated as FeishuSyncSettings,
@@ -204,4 +209,12 @@ function sameData(source: DataRecord | undefined, migrated: DataRecord): boolean
       Object.prototype.hasOwnProperty.call(source, key)
       && Object.is(source[key], migrated[key])
     ));
+}
+
+function sameJsonData(left: unknown, right: unknown): boolean {
+  try {
+    return JSON.stringify(left) === JSON.stringify(right);
+  } catch {
+    return false;
+  }
 }

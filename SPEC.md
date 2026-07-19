@@ -14,9 +14,9 @@
 
 ## Current Baseline
 
-- Obsidian 可维护源码：`packages/ob-plugin/`，已对齐 `fs-TB 3.5.0`。
+- Obsidian 可维护源码：`packages/ob-plugin/`，正在收口 `fs-TB 4.0.0`。
 - Obsidian 已核验运行归档：`releases/obsidian-fs-TB/3.2.1/`，插件 ID `fs-TB`；其 `main.js` 内嵌完整 source map 和原始源码。
-- 浏览器可维护源码：`extension/`，已对齐 KnowFlow `3.5.0`。
+- 浏览器可维护源码：`extension/`，正在收口 KnowFlow `4.0.0`。
 - 浏览器已核验运行归档：`releases/browser-feishu-doc-exporter/0.3.0/`；它是独立旧产品，不宣称可原位升级成 KnowFlow。
 - 当前自动测试只覆盖部分共享协议；浏览器和 Obsidian 业务逻辑缺少正式测试门禁。
 
@@ -71,5 +71,7 @@ git status --short
 - [x] `3.3.0`
 - [x] `3.4.0`
 - [x] `3.5.0`
-- [ ] `3.6.0`
-- [ ] `4.0.0`
+- [x] `3.6.0`（安全层折叠进入 4.0）
+- [x] `4.0.0` 自动实现与门禁
+
+真实飞书账号、备份 Vault 和 Chrome/Edge 交互验收未执行，详见 `docs/validation/4.0-acceptance.md`；不得把这些项目表述成已通过。

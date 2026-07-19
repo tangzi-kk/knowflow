@@ -47,6 +47,16 @@ export interface StatusResponse extends ProtocolInfo {
     larkReady: boolean;
     /** lark-cli 版本（探测不到时为 null）。 */
     larkVersion: string | null;
+    /** 最近活动的无敏感元数据摘要。 */
+    recentActivity?: Array<{
+        time: string;
+        kind: string;
+        status: string;
+        action?: string;
+        title?: string;
+        path?: string;
+        errorCode?: string;
+    }>;
 }
 /** 目录树节点（给扩展目录下拉用）。 */
 export interface TreeNode {

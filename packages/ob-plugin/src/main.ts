@@ -17,7 +17,7 @@ import {
 import { generateSyncToken, migrateSettings } from './settingsMigration.js';
 import { FeishuSyncSettingTab } from './settingsTab.js';
 import { startServer, type ServerDeps, type RouteHandler } from './server.js';
-import { resolveCli } from './lark/cli.js';
+import { disableCli, enableCli, resolveCli } from './lark/cli.js';
 import { createStatusHandler } from './handlers/statusHandler.js';
 import { createTreeHandler } from './handlers/treeHandler.js';
 import { createFetchHandler } from './handlers/fetchHandler.js';
@@ -39,15 +39,18 @@ import { SyncCoordinator } from './syncCoordinator.js';
 import type { ClipRequest, FetchRequest, PushbackRequest } from '@sync/shared';
 import { extractFeishuId } from './bindingIndex.js';
 import { normalizeVaultDir, normalizeVaultMarkdownPath } from './vaultPath.js';
+import { appendActivity, normalizeActivity, type ActivityKind } from './activity.js';
 
 export class FeishuSyncPlugin extends Plugin {
   settings!: FeishuSyncSettings;
   state!: PluginState;
   private stopServer?: () => Promise<void>;
   private systemPropertyObserver?: MutationObserver;
+  private activitySaveTail: Promise<void> = Promise.resolve();
   readonly syncCoordinator = new SyncCoordinator();
 
   async onload(): Promise<void> {
+    enableCli();
     let shouldSaveSettings = await this.loadSettings();
 
     // 运行时状态
@@ -55,7 +58,7 @@ export class FeishuSyncPlugin extends Plugin {
       larkCliResolved: '',
       larkCliVersion: '',
       serverRunning: false,
-      recentSyncs: [] as RecentSync[],
+      recentSyncs: normalizeActivity(this.settings.recentActivity) as RecentSync[],
     };
 
     // 首次自动生成启动令牌
@@ -106,6 +109,8 @@ export class FeishuSyncPlugin extends Plugin {
   }
 
   async onunload(): Promise<void> {
+    disableCli();
+    await this.activitySaveTail;
     this.systemPropertyObserver?.disconnect();
     this.systemPropertyObserver = undefined;
     document.body.classList.remove(SYSTEM_PROPERTY_BODY_CLASS);
@@ -223,8 +228,8 @@ export class FeishuSyncPlugin extends Plugin {
       const req = ctx.body as FetchRequest;
       const documentKey = `document:${req?.node_token ?? ''}`;
       const directoryKey = `directory:${normalizeVaultDir(req?.dir ?? this.settings.defaultDir)}`;
-      return this.syncCoordinator.run(documentKey, req?.requestId, () =>
-        this.syncCoordinator.run(directoryKey, undefined, () => fetchHandler(ctx)));
+      return this.withActivity('fetch', () => this.syncCoordinator.run(documentKey, req?.requestId, () =>
+        this.syncCoordinator.run(directoryKey, undefined, () => fetchHandler(ctx))));
     });
     const clipHandler = createClipHandler({
       app: this.app,
@@ -234,7 +239,7 @@ export class FeishuSyncPlugin extends Plugin {
     routes.set('/clip', (ctx) => {
       const req = ctx.body as ClipRequest;
       const key = req?.appendPath ? `clip:${req.appendPath}` : `clip:${req?.requestId ?? 'anonymous'}`;
-      return this.syncCoordinator.run(key, req?.requestId, () => clipHandler(ctx));
+      return this.withActivity('clip', () => this.syncCoordinator.run(key, req?.requestId, () => clipHandler(ctx)));
     });
     routes.set('/exists', createExistsHandler(this.app));
     const pushbackHandler = createPushbackHandler({
@@ -245,7 +250,7 @@ export class FeishuSyncPlugin extends Plugin {
     routes.set('/pushback', async (ctx) => {
       const req = ctx.body as PushbackRequest;
       const key = await this.documentCoordinationKey(req?.node_token, req?.path);
-      return this.syncCoordinator.run(key, req?.requestId, () => pushbackHandler(ctx));
+      return this.withActivity('pushback', () => this.syncCoordinator.run(key, req?.requestId, () => pushbackHandler(ctx)));
     });
 
     try {
@@ -257,6 +262,38 @@ export class FeishuSyncPlugin extends Plugin {
       new Notice(`❌ HTTP server 启动失败（端口 ${this.settings.port}）：${msg}`);
       console.error('[fs-TB] server start failed:', err);
     }
+  }
+
+  private async withActivity<T>(kind: ActivityKind, task: () => Promise<T>): Promise<T> {
+    try {
+      const result = await task();
+      const value = result as Record<string, unknown>;
+      this.recordActivity({
+        time: new Date().toISOString(),
+        kind,
+        status: value.action === 'skipped' ? 'skipped' : 'succeeded',
+        action: value.action,
+        title: value.feishu_title ?? value.title,
+        path: value.path,
+      });
+      return result;
+    } catch (error) {
+      this.recordActivity({
+        time: new Date().toISOString(),
+        kind,
+        status: 'failed',
+        errorCode: (error as { code?: unknown })?.code ?? 'INTERNAL',
+      });
+      throw error;
+    }
+  }
+
+  private recordActivity(record: Record<string, unknown>): void {
+    this.state.recentSyncs = appendActivity(this.state.recentSyncs, record) as RecentSync[];
+    this.settings.recentActivity = this.state.recentSyncs;
+    this.activitySaveTail = this.activitySaveTail
+      .then(() => this.saveSettings())
+      .catch((error) => console.warn('[fs-TB] activity persistence failed:', error));
   }
 }
 

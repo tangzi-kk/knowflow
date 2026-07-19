@@ -28,6 +28,8 @@ export interface FeishuSyncSettings {
   defaultNoteFolder: string;
   /** 是否隐藏同步使用的系统属性。 */
   hideSystemProperties: boolean;
+  /** 最近活动，仅元数据，最多 50 条。 */
+  recentActivity: RecentSync[];
   /** 升级时保留仍被运行版使用的未知字段。 */
   [legacyKey: string]: unknown;
 }
@@ -39,12 +41,13 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   larkCliPath: '',
   defaultDir: '0️⃣输入',
   autoRename: true,
-  autoDeleteRegistry: true,
+  autoDeleteRegistry: false,
   cacheCleanup: 'weekly',
   keepDecorativeImages: true,
   spaceId: '7651314150060067803',
   defaultNoteFolder: '3️⃣附件文件/Lark',
   hideSystemProperties: true,
+  recentActivity: [],
 };
 
 /** 插件运行时状态（不持久化）。 */
@@ -61,9 +64,10 @@ export interface PluginState {
 
 export interface RecentSync {
   time: string;
-  node_token: string;
-  title: string;
-  path: string;
-  action: 'created' | 'updated' | 'error';
-  error?: string;
+  kind: 'fetch' | 'clip' | 'pushback' | 'deletion' | 'system';
+  status: 'succeeded' | 'failed' | 'skipped';
+  title?: string;
+  path?: string;
+  action?: string;
+  errorCode?: string;
 }

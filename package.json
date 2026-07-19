@@ -1,6 +1,6 @@
 {
   "name": "sync-plugin",
-  "version": "3.5.0",
+  "version": "4.0.0",
   "private": true,
   "description": "飞书 ↔ Obsidian 知识库同步闭环（浏览器扩展 + OB 插件，通过 localhost HTTP 通信）",
   "license": "MIT",
@@ -20,7 +20,10 @@
     "test:ob": "npm run build:ob && npm test -w @sync/ob-plugin && npm run typecheck:ob",
     "test:ext": "npm run typecheck:ext && npm test -w @sync/extension",
     "test:version": "node --test scripts/version-consistency-test.mjs",
-    "test": "npm run test:extractor && npm run test:protocol && npm run test:ob && npm run test:ext && npm run test:version",
+    "test:audit": "node --test scripts/release-audit-test.mjs",
+    "test": "npm run test:extractor && npm run test:protocol && npm run test:ob && npm run test:ext && npm run test:version && npm run test:audit",
+    "release:manifest": "node scripts/generate-artifact-manifest.mjs",
+    "release:verify": "npm test && npm run build && npm run release:manifest",
     "dev": "npm run dev --workspaces"
   },
   "engines": {

@@ -44,6 +44,7 @@ function buildEnhancedPath(): string {
 
 /** run() 共用的增强 PATH（首次解析后缓存）。 */
 let enhancedPath: string | undefined;
+let cliEnabled = true;
 
 function getEnhancedPath(): string {
   return enhancedPath ??= buildEnhancedPath();
@@ -153,6 +154,8 @@ export interface RunOptions {
   timeout?: number;
   /** 期望 JSON 输出时 true，自动跳过 "Found X node(s)" 前缀。 */
   json?: boolean;
+  /** 包含重试等待在内的总截止时间。 */
+  totalTimeout?: number;
 }
 
 /**
@@ -163,17 +166,21 @@ export interface RunOptions {
  * @returns stdout（已清洗）
  */
 export function run(args: string[], options: RunOptions = {}): string {
-  const { cwd, retries = 3, timeout = 30000, json = false } = options;
+  if (!cliEnabled) throw Object.assign(new Error('lark-cli is disabled because the plugin is unloading'), { code: 'CLI_UNLOADING' });
+  const { cwd, retries = 3, timeout = 30000, totalTimeout = timeout * Math.max(1, retries), json = false } = options;
   const cliPath = process.env.__LARK_CLI_PATH__ || 'lark-cli';
+  const deadline = Date.now() + Math.max(1, totalTimeout);
 
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw Object.assign(new Error('lark-cli total deadline exceeded'), { code: 'CLI_DEADLINE' });
       const fullArgs = [...args];
       const execOpts: ExecFileSyncOptionsWithStringEncoding = {
         encoding: 'utf8',
-        timeout,
+        timeout: Math.min(timeout, remaining),
         maxBuffer: 10 * 1024 * 1024, // 10MB（大文档）
         // 注入增强 PATH：GUI 启动的 Obsidian 拿不到 nvm/homebrew，导致
         // `#!/usr/bin/env node` 找不到 node（cli 是 node 脚本）
@@ -235,13 +242,10 @@ export function run(args: string[], options: RunOptions = {}): string {
       const errMsg = (err as Error)?.message ?? String(err);
 
       // 429 限流或网络错误：重试（指数退避）
-      if (
-        errMsg.includes('429') ||
-        errMsg.includes('ETIMEDOUT') ||
-        errMsg.includes('ECONNRESET') ||
-        errMsg.includes('socket hang up')
-      ) {
-        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      if (isRetryableCliFailure(errMsg)) {
+        const remaining = deadline - Date.now();
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000, Math.max(0, remaining));
+        if (attempt >= retries || delay <= 0) break;
         console.warn(`[sync/lark] attempt ${attempt} failed, retrying in ${delay}ms: ${errMsg}`);
         // 不依赖 shell 的 sleep（Atomics.wait 同步阻塞）
         const ms = delay;
@@ -256,6 +260,21 @@ export function run(args: string[], options: RunOptions = {}): string {
   }
 
   throw lastError ?? new Error('lark-cli run failed with unknown error');
+}
+
+export function disableCli(): void {
+  cliEnabled = false;
+}
+
+export function enableCli(): void {
+  cliEnabled = true;
+}
+
+export function isRetryableCliFailure(message: string): boolean {
+  return message.includes('429')
+    || message.includes('ETIMEDOUT')
+    || message.includes('ECONNRESET')
+    || message.includes('socket hang up');
 }
 
 /**
@@ -295,10 +314,9 @@ function unwrapLarkEnvelope(stdout: string): string {
  * @param title 文档标题（带 emoji）
  * @param cwd 工作目录（用于 @file 相对路径）
  */
-export function overwriteDoc(token: string, content: string, title: string, cwd?: string): void {
-  // 写临时文件（overwrite 需要用 @file）
-  const tmpDir = cwd || process.cwd();
-  const tmpFile = path.join(tmpDir, './.feishu-sync-temp.md');
+export function overwriteDoc(token: string, content: string, title: string, _cwd?: string): void {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'knowflow-write-'));
+  const tmpFile = path.join(tmpDir, 'content.md');
 
   // 清洗：strip emoji VS + 反转义 \~
   const cleaned = stripVariationSelectors(content);
@@ -307,7 +325,7 @@ export function overwriteDoc(token: string, content: string, title: string, cwd?
 
   try {
     // overwrite
-    run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'markdown', '--content', `@./.feishu-sync-temp.md`], { cwd: tmpDir });
+    run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'markdown', '--content', '@./content.md'], { cwd: tmpDir });
 
     // 标题修复：str_replace 修 <title>
     const cleanTitle = stripVariationSelectors(title);
@@ -329,7 +347,7 @@ export function overwriteDoc(token: string, content: string, title: string, cwd?
     ], { cwd: tmpDir, timeout: 15000 });
   } finally {
     // 清理临时文件
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 }
 
@@ -337,15 +355,15 @@ export function overwriteDoc(token: string, content: string, title: string, cwd?
  * 回写飞书文档（XML 格式，含 callout 精确控制）。
  * 同样需要标题修复。
  */
-export function overwriteDocXml(token: string, xmlContent: string, title: string, cwd?: string): void {
-  const tmpDir = cwd || process.cwd();
-  const tmpFile = path.join(tmpDir, './.feishu-sync-temp.xml');
+export function overwriteDocXml(token: string, xmlContent: string, title: string, _cwd?: string): void {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'knowflow-write-'));
+  const tmpFile = path.join(tmpDir, 'content.xml');
 
   const cleaned = stripVariationSelectors(xmlContent);
   fs.writeFileSync(tmpFile, cleaned, 'utf8');
 
   try {
-    run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'xml', '--content', `@./.feishu-sync-temp.xml`], { cwd: tmpDir });
+    run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'xml', '--content', '@./content.xml'], { cwd: tmpDir });
 
     // 标题修复
     const cleanTitle = stripVariationSelectors(title);
@@ -366,7 +384,7 @@ export function overwriteDocXml(token: string, xmlContent: string, title: string
       }),
     ], { cwd: tmpDir, timeout: 15000 });
   } finally {
-    try { fs.unlinkSync(tmpFile); } catch { /* ignore */ }
+    try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
 }
 

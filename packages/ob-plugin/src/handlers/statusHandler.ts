@@ -20,6 +20,7 @@ export function createStatusHandler(pluginVersion: string, vaultName: string, st
       vault: vaultName,
       larkReady: !!state.larkCliResolved,
       larkVersion: state.larkCliVersion || null,
+      recentActivity: state.recentSyncs.slice(0, 10),
     };
   };
 }

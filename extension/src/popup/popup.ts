@@ -108,7 +108,8 @@ async function checkStatus(config: SyncConfig): Promise<void> {
   try {
     const status = await getStatus(config);
     const ok = status.larkReady;
-    updateStatus(ok, status.vault);
+    const recentFailure = status.recentActivity?.find((item) => item.status === 'failed');
+    updateStatus(ok, recentFailure ? `${status.vault} · 最近失败 ${recentFailure.errorCode || recentFailure.kind}` : status.vault);
   } catch {
     updateStatus(false);
   }
