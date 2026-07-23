@@ -4,10 +4,10 @@
 
 ## 组件分类
 
-| 分类 | 组件 | 当前最新运行版本 | 源码/产物路径 | 运行位置 |
+| 分类 | 组件 | 当前发布版本 | 源码/产物路径 | 运行位置 |
 |---|---|---:|---|---|
-| Obsidian 插件 | `fs-TB` | `3.2.1` | 源码：`packages/ob-plugin/`；归档：`releases/obsidian-fs-TB/3.2.1/` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
-| 浏览器扩展 | `Feishu Doc Exporter` | `0.3.0` | 源码：`extension/`；归档：`releases/browser-feishu-doc-exporter/0.3.0/` | Chrome/Edge 扩展管理页加载已解压目录 |
+| Obsidian 插件 | `fs-TB` | `4.0.2` | 源码：`packages/ob-plugin/`；安装包：`artifacts/fs-TB-Obsidian-4.0.2.zip` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
+| 浏览器扩展 | `KnowFlow` | `4.0.2` | 源码：`extension/`；加载目录：`artifacts/KnowFlow-Browser-4.0.2/` | Chrome/Edge 扩展管理页加载已解压目录 |
 | 共享层 | `@sync/shared` | `0.1.0` | `packages/shared/` | 被 Obsidian 插件和浏览器扩展共同引用 |
 
 ## 关键边界
@@ -48,14 +48,11 @@ npm run build:ob
 npm run build:ext
 ```
 
-版本归档校验：
+当前发布校验：
 
 ```bash
-cd releases/obsidian-fs-TB/3.2.1
-shasum -a 256 -c SHA256SUMS
-
-cd ../../browser-feishu-doc-exporter/0.3.0
-shasum -a 256 -c SHA256SUMS
+shasum -a 256 -c artifacts/KnowFlow-4.0.2-SHA256SUMS
+(cd artifacts && shasum -a 256 -c KnowFlow-4.0.2-PACKAGES-SHA256SUMS)
 ```
 
 ## 依赖升级策略
@@ -67,8 +64,10 @@ shasum -a 256 -c SHA256SUMS
 
 ## 当前已知状态
 
-- 最新 Obsidian 插件运行归档：`releases/obsidian-fs-TB/3.2.1/`
-- 最新浏览器扩展运行归档：`releases/browser-feishu-doc-exporter/0.3.0/`
+- 当前 4.0.2 源码、安装包和文档已同步 GitHub `main`。
+- 自动验收 130/130、两端类型检查、构建和安装包 SHA256 已通过。
+- 真实 Vault、飞书账号和 Chrome/Edge 真机验收尚未执行，不能写成已通过。
+- `releases/obsidian-fs-TB/3.2.1/` 与旧浏览器 0.3.0 仅作为历史真机归档。
 - 设计文档已集中到 `docs/design/`
 - Mermaid 图已集中到 `docs/diagrams/`
 - 人类阅读入口：`docs/human-guide.html`

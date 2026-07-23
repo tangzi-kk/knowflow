@@ -5,6 +5,7 @@
 - 执行规格：`SPEC.md`
 - 实施计划：`docs/plans/2026-07-19-knowflow-4.0.md`
 - 开发线：`4.0.2`，包含融合设置 UI、安全编码流程，以及浏览器 AI Provider 路由、Gemini Web 模型目录和 DeepSeek Web 消息桥修复。
+- 发布状态：源码、构建产物、双端安装包和文档已提交并同步到 GitHub `main`。
 - 不再拆分中间发布；自动通过项与必须真机执行的项目分开记录。
 
 ## 子目标状态
@@ -28,6 +29,7 @@
 - `artifacts/KnowFlow-4.0.2-SHA256SUMS`：12/12 构建产物校验通过。
 - `artifacts/KnowFlow-4.0.2-PACKAGES-SHA256SUMS`：浏览器与 Obsidian 两个安装包校验通过。
 - 验证在本地临时镜像执行，避免 SMB 目录与架构不匹配的 `node_modules` 影响结果。
+- 当前对外文件：`artifacts/fs-TB-Obsidian-4.0.2.zip` 与 `artifacts/KnowFlow-Browser-4.0.2.zip`。
 
 ## 风险与待确认
 

@@ -23,11 +23,16 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 开发线 | `fs-TB` + `KnowFlow` | `4.0.2` | `packages/ob-plugin/` + `extension/dist/` | 融合 UI 与 AI 修复自动门禁通过，尚未真机安装 |
+| 当前发布 | `fs-TB` + `KnowFlow` | `4.0.2` | `artifacts/` | 自动门禁、构建和安装包 SHA256 通过，已同步 GitHub；尚未真机安装 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
 仓库地址：`https://github.com/tangzi-kk/knowflow`
+
+当前安装包：
+
+- Obsidian：`artifacts/fs-TB-Obsidian-4.0.2.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.0.2/` 或 `artifacts/KnowFlow-Browser-4.0.2.zip`
 
 阅读入口：
 

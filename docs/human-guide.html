@@ -161,15 +161,15 @@
         <tr>
           <td>Obsidian 插件</td>
           <td><code>fs-TB</code></td>
-          <td><code>3.2.1</code></td>
-          <td><code>releases/obsidian-fs-TB/3.2.1/</code></td>
+          <td><code>4.0.2</code></td>
+          <td><code>artifacts/fs-TB-Obsidian-4.0.2.zip</code></td>
           <td>目标 vault 的 <code>.obsidian/plugins/fs-TB/</code></td>
         </tr>
         <tr>
           <td>浏览器扩展</td>
-          <td><code>Feishu Doc Exporter</code></td>
-          <td><code>0.3.0</code></td>
-          <td><code>releases/browser-feishu-doc-exporter/0.3.0/</code></td>
+          <td><code>KnowFlow</code></td>
+          <td><code>4.0.2</code></td>
+          <td><code>artifacts/KnowFlow-Browser-4.0.2/</code></td>
           <td>Chrome/Edge 扩展管理页加载已解压目录</td>
         </tr>
       </tbody>
@@ -189,7 +189,7 @@
       </section>
       <section class="card">
         <span class="tag tag-browser">浏览器扩展</span>
-        <h3>Feishu Doc Exporter</h3>
+        <h3>KnowFlow</h3>
         <p>运行在 Chrome/Edge 中，负责在飞书网页注入同步入口、侧边栏、弹窗和配置界面，将当前飞书文档信息发送给 Obsidian 插件。</p>
         <p>运行产物通常包含 <code>manifest.json</code>、<code>background.js</code>、<code>content.js</code>、<code>icons/</code>。</p>
       </section>
@@ -217,16 +217,21 @@
           <td>两个组件共用的协议、YAML、callout、hash、图片和文件名处理逻辑。</td>
         </tr>
         <tr>
-          <td><code>releases/</code></td>
-          <td>已核验运行产物归档，按 Obsidian 插件和浏览器扩展分目录保存。</td>
+          <td><code>artifacts/</code></td>
+          <td>当前 4.0.2 双端安装包、浏览器解包目录和 SHA256 校验文件。</td>
         </tr>
       </tbody>
     </table>
 
     <h2>常用验证命令</h2>
-    <pre><code>npm run test:protocol
-npm run build
-git diff --check</code></pre>
+    <pre><code>npm run release:verify
+git diff --check
+shasum -a 256 -c artifacts/KnowFlow-4.0.2-SHA256SUMS
+(cd artifacts &amp;&amp; shasum -a 256 -c KnowFlow-4.0.2-PACKAGES-SHA256SUMS)</code></pre>
+
+    <div class="notice">
+      4.0.2 已通过 130/130 自动测试、两端类型检查、完整构建和安装包 SHA256，并已同步 GitHub。真实 Vault、飞书账号和 Chrome/Edge 真机验收尚未执行。
+    </div>
 
     <h2>继续阅读</h2>
     <ul>
