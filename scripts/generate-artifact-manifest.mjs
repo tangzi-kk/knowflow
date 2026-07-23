@@ -8,12 +8,15 @@ const version = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8
 const files = [
   'packages/ob-plugin/main.js',
   'packages/ob-plugin/manifest.json',
+  'packages/ob-plugin/styles.css',
   'extension/dist/background.js',
   'extension/dist/content.js',
   'extension/dist/toolbar.js',
   'extension/dist/sidepanel.js',
   'extension/dist/popup.js',
   'extension/dist/settings.js',
+  'extension/dist/ds-token.js',
+  'extension/dist/ds-token-main.js',
   'extension/dist/manifest.json',
 ];
 

@@ -12,10 +12,13 @@ import { Notice, Modal, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
-import { batchAssignEncoding } from './autoRename.js';
+import { createEncodingWorkflow } from './encodingWorkflow.js';
+import { PreviewModal, registerEncodingContextMenu } from './encodingUi.js';
 
 export function registerCommands(plugin: FeishuSyncPlugin): void {
   const { app, settings } = plugin;
+  const encodingWorkflow = createEncodingWorkflow(app, plugin.syncCoordinator);
+  registerEncodingContextMenu(plugin);
 
   // 回写当前文件到飞书
   plugin.addCommand({
@@ -114,8 +117,12 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       const dir = file.parent?.path;
       if (!dir) return;
 
-      const result = await batchAssignEncoding(app, dir);
-      new Notice(`🔢 编码分配：${result.assigned}/${result.total}`);
+      try {
+        const plan = await encodingWorkflow.previewDirectory(dir);
+        new PreviewModal(app, encodingWorkflow, plan).open();
+      } catch (error) {
+        new Notice(`❌ 编码预览失败：${error instanceof Error ? error.message : String(error)}`);
+      }
     },
   });
 

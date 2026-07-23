@@ -1,4 +1,5 @@
 import esbuild from 'esbuild';
+import { access } from 'node:fs/promises';
 import process from 'node:process';
 
 const isWatch = process.argv.includes('--watch');
@@ -21,6 +22,10 @@ const buildOptions = {
 };
 
 async function main() {
+  // Obsidian 从插件根目录加载 styles.css。缺失时构建必须失败，
+  // 避免只发布 main.js/manifest.json 而静默丢失统一设置界面样式。
+  await access(new URL('./styles.css', import.meta.url));
+
   if (isWatch) {
     // esbuild 0.17+ 用 context() 替代 build({watch})
     const ctx = await esbuild.context(buildOptions);

@@ -2,6 +2,22 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
+## [4.0.2] - 2026-07-24
+
+### 融合版本纠正
+- 恢复 3.2.1 成熟版的六标签设置布局和完整样式，同时继续使用 4.x 的可信同步、安全删除、冲突恢复与活动记录。
+- 自动编码改为先预览、写前复核，再通过目录协调锁和恢复副本执行，避免旧版本直接批量改名。
+- 发布门禁强制包含 Obsidian `styles.css`，避免再次生成只有简化界面的不完整安装包。
+- 浏览器继续包含 4.0.1 的 AI Provider 路由、Gemini Web 模型目录和 DeepSeek Web 消息桥修复。
+
+## [4.0.1] - 2026-07-24
+
+### 浏览器 AI 修复
+- 工具栏、侧边栏和设置统一使用同一 Provider 路由，修复选中 API/自定义服务后仍固定调用 Web Provider 的问题。
+- 更新 Gemini Web 模型目录并迁移已失效的旧 Hash；保留自定义 OpenAI 兼容服务的模型名。
+- DeepSeek Web 改用 MAIN World 捕获与隔离脚本转发，修复扩展消息通道不可用。
+- 异步消息统一返回终态，并继续保持 `debugger` 为按需权限。
+
 ## [4.0.0] - 2026-07-19
 
 ### 可信同步收口

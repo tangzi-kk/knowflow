@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.0：可信同步、冲突恢复、安全删除与运行健康",
+  "description": "KnowFlow 4.0.2：融合界面、可信同步、AI 路由与安全编码",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

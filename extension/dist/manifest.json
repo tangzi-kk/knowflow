@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "KnowFlow · 知流",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "description": "飞书 → Obsidian 知识同步 · 网页剪藏 · Gemini Web AI 助手",
   "permissions": [
     "activeTab",
@@ -59,9 +59,19 @@
         "https://chat.deepseek.com/*"
       ],
       "js": [
+        "ds-token-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://chat.deepseek.com/*"
+      ],
+      "js": [
         "ds-token.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     },
     {
       "matches": [

@@ -1,0 +1,258 @@
+/**
+ * fs-TB 设计系统 — 顶部标签页样式
+ */
+
+/* ── 标题 ── */
+.fstb-title {
+  margin-bottom: 12px !important;
+}
+
+/* ── 顶部标签栏 ── */
+.fstb-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+
+.fstb-tab {
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.fstb-tab:hover {
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
+}
+
+.fstb-tab-active {
+  color: #07C160 !important;
+  border-bottom-color: #07C160;
+}
+
+/* ── 内容区 ── */
+.fstb-tab-content h3 {
+  margin: 0 0 14px;
+  font-size: 15px;
+  color: var(--text-normal);
+}
+
+.fstb-tab-content h4 {
+  margin: 8px 0 6px;
+  font-size: 13px;
+  color: #07C160;
+  font-weight: 600;
+}
+
+.fstb-section {
+  margin-bottom: 8px;
+}
+
+.fstb-section + .fstb-section {
+  border-top: 0.5px solid var(--background-modifier-border);
+  padding-top: 6px;
+}
+
+/* ── 6 标签卡片网格 ── */
+.fstb-tag-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.fstb-tag-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--background-secondary);
+  border-radius: 8px;
+}
+
+.fstb-tag-code {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  background: #07C160;
+  color: white;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.fstb-tag-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fstb-tag-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-normal);
+}
+
+.fstb-tag-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── 信息提示框 ── */
+.fstb-info-box {
+  padding: 10px 14px;
+  background: #E8F8EE;
+  border-left: 3px solid #07C160;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #333;
+}
+
+/* ── 旧版兼容 ── */
+.fstb-settings-wrapper { display: none; }
+.fstb-nav { display: none; }
+.fstb-content { display: none; }
+
+/* ── 系统属性隐藏 ── */
+body.fstb-hide-system-properties .metadata-property[data-property-key^="_sys_"],
+body.fstb-hide-system-properties .metadata-property[data-property-name^="_sys_"],
+body.fstb-hide-system-properties [data-property-key^="_sys_"],
+body.fstb-hide-system-properties [data-property-name^="_sys_"],
+body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key-input[value^="_sys_"]),
+body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key-input[aria-label^="_sys_"]),
+body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key input[value^="_sys_"]),
+body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key span[title^="_sys_"]),
+body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key-inner[title^="_sys_"]) {
+  display: none !important;
+}
+
+.fstb-system-property-hidden {
+  display: none !important;
+}
+
+/* 本层编码重排 */
+.fstb-layer-sort-modal {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  max-height: calc(100vh - 120px);
+  overflow: hidden;
+}
+
+.fstb-sort-list {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+  min-height: 120px;
+  max-height: none;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fstb-sort-row {
+  display: grid;
+  grid-template-columns: 22px 64px minmax(0, 1fr) 104px 70px;
+  gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  padding: 6px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+}
+
+.fstb-sort-row.is-dragging {
+  opacity: 0.55;
+  border-color: var(--interactive-accent);
+}
+
+.fstb-sort-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  font-size: 18px;
+  text-align: center;
+}
+
+.fstb-sort-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fstb-sort-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.fstb-sort-title strong,
+.fstb-sort-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fstb-sort-title span {
+  color: var(--text-muted);
+  font-size: var(--font-smallest);
+}
+
+.fstb-sort-type {
+  width: 100%;
+}
+
+.fstb-sort-row-actions,
+.fstb-sort-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.fstb-sort-actions {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 12px 0 2px;
+  border-top: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+
+.fstb-structure-modal .fstb-sort-actions {
+  margin-top: 16px;
+}
+
+.fstb-sort-row-actions button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+}
+
+@media (max-width: 700px) {
+  .fstb-layer-sort-modal {
+    width: calc(100vw - 32px);
+  }
+
+  .fstb-sort-row {
+    grid-template-columns: 22px 58px minmax(0, 1fr) 66px;
+  }
+
+  .fstb-sort-type {
+    grid-column: 3 / 5;
+  }
+}

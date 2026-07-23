@@ -185,11 +185,15 @@
         </label>
         <label class="field">
           <span>Model</span>
-          <select id="ai-model">
-            <option value="56fdd199312815e2">Gemini Web · 3.5 Flash</option>
-            <option value="8c46e95b1a07cecc">Gemini Web · 3.1 Flash-Lite</option>
+          <input type="text" id="ai-model" class="mono" list="ai-model-options" placeholder="按 Provider 填写模型名" />
+          <datalist id="ai-model-options">
+            <option value="fbb127bbb056c959">Gemini Web · 3.6 Flash</option>
+            <option value="cf41b0e0dd7d53e5">Gemini Web · 3.5 Flash-Lite</option>
             <option value="e6fa609c3fa255c0">Gemini Web · 3.1 Pro</option>
-          </select>
+            <option value="gemini-3.6-flash">Gemini API · 3.6 Flash</option>
+            <option value="gpt-4o-mini">OpenAI</option>
+            <option value="deepseek-chat">DeepSeek API</option>
+          </datalist>
         </label>
         <label class="field">
           <span>System Prompt</span>

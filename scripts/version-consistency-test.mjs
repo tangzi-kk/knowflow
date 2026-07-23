@@ -20,15 +20,15 @@ test('all release-facing packages and manifests use one version', async () => {
   ]);
   const versions = files.map((file) => file.version);
 
-  assert.deepEqual(versions, Array(versions.length).fill('4.0.0'));
+  assert.deepEqual(versions, Array(versions.length).fill('4.0.2'));
 });
 
 test('the package lock agrees with the root and workspace package versions', async () => {
   const lock = await readJson('package-lock.json');
 
-  assert.equal(lock.version, '4.0.0');
-  assert.equal(lock.packages[''].version, '4.0.0');
-  assert.equal(lock.packages.extension.version, '4.0.0');
-  assert.equal(lock.packages['packages/ob-plugin'].version, '4.0.0');
+  assert.equal(lock.version, '4.0.2');
+  assert.equal(lock.packages[''].version, '4.0.2');
+  assert.equal(lock.packages.extension.version, '4.0.2');
+  assert.equal(lock.packages['packages/ob-plugin'].version, '4.0.2');
   assert.equal(lock.packages[''].engines.node, '>=22.6');
 });

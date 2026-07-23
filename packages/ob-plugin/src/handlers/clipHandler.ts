@@ -102,6 +102,7 @@ export function createClipHandler(deps: ClipDeps) {
         await assignEncoding(deps.app, finalPath, targetDir);
       } catch (err) {
         console.warn('[sync/clip] auto-rename failed:', err);
+        deps.notice(`⚠ 剪藏已保存，但自动编码失败：${err instanceof Error ? err.message : String(err)}`);
       }
     }
 

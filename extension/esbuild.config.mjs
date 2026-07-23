@@ -29,6 +29,7 @@ const entries = [
   { entry: 'src/settings/settings.ts', out: 'settings.js' },
   { entry: 'src/content/toolbar.ts', out: 'toolbar.js' },
   { entry: 'src/content/ds-token.ts', out: 'ds-token.js' },
+  { entry: 'src/content/ds-token-main.ts', out: 'ds-token-main.js' },
 ];
 
 async function main() {

@@ -6,8 +6,8 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `4.0.0` | `packages/ob-plugin/` | 自动门禁和 SHA256 通过，未安装到真实 Vault |
-| 浏览器 `KnowFlow` | `4.0.0` | `extension/dist/` | 自动门禁和 SHA256 通过，未加载到真实 Chrome/Edge |
+| Obsidian `fs-TB` | `4.0.2` | `packages/ob-plugin/` | 恢复融合设置 UI 和安全编码流程，自动门禁与 SHA256 通过，未安装到真实 Vault |
+| 浏览器 `KnowFlow` | `4.0.2` | `extension/dist/` | AI Provider 路由和 Web 消息桥修复，自动门禁与 SHA256 通过，未加载到真实 Chrome/Edge |
 
 ## 已核验运行归档
 

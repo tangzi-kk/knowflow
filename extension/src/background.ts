@@ -4,13 +4,14 @@
  * - 消息路由（连接检测 / Web Clipper / AI Chat / 飞书同步触发）
  * - 定期健康检查 + badge 更新
  */
-import { DEFAULT_CONFIG, loadConfig, loadInterpreterConfig, testConnection, saveConfig, postClip, postFetch } from './client.js';
-import { sendDeepSeekWebMessage, sendDeepSeekWebMessageStream, getDeepSeekToken, setDeepSeekToken, isValidToken } from './deepseek-web.js';
+import { DEFAULT_CONFIG, loadConfig, testConnection, saveConfig, postClip, postFetch } from './client.js';
+import { sendDeepSeekWebMessage, getDeepSeekToken, setDeepSeekToken, isValidToken } from './deepseek-web.js';
+import { GEMINI_WEB_MODELS, resolveAiRoute, type AiProvider } from './ai-routing.js';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig, migrateLegacySecrets } from './storage.js';
 import { recoverInterruptedOperations, runWorkflowOperation } from './workflow.js';
 
 type InlineAiConfig = {
-  provider: 'gemini-api' | 'openai' | 'deepseek' | 'custom' | 'gemini-nano' | 'gemini-web' | 'deepseek-web';
+  provider: AiProvider;
   apiKey: string;
   baseUrl: string;
   model: string;
@@ -46,7 +47,7 @@ type ContextScene = {
 };
 
 const DEFAULT_INLINE_AI_CONFIG: InlineAiConfig = {
-  provider: 'gemini-web', apiKey: '', baseUrl: '', model: '56fdd199312815e2',
+  provider: 'gemini-web', apiKey: '', baseUrl: '', model: 'fbb127bbb056c959',
   systemPrompt: '你是飞书同步插件的 AI 助手。请用简洁的中文回答。',
 };
 
@@ -62,7 +63,7 @@ const DEFAULT_CONTEXT_SCENES: ContextScene[] = [
   { id: 'open-sidepanel', label: '打开侧边栏', action: 'openSidepanel', prompt: '{text}', enabled: true, aiEnabled: false },
 ];
 
-const AI_TIMEOUT_MS = 8000;
+const AI_TIMEOUT_MS = 30000;
 const AI_TIMEOUT_MESSAGE = 'AI 请求超时。请重试，或开启「自定义 AI 解释器」后使用自定义 API。';
 
 async function migrateAllSecrets(): Promise<void> {
@@ -139,110 +140,85 @@ async function runInlineAi(payload: { action?: string; text?: string; prompt?: s
 
   // ───── 结果缓存（5 分钟 TTL，加速重复查询）─────
   const sceneId = (payload as any)?.action || 'ai-chat';
-  const cacheKey = getCacheKey(sceneId, text || '', prompt);
+  const cacheKey = getCacheKey(sceneId, text || '', `${config.provider}|${config.model}|${prompt}`);
   const cached = getCachedResult(cacheKey);
   if (cached) return cached;
 
-  // ★ 统一读取「自定义 AI 解释器」开关
-  const interpreterConfig = await loadInterpreterConfig();
-  const useCustomProvider = interpreterConfig.customProviderEnabled === true;
-
+  const route = resolveAiRoute(config);
+  const systemPrompt = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
+  const fullPrompt = `${systemPrompt}${prompt}`;
   let aiResult: string;
 
-  // ★ 显式选择 DeepSeek Web → 直接走 DeepSeek（不走 Gemini）
-  if (config.provider === 'deepseek-web') {
+  if (route.kind === 'deepseek-web') {
+    const token = await getDeepSeekToken();
+    if (!isValidToken(token)) {
+      throw new Error('DeepSeek Token 未配置。请打开 chat.deepseek.com 登录，扩展会自动提取 Token。');
+    }
+    aiResult = await withTimeout(
+      sendDeepSeekWebMessage({ prompt: fullPrompt, model: route.model }),
+      AI_TIMEOUT_MS,
+      AI_TIMEOUT_MESSAGE,
+    );
+  } else if (route.kind === 'gemini-web') {
     try {
-      const dsToken = await getDeepSeekToken();
-      if (!isValidToken(dsToken)) {
-        throw new Error('DeepSeek Token 未配置。请先打开 chat.deepseek.com 登录，扩展会自动提取 Token。');
-      }
-      const systemMsg = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
       aiResult = await withTimeout(
-        sendDeepSeekWebMessage({ prompt: `${systemMsg}${prompt}` }),
+        sendGeminiWebMessage(fullPrompt, route.model, attachments),
         AI_TIMEOUT_MS,
         AI_TIMEOUT_MESSAGE,
       );
-      setCachedResult(cacheKey, aiResult);
-      return aiResult;
-    } catch (error) {
-      throw error instanceof Error ? error : new Error(String(error));
-    }
-  }
-
-  if (!useCustomProvider) {
-    // 关闭「自定义 AI 解释器」→ 先 Gemini Web，失败降级 DeepSeek Web
-    let geminiError: string | null = null;
-
-    // 1. 尝试 Gemini Web
-    try {
-      aiResult = await withTimeout(
-        sendGeminiWebMessage(`${config.systemPrompt}\n\n${prompt}`, config.model, attachments),
-        AI_TIMEOUT_MS,
-        AI_TIMEOUT_MESSAGE,
-      );
-      setCachedResult(cacheKey, aiResult);
-      return aiResult;
-    } catch (error) {
-      geminiError = error instanceof Error ? error.message : String(error);
-      console.warn('[feishu-sync] Gemini Web 失败，尝试 DeepSeek Web 降级：', geminiError);
-    }
-
-    // 2. 降级 DeepSeek Web（仅当有 token）
-    const dsToken = await getDeepSeekToken();
-    if (isValidToken(dsToken)) {
+    } catch (geminiError) {
+      const token = await getDeepSeekToken();
+      if (!isValidToken(token)) throw geminiError;
       try {
-        const systemMsg = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
         aiResult = await withTimeout(
-          sendDeepSeekWebMessage({ prompt: `${systemMsg}${prompt}` }),
+          sendDeepSeekWebMessage({ prompt: fullPrompt }),
           AI_TIMEOUT_MS,
           AI_TIMEOUT_MESSAGE,
         );
-        setCachedResult(cacheKey, aiResult);
-        return aiResult;
-      } catch (dsError) {
-        const dsErrMsg = dsError instanceof Error ? dsError.message : String(dsError);
+      } catch (deepSeekError) {
         throw new Error(
-          `Gemini Web 不可用，DeepSeek Web 也失败。\n` +
-          `Gemini：${geminiError}\n` +
-          `DeepSeek：${dsErrMsg}\n\n` +
-          `请在侧边栏设置中开启「自定义 AI 解释器」使用自定义 API。`
+          `Gemini Web 不可用，DeepSeek Web 降级也失败。\n` +
+          `Gemini：${geminiError instanceof Error ? geminiError.message : String(geminiError)}\n` +
+          `DeepSeek：${deepSeekError instanceof Error ? deepSeekError.message : String(deepSeekError)}`,
         );
       }
     }
-
-    // 无 DeepSeek token，只报 Gemini 错误
-    throw new Error(
-      'Gemini Web 连接失败。请打开 gemini.google.com 刷新登录后再试，' +
-      '或在侧边栏设置中开启「自定义 AI 解释器」后配置 API Key。'
-    );
+  } else if (route.kind === 'unsupported') {
+    throw new Error('当前 Chrome 不支持 Gemini Nano。请在 AI 助手设置中选择其他 Provider。');
+  } else if (route.kind === 'gemini-api') {
+    if (!config.apiKey) throw new Error('Gemini API 尚未配置 API Key。');
+    const response = await withTimeout(fetch(`${route.endpoint}?key=${encodeURIComponent(config.apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: fullPrompt }] }] }),
+    }), AI_TIMEOUT_MS, AI_TIMEOUT_MESSAGE);
+    const data = await response.json() as any;
+    if (!response.ok) throw new Error(data.error?.message || `Gemini API HTTP ${response.status}`);
+    aiResult = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   } else {
-    // 开启「自定义 AI 解释器」→ 走用户配置的 Provider
-    const aiPromise = (async (): Promise<string> => {
-    if (config.provider === 'gemini-nano') throw new Error('当前 Chrome 不支持 Gemini Nano。');
-    if (config.provider === 'gemini-api') {
-      if (!config.apiKey) throw new Error('Gemini API 尚未配置 API Key。');
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model || 'gemini-2.0-flash'}:generateContent?key=${config.apiKey}`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `${config.systemPrompt}\n\n${prompt}` }] }] }),
-      });
-      const data = await response.json() as any;
-      if (!response.ok) throw new Error(data.error?.message || `Gemini API HTTP ${response.status}`);
-      return data.candidates?.[0]?.content?.parts?.[0]?.text || 'AI 未返回内容';
-    }
-    const baseUrl = config.baseUrl || (config.provider === 'openai' ? 'https://api.openai.com' : config.provider === 'deepseek' ? 'https://api.deepseek.com' : '');
-    if (!baseUrl) throw new Error('AI 助手尚未配置。请在扩展设置 > AI 助手中填写 Base URL 和模型。');
-    if (!config.apiKey && config.provider !== 'custom') throw new Error('请在扩展设置 > AI 助手中填写 API Key。');
-    const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/chat/completions`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}) },
-      body: JSON.stringify({ model: config.model, temperature: 0.7, messages: [{ role: 'system', content: config.systemPrompt }, { role: 'user', content: prompt }] }),
-    });
+    if (!route.endpoint) throw new Error('自定义 AI 服务缺少 Base URL。');
+    if (route.requiresApiKey && !config.apiKey) throw new Error('请在 AI 助手设置中填写 API Key。');
+    const response = await withTimeout(fetch(route.endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.apiKey ? { Authorization: `Bearer ${config.apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model: route.model,
+        temperature: 0.7,
+        messages: [
+          ...(config.systemPrompt ? [{ role: 'system', content: config.systemPrompt }] : []),
+          { role: 'user', content: prompt },
+        ],
+      }),
+    }), AI_TIMEOUT_MS, AI_TIMEOUT_MESSAGE);
     const data = await response.json() as any;
     if (!response.ok) throw new Error(data.error?.message || `AI 请求失败：HTTP ${response.status}`);
-    return data.choices?.[0]?.message?.content || 'AI 未返回内容';
-  })();
-
-  aiResult = await withTimeout(aiPromise, AI_TIMEOUT_MS, AI_TIMEOUT_MESSAGE);
+    aiResult = data.choices?.[0]?.message?.content || '';
   }
+
+  if (!aiResult.trim()) throw new Error('AI 未返回内容');
 
   setCachedResult(cacheKey, aiResult);
   return aiResult;
@@ -340,15 +316,13 @@ async function runInlineAiWithRetry(
   throw lastError;
 }
 
-const WEB_MODELS: Record<string, { hash: string; mode: number }> = {
-  '8c46e95b1a07cecc': { hash: '8c46e95b1a07cecc', mode: 6 },
-  '56fdd199312815e2': { hash: '56fdd199312815e2', mode: 1 },
-  e6fa609c3fa255c0: { hash: 'e6fa609c3fa255c0', mode: 3 },
-};
-const WEB_ALIASES: Record<string, string> = { 'gemini-3.1-flash-lite': '8c46e95b1a07cecc', 'gemini-3.5-flash': '56fdd199312815e2', 'gemini-3.1-pro': 'e6fa609c3fa255c0' };
-
 function extractGeminiToken(key: string, html: string): string {
-  return html.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`))?.[1] || '';
+  const match = html.match(new RegExp(`"${key}"\\s*:\\s*"([^"]*)"`))?.[1];
+  if (match) return match;
+  if (key === 'SNlM0e') return html.match(/"(AHz[a-zA-Z0-9_-]+)"/)?.[1] || '';
+  if (key === 'cfb2h') return html.match(/"(boq_bard[a-zA-Z0-9_-]+)"/)?.[1] || '';
+  if (key === 'FdrFJe') return html.match(/"(-?[0-9]{18,})"/)?.[1] || '';
+  return '';
 }
 
 function parseGeminiLine(line: string): string | null {
@@ -432,7 +406,10 @@ async function uploadGeminiWebImage(file: AiAttachment, uploadContext: { uploadP
 }
 
 async function sendGeminiWebMessage(prompt: string, configuredModel: string, attachments: AiAttachment[] = []): Promise<string> {
-  const htmlResponse = await fetch('https://gemini.google.com/app', { credentials: 'include' });
+  const htmlResponse = await fetch('https://gemini.google.com/app', { credentials: 'include', redirect: 'manual' });
+  if (htmlResponse.type === 'opaqueredirect' || htmlResponse.status === 0 || htmlResponse.status === 302) {
+    throw new Error('Gemini Web 会话不可用或已重定向，请打开 gemini.google.com 登录。');
+  }
   const html = await htmlResponse.text();
   const at = extractGeminiToken('SNlM0e', html);
   const bl = extractGeminiToken('cfb2h', html);
@@ -442,9 +419,9 @@ async function sendGeminiWebMessage(prompt: string, configuredModel: string, att
   const authUser = html.match(/data-index="(\d+)"/)?.[1] || '0';
   if (!at || !bl || !fSid) throw new Error('Gemini Web 登录会话不可用。请打开 gemini.google.com 后刷新登录。');
   if (attachments.length > 0 && (!uploadPushId || !uploadClientPctx)) throw new Error('Gemini Web 图片上传令牌不可用。请打开 gemini.google.com 后刷新登录。');
-  const modelId = WEB_ALIASES[configuredModel] || configuredModel || '56fdd199312815e2';
-  const model = WEB_MODELS[modelId];
-  if (!model) throw new Error('Gemini Web 模型不受支持。请选择 3.5 Flash、3.1 Flash-Lite 或 3.1 Pro。');
+  const route = resolveAiRoute({ provider: 'gemini-web', model: configuredModel });
+  const model = GEMINI_WEB_MODELS[route.model];
+  if (!model) throw new Error('Gemini Web 模型不受支持。请重新保存 AI 设置。');
   const requestId = crypto.randomUUID().toUpperCase();
   const modelHeader: unknown[] = []; modelHeader[0] = 1; modelHeader[4] = model.hash; modelHeader[7] = true; modelHeader[8] = [4, 5, 6, 8]; modelHeader[11] = model.mode; modelHeader[14] = model.mode; modelHeader[15] = 1; modelHeader[16] = requestId;
   const fileList = attachments.length > 0 ? await Promise.all(attachments.map((file) => uploadGeminiWebImage(file, { uploadPushId, uploadClientPctx }))) : [];
@@ -465,68 +442,29 @@ async function sendGeminiWebMessage(prompt: string, configuredModel: string, att
 }
 
 /**
- * Gemini Web 流式版本（模拟流式：基于完整结果分块推送）。
- * 复用现有 sendGeminiWebMessage 一次性获取完整结果，
- * 然后按字符批量切分，每 30ms 推一个 chunk，模拟流式打字体验。
- * @returns 完整文本
- */
-async function sendGeminiWebMessageStreaming(
-  prompt: string,
-  model: string,
-  onChunk: (chunk: string) => void,
-): Promise<string> {
-  const fullText = await sendGeminiWebMessage(prompt, model, []);
-  // 模拟流式：按字符批量切分，每 30ms 推一个 chunk
-  // 批量大小 3 字符，在流畅度和延迟之间取得平衡
-  const CHUNK_DELAY_MS = 30;
-  const CHUNK_BATCH_SIZE = 3;
-  const chars = Array.from(fullText); // 用 Array.from 正确处理 surrogate pairs
-  for (let i = 0; i < chars.length; i += CHUNK_BATCH_SIZE) {
-    const chunk = chars.slice(i, i + CHUNK_BATCH_SIZE).join('');
-    onChunk(chunk);
-    await sleep(CHUNK_DELAY_MS);
-  }
-  return fullText;
-}
-
-/**
  * 流式推送 AI 结果到 toolbar（Chrome MV3 不支持流式消息，用分块推送方案）。
  * 优先 Gemini Web 流式（模拟）；失败降级 DeepSeek Web 流式。
  * 通过 chrome.tabs.sendMessage 推送 ai-stream-chunk / ai-stream-done / ai-stream-error 事件。
  */
 async function runInlineAiStreaming(
-  payload: { action?: string; text?: string; prompt?: string; requestId?: string },
+  payload: { action?: string; text?: string; prompt?: string; requestId?: string; attachments?: AiAttachment[] },
   sender: chrome.runtime.MessageSender,
 ): Promise<void> {
   const tabId = sender.tab?.id;
   if (!tabId) return;
   const requestId = payload.requestId || crypto.randomUUID();
 
-  const pushChunk = (chunk: string): void => {
-    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-chunk', payload: { requestId, chunk } }).catch(() => {
-      // tab 可能已关闭或 content script 未就绪，忽略错误
-    });
-  };
-
-  // 读取 AI 配置，拼接 systemPrompt（与非流式路径保持一致）
-  const config = await loadSecretBackedConfig(DEFAULT_INLINE_AI_CONFIG, AI_CONFIG_STORAGE);
-  const systemPrompt = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
-  const fullPrompt = `${systemPrompt}${payload.prompt || ''}`;
-
   try {
-    // 优先 Gemini Web 流式（模拟流式）
-    const fullText = await sendGeminiWebMessageStreaming(fullPrompt, config.model, pushChunk);
-    chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { requestId, text: fullText } }).catch(() => {});
-  } catch (geminiError) {
-    console.warn('[feishu-sync] Gemini Web 流式失败，降级 DeepSeek Web 流式：', geminiError);
-    try {
-      // 降级 DeepSeek Web 流式（已实现 sendDeepSeekWebMessageStream）
-      await sendDeepSeekWebMessageStream({ prompt: fullPrompt }, pushChunk);
-      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { requestId } }).catch(() => {});
-    } catch (dsError) {
-      const errorInfo = classifyAiError(dsError, (payload.text || '').length);
-      chrome.tabs.sendMessage(tabId, { type: 'ai-stream-error', payload: { ...errorInfo, requestId } }).catch(() => {});
+    const fullText = await runInlineAiWithRetry(payload);
+    const chars = Array.from(fullText);
+    for (let index = 0; index < chars.length; index += 24) {
+      const chunk = chars.slice(index, index + 24).join('');
+      await chrome.tabs.sendMessage(tabId, { type: 'ai-stream-chunk', payload: { requestId, chunk } });
     }
+    await chrome.tabs.sendMessage(tabId, { type: 'ai-stream-done', payload: { requestId, text: fullText } });
+  } catch (error) {
+    const errorInfo = classifyAiError(error, (payload.text || '').length);
+    await chrome.tabs.sendMessage(tabId, { type: 'ai-stream-error', payload: { ...errorInfo, requestId } }).catch(() => {});
   }
 }
 
@@ -537,7 +475,10 @@ let lastSessionError = '';
 
 async function checkGeminiSession(): Promise<{ alive: boolean; error: string }> {
   try {
-    const response = await fetch('https://gemini.google.com/app', { credentials: 'include' });
+    const response = await fetch('https://gemini.google.com/app', { credentials: 'include', redirect: 'manual' });
+    if (response.type === 'opaqueredirect' || response.status === 0 || response.status === 302) {
+      throw new Error('Gemini Web 会话不可用或已重定向，请打开 gemini.google.com 登录。');
+    }
     if (!response.ok) {
       lastSessionAlive = false;
       lastSessionError = `Gemini 页面返回 HTTP ${response.status}`;
@@ -610,25 +551,36 @@ async function ensureContextScenes(): Promise<ContextScene[]> {
 function normalizeContextScenes(input: unknown): ContextScene[] {
   const fallbackById = new Map(DEFAULT_CONTEXT_SCENES.map((scene) => [scene.id, scene]));
   const rawScenes = Array.isArray(input) && input.length > 0 ? input : DEFAULT_CONTEXT_SCENES;
-  const scenes: ContextScene[] = rawScenes
-    .filter((item): item is Partial<ContextScene> & { id?: string } => Boolean(item && typeof item === 'object'))
-    .map((item): ContextScene => {
-      const fallback = item.id ? fallbackById.get(item.id) : undefined;
-      return {
-        id: item.id || fallback?.id || 'scene',
-        label: item.label || fallback?.label || '场景',
-        action: (item.action || fallback?.action || 'showResult') as KnowledgeSceneAction,
-        prompt: item.prompt ?? fallback?.prompt ?? '{text}',
-        enabled: item.enabled ?? fallback?.enabled ?? true,
-        defaultDir: item.defaultDir || fallback?.defaultDir || '',
-        defaultAppendPath: item.defaultAppendPath || fallback?.defaultAppendPath || '',
-        aiEnabled: item.aiEnabled ?? fallback?.aiEnabled ?? true,
-      };
-    })
-    .filter((scene) => scene.id);
-  const ids = new Set(scenes.map((scene) => scene.id));
+
+  const seenIds = new Set<string>();
+  const scenes: ContextScene[] = [];
+
+  for (const item of rawScenes) {
+    if (item && typeof item === 'object') {
+      const rawId = (item as any).id;
+      const fallback = rawId ? fallbackById.get(rawId) : undefined;
+      const id = rawId || fallback?.id || 'scene';
+      if (!id || seenIds.has(id)) continue;
+      seenIds.add(id);
+
+      scenes.push({
+        id,
+        label: (item as any).label || fallback?.label || '场景',
+        action: ((item as any).action || fallback?.action || 'showResult') as KnowledgeSceneAction,
+        prompt: (item as any).prompt ?? fallback?.prompt ?? '{text}',
+        enabled: (item as any).enabled ?? fallback?.enabled ?? true,
+        defaultDir: (item as any).defaultDir || fallback?.defaultDir || '',
+        defaultAppendPath: (item as any).defaultAppendPath || fallback?.defaultAppendPath || '',
+        aiEnabled: (item as any).aiEnabled ?? fallback?.aiEnabled ?? true,
+      });
+    }
+  }
+
   for (const scene of DEFAULT_CONTEXT_SCENES) {
-    if (!ids.has(scene.id)) scenes.push(scene);
+    if (!seenIds.has(scene.id)) {
+      scenes.push(scene);
+      seenIds.add(scene.id);
+    }
   }
   return scenes;
 }
@@ -641,6 +593,11 @@ async function rebuildContextMenus(): Promise<void> {
       id: `context-scene:${scene.id}`,
       title: `飞书同步 · ${scene.label}`,
       contexts: ['selection'],
+    }, () => {
+      const err = chrome.runtime.lastError;
+      if (err) {
+        console.warn(`[feishu-sync] context menu item context-scene:${scene.id} creation warning/error:`, err.message);
+      }
     });
   }
 }
@@ -742,7 +699,7 @@ function draftSilentKeywords(text: string): string[] {
 }
 
 // 消息路由
-chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ai-tool') {
     (async () => {
       const action = message.payload?.action as string;
@@ -865,16 +822,13 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   if (message.type === 'ai-inline-deepseek-web') {
     const text = message.payload?.text || '';
     if (!text) { sendResponse({ error: '请输入内容' }); return true; }
-    try {
-      const result = await withTimeout(
+    withTimeout(
         sendDeepSeekWebMessage({ prompt: text }),
         AI_TIMEOUT_MS,
         AI_TIMEOUT_MESSAGE,
-      );
-      sendResponse({ text: result });
-    } catch (error) {
-      sendResponse({ error: error instanceof Error ? error.message : String(error) });
-    }
+      )
+      .then((result) => sendResponse({ text: result }))
+      .catch((error) => sendResponse({ error: error instanceof Error ? error.message : String(error) }));
     return true;
   }
 
@@ -1053,11 +1007,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
   // ───── DeepSeek Token 管理 ─────
   if (message.type === 'set-deepseek-token') {
     const token = message.payload?.token || '';
-    setDeepSeekToken(token).then(() => sendResponse({ ok: true, hasToken: isValidToken(token) }));
+    setDeepSeekToken(token)
+      .then(() => sendResponse({ ok: true, hasToken: isValidToken(token) }))
+      .catch((error) => sendResponse({ ok: false, error: error instanceof Error ? error.message : String(error) }));
     return true;
   }
   if (message.type === 'get-deepseek-token') {
-    getDeepSeekToken().then((token) => sendResponse({ token: token || '', hasToken: isValidToken(token) }));
+    getDeepSeekToken()
+      .then((token) => sendResponse({ token: token || '', hasToken: isValidToken(token) }))
+      .catch((error) => sendResponse({ token: '', hasToken: false, error: error instanceof Error ? error.message : String(error) }));
     return true;
   }
 

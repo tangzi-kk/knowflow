@@ -15,6 +15,7 @@ import {
 } from '../client.js';
 import type { ClipResponse, FetchResponse, TreeNode } from '@sync/shared';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig } from '../storage.js';
+import { resolveAiRoute } from '../ai-routing.js';
 
 type StatusType = 'info' | 'success' | 'error';
 type MetaValue = string | number | string[];
@@ -111,7 +112,7 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   provider: 'gemini-web',
   apiKey: '',
   baseUrl: '',
-  model: '56fdd199312815e2',
+  model: 'fbb127bbb056c959',
   systemPrompt: '你是飞书同步插件的 AI 助手。你可以帮助用户翻译、总结文档，解答 Obsidian 和飞书同步相关的问题。请用简洁的中文回答。',
 };
 
@@ -1247,6 +1248,7 @@ function updateProviderBadge(): void {
 // 多 Provider AI 调用
 // ═══════════════════════════════════════════════
 async function chatWithAI(config: AIConfig, messages: Array<{ role: string; content: string }>, attachments: AiAttachment[] = []): Promise<string> {
+  const route = resolveAiRoute(config);
   switch (config.provider) {
     case 'gemini-web': {
       const prompt = messages.filter((message) => message.role !== 'system').map((message) => message.content).join('\n\n');
@@ -1296,8 +1298,8 @@ async function chatWithAI(config: AIConfig, messages: Array<{ role: string; cont
 
     case 'gemini-api': {
       if (!config.apiKey) throw new Error('Gemini API 需要 API Key。请在设置中配置。');
-      const model = config.model || 'gemini-2.0-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.apiKey}`;
+      if (route.kind !== 'gemini-api') throw new Error('Gemini API 路由配置无效。');
+      const url = `${route.endpoint}?key=${encodeURIComponent(config.apiKey)}`;
       // 转换消息格式
       const contents = messages
         .filter(m => m.role !== 'system')
@@ -1323,19 +1325,15 @@ async function chatWithAI(config: AIConfig, messages: Array<{ role: string; cont
     case 'openai':
     case 'deepseek':
     case 'custom': {
-      const baseUrl = config.baseUrl || (
-        config.provider === 'openai' ? 'https://api.openai.com' :
-        config.provider === 'deepseek' ? 'https://api.deepseek.com' : ''
-      );
-      if (!baseUrl) throw new Error('AI 助手尚未配置。请在扩展设置 > AI 助手中填写 Base URL 和模型，或选择 Gemini API、OpenAI、DeepSeek。');
-      if (!config.apiKey && config.provider !== 'custom') throw new Error('请配置 API Key。');
-
-      const endpoint = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+      if (route.kind !== 'openai-compatible' || !route.endpoint) {
+        throw new Error('AI 助手尚未配置。请在扩展设置 > AI 助手中填写 Base URL 和模型。');
+      }
+      if (route.requiresApiKey && !config.apiKey) throw new Error('请配置 API Key。');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
 
       const payload: any = {
-        model: config.model || (config.provider === 'openai' ? 'gpt-4o-mini' : config.provider === 'deepseek' ? 'deepseek-chat' : 'gpt-3.5-turbo'),
+        model: route.model,
         messages: [
           ...(config.systemPrompt ? [{ role: 'system', content: config.systemPrompt }] : []),
           ...messages.filter(m => m.role !== 'system'),
@@ -1343,7 +1341,7 @@ async function chatWithAI(config: AIConfig, messages: Array<{ role: string; cont
         temperature: 0.7,
       };
 
-      const res = await fetch(endpoint, {
+      const res = await fetch(route.endpoint, {
         method: 'POST',
         headers,
         body: JSON.stringify(payload),

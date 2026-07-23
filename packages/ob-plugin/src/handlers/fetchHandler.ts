@@ -166,6 +166,7 @@ export function createFetchHandler(deps: FetchDeps) {
           }
         } catch (err) {
           console.warn('[sync/fetch] auto-rename failed:', err);
+          deps.notice(`⚠ 文档已创建，但自动编码失败：${err instanceof Error ? err.message : String(err)}`);
         }
       }
     }

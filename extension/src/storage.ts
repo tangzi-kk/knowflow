@@ -104,8 +104,34 @@ function newRevision(): string {
     ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
 
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+
+  if (Array.isArray(a)) {
+    const arrA = a as unknown[];
+    const arrB = b as unknown[];
+    if (arrA.length !== arrB.length) return false;
+    for (let i = 0; i < arrA.length; i++) {
+      if (!deepEqual(arrA[i], arrB[i])) return false;
+    }
+    return true;
+  }
+
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+
+  for (const key of keysA) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+    if (!deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
+  }
+  return true;
+}
+
 function sameData(left: unknown, right: unknown): boolean {
-  return JSON.stringify(left) === JSON.stringify(right);
+  return deepEqual(left, right);
 }
 
 function parseEnvelope<T extends object>(
@@ -247,8 +273,31 @@ export async function loadSecretBackedConfig<T extends object>(
   spec: SecretBackedConfigSpec,
   storage?: ExtensionStorageAdapter,
 ): Promise<T> {
-  const envelope = await migrateConfig(defaults, spec, storageOrDefault(storage));
-  return { ...defaults, ...envelope.config };
+  try {
+    const envelope = await migrateConfig(defaults, spec, storageOrDefault(storage));
+    return { ...defaults, ...envelope.config };
+  } catch (err) {
+    if (storage) {
+      throw err;
+    }
+    if (err instanceof Error && err.message.includes('Unverified canonical envelope')) {
+      console.warn(`[feishu-sync] Unverified envelope for ${spec.envelopeKey}. Attempting recovery...`);
+      try {
+        const areas = storageOrDefault(storage);
+        const result = await areas.local.get(spec.envelopeKey);
+        const record = result[spec.envelopeKey];
+        if (record && typeof record === 'object' && 'config' in record) {
+          const config = record.config as T;
+          await writeCanonicalEnvelope(spec.envelopeKey, config, areas);
+          console.log(`[feishu-sync] Envelope ${spec.envelopeKey} recovered successfully.`);
+          return { ...defaults, ...config };
+        }
+      } catch (recoveryErr) {
+        console.error(`[feishu-sync] Recovery failed for ${spec.envelopeKey}:`, recoveryErr);
+      }
+    }
+    throw err;
+  }
 }
 
 export async function saveSecretBackedConfig<T extends object>(
@@ -320,7 +369,30 @@ async function migrateDeepSeekSecret(storage: ExtensionStorageAdapter): Promise<
 
 export async function getDeepSeekToken(storage?: ExtensionStorageAdapter): Promise<string | null> {
   const areas = storageOrDefault(storage);
-  await migrateDeepSeekSecret(areas);
+  try {
+    await migrateDeepSeekSecret(areas);
+  } catch (err) {
+    if (storage) {
+      throw err;
+    }
+    if (err instanceof Error && err.message.includes('Unverified canonical envelope')) {
+      console.warn(`[feishu-sync] Unverified DeepSeek token envelope found. Attempting recovery...`);
+      try {
+        const key = LOCAL_ENVELOPE_KEYS.deepseekToken;
+        const result = await areas.local.get(key);
+        const record = result[key];
+        if (record && typeof record === 'object' && 'config' in record) {
+          const config = record.config as { token: string };
+          await writeCanonicalEnvelope(key, config, areas);
+          console.log(`[feishu-sync] DeepSeek token envelope recovered successfully.`);
+        }
+      } catch (recoveryErr) {
+        console.error(`[feishu-sync] Failed to recover DeepSeek token:`, recoveryErr);
+      }
+    } else {
+      throw err;
+    }
+  }
   const envelope = await readEnvelope<{ token: string }>(
     LOCAL_ENVELOPE_KEYS.deepseekToken,
     areas,

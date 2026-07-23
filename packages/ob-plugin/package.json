@@ -1,6 +1,6 @@
 {
   "name": "@sync/ob-plugin",
-  "version": "4.0.0",
+  "version": "4.0.2",
   "private": true,
   "description": "飞书↔OB 同步 OB 插件（模块 B）",
   "type": "module",

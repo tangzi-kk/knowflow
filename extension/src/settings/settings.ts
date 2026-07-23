@@ -22,6 +22,7 @@ import {
   loadSecretBackedConfig,
   saveSecretBackedConfig,
 } from '../storage.js';
+import { resolveAiRoute } from '../ai-routing.js';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
@@ -91,7 +92,7 @@ const DEFAULT_AI_CONFIG: AIConfig = {
   provider: 'gemini-web',
   apiKey: '',
   baseUrl: '',
-  model: '56fdd199312815e2',
+  model: 'fbb127bbb056c959',
   systemPrompt: '你是飞书同步插件的 AI 助手。你可以帮助用户翻译、总结文档，解答 Obsidian 和飞书同步相关的问题。请用简洁的中文回答。',
 };
 
@@ -210,7 +211,8 @@ function bindEvents(): void {
   $('ai-provider').addEventListener('change', () => {
     const provider = $<HTMLSelectElement>('ai-provider').value as AIProvider;
     const baseUrlGroup = $('ai-base-url-group');
-    baseUrlGroup.style.display = (provider === 'deepseek' || provider === 'custom') ? '' : 'none';
+    baseUrlGroup.style.display = (provider === 'openai' || provider === 'deepseek' || provider === 'custom') ? '' : 'none';
+    $<HTMLInputElement>('ai-model').value = resolveAiRoute({ provider, model: '' }).model;
   });
 }
 
@@ -319,12 +321,12 @@ async function renderAiConfig(): Promise<void> {
   $<HTMLSelectElement>('ai-provider').value = config.provider;
   $<HTMLInputElement>('ai-api-key').value = config.apiKey;
   $<HTMLInputElement>('ai-base-url').value = config.baseUrl;
-  $<HTMLInputElement>('ai-model').value = config.model;
+  $<HTMLInputElement>('ai-model').value = resolveAiRoute(config).model;
   $<HTMLTextAreaElement>('ai-system-prompt').value = config.systemPrompt;
 
   // 根据 provider 显示/隐藏 Base URL
   const baseUrlGroup = $('ai-base-url-group');
-  baseUrlGroup.style.display = (config.provider === 'deepseek' || config.provider === 'custom') ? '' : 'none';
+  baseUrlGroup.style.display = (config.provider === 'openai' || config.provider === 'deepseek' || config.provider === 'custom') ? '' : 'none';
 }
 
 function readAiConfig(): AIConfig {
