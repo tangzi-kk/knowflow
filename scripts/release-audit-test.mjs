@@ -31,6 +31,7 @@ test('4.1 browser success and permissions remain evidence-based', async () => {
   const parsedManifest = JSON.parse(manifest);
   assert.equal(parsedManifest.permissions.includes('desktopCapture'), false);
   assert.equal(parsedManifest.permissions.includes('debugger'), false);
+  assert.equal('optional_permissions' in parsedManifest, false);
   assert.match(workflow, /WORKER_RESTARTED/);
 });
 

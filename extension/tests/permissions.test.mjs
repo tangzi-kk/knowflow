@@ -6,14 +6,14 @@ const manifestUrl = new URL('../manifest.json', import.meta.url);
 const backgroundUrl = new URL('../src/background.ts', import.meta.url);
 const contentUrl = new URL('../src/content/content.ts', import.meta.url);
 
-test('high-risk debugger access is optional and unused desktop capture access is absent', async () => {
+test('high-risk debugger and desktop capture access are absent', async () => {
   const manifest = JSON.parse(await readFile(manifestUrl, 'utf8'));
   assert.equal(manifest.permissions.includes('debugger'), false);
   assert.equal(manifest.permissions.includes('desktopCapture'), false);
-  assert.deepEqual(manifest.optional_permissions, ['debugger']);
+  assert.equal('optional_permissions' in manifest, false);
 
   const background = await readFile(backgroundUrl, 'utf8');
-  assert.match(background, /chrome\.permissions\.request\(\{ permissions: \['debugger'\] \}\)/);
+  assert.doesNotMatch(background, /chrome\.(?:permissions|debugger)\./);
 });
 
 test('the Feishu FAB reports success only after a direct operation returns a final path', async () => {

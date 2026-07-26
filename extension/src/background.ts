@@ -703,13 +703,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'ai-tool') {
     (async () => {
       const action = message.payload?.action as string;
-      if (action === 'browser-control') {
-        const hasDebuggerPermission = await chrome.permissions.contains({ permissions: ['debugger'] });
-        if (!hasDebuggerPermission) {
-          const granted = await chrome.permissions.request({ permissions: ['debugger'] });
-          if (!granted) throw new Error('浏览器控制需要临时授予 debugger 权限。');
-        }
-      }
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab?.id) throw new Error('未找到当前网页标签页。');
       const userInstruction = typeof message.payload?.text === 'string' ? message.payload.text.trim() : '';
@@ -745,32 +738,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const payload: Record<string, unknown> = { action, title: context.title, url: context.url, text: context.text, selection: context.selection || '', elements: context.elements || [], userInstruction };
       if (action === 'screenshot-translate' || action === 'ocr' || action === 'screen-shot') {
         payload.imageDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
-      }
-      if (action === 'browser-control') {
-        const debuggee = { tabId: tab.id };
-        try {
-          await chrome.debugger.attach(debuggee, '1.3');
-          const result = await chrome.debugger.sendCommand(debuggee, 'Runtime.evaluate', {
-            expression: `(() => ({
-              title: document.title,
-              url: location.href,
-              selection: window.getSelection()?.toString() || '',
-              viewport: { width: innerWidth, height: innerHeight },
-              scroll: { x: scrollX, y: scrollY },
-              interactive: Array.from(document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"]')).slice(0, 80).map((el, index) => ({
-                index,
-                tag: el.tagName.toLowerCase(),
-                text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 120),
-                href: el.href || '',
-                rect: (() => { const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; })()
-              }))
-            }))()`,
-            returnByValue: true,
-          });
-          payload.debugTarget = (result as { result?: { value?: unknown } }).result?.value;
-        } finally {
-          chrome.debugger.detach(debuggee).catch(() => undefined);
-        }
       }
       chrome.runtime.sendMessage({ type: 'ai-prompt', payload });
     })().catch((error) => chrome.runtime.sendMessage({ type: 'ai-prompt', payload: { action: 'error', text: error instanceof Error ? error.message : String(error) } }));

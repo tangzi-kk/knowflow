@@ -3287,13 +3287,6 @@ DeepSeek\uFF1A${deepSeekError instanceof Error ? deepSeekError.message : String(
     if (message.type === "ai-tool") {
       (async () => {
         const action = message.payload?.action;
-        if (action === "browser-control") {
-          const hasDebuggerPermission = await chrome.permissions.contains({ permissions: ["debugger"] });
-          if (!hasDebuggerPermission) {
-            const granted = await chrome.permissions.request({ permissions: ["debugger"] });
-            if (!granted) throw new Error("\u6D4F\u89C8\u5668\u63A7\u5236\u9700\u8981\u4E34\u65F6\u6388\u4E88 debugger \u6743\u9650\u3002");
-          }
-        }
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         if (!tab?.id) throw new Error("\u672A\u627E\u5230\u5F53\u524D\u7F51\u9875\u6807\u7B7E\u9875\u3002");
         const userInstruction = typeof message.payload?.text === "string" ? message.payload.text.trim() : "";
@@ -3326,32 +3319,6 @@ DeepSeek\uFF1A${deepSeekError instanceof Error ? deepSeekError.message : String(
         const payload = { action, title: context.title, url: context.url, text: context.text, selection: context.selection || "", elements: context.elements || [], userInstruction };
         if (action === "screenshot-translate" || action === "ocr" || action === "screen-shot") {
           payload.imageDataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: "png" });
-        }
-        if (action === "browser-control") {
-          const debuggee = { tabId: tab.id };
-          try {
-            await chrome.debugger.attach(debuggee, "1.3");
-            const result = await chrome.debugger.sendCommand(debuggee, "Runtime.evaluate", {
-              expression: `(() => ({
-              title: document.title,
-              url: location.href,
-              selection: window.getSelection()?.toString() || '',
-              viewport: { width: innerWidth, height: innerHeight },
-              scroll: { x: scrollX, y: scrollY },
-              interactive: Array.from(document.querySelectorAll('a,button,input,textarea,select,[role="button"],[role="link"]')).slice(0, 80).map((el, index) => ({
-                index,
-                tag: el.tagName.toLowerCase(),
-                text: (el.innerText || el.getAttribute('aria-label') || el.getAttribute('placeholder') || '').trim().slice(0, 120),
-                href: el.href || '',
-                rect: (() => { const r = el.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) }; })()
-              }))
-            }))()`,
-              returnByValue: true
-            });
-            payload.debugTarget = result.result?.value;
-          } finally {
-            chrome.debugger.detach(debuggee).catch(() => void 0);
-          }
         }
         chrome.runtime.sendMessage({ type: "ai-prompt", payload });
       })().catch((error) => chrome.runtime.sendMessage({ type: "ai-prompt", payload: { action: "error", text: error instanceof Error ? error.message : String(error) } }));
