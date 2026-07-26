@@ -11,6 +11,9 @@ export type WorkflowKind = 'fetch' | 'clip' | 'pushback';
 export interface WorkflowResult {
   path: string;
   action: string;
+  proposalId?: string;
+  requiresConfirmation?: true;
+  protocolVersion?: number;
 }
 
 export interface WorkflowOperation {
@@ -41,11 +44,10 @@ interface TransitionPayload {
 }
 
 const STORAGE_KEY = 'knowflow_operations_v1';
-const TERMINAL_STATES = new Set<WorkflowState>(['succeeded', 'failed', 'cancelled']);
 const TRANSITIONS: Record<WorkflowState, readonly WorkflowState[]> = {
   queued: ['awaiting-confirmation', 'running', 'failed', 'cancelled'],
   'awaiting-confirmation': ['running', 'failed', 'cancelled'],
-  running: ['succeeded', 'failed', 'cancelled'],
+  running: ['awaiting-confirmation', 'succeeded', 'failed', 'cancelled'],
   succeeded: [],
   failed: [],
   cancelled: [],
@@ -100,11 +102,27 @@ export class WorkflowStore {
       operation.updatedAt = this.now();
       delete operation.result;
       delete operation.error;
-      if (nextState === 'succeeded') {
+      if (nextState === 'succeeded' || nextState === 'awaiting-confirmation') {
         if (!payload.result?.path || !payload.result.action) {
-          throw new WorkflowTransitionError('Succeeded operation requires a final path and action');
+          throw new WorkflowTransitionError('Completed landing requires a final path and action');
         }
-        operation.result = { path: payload.result.path, action: payload.result.action };
+        if (
+          nextState === 'awaiting-confirmation'
+          && (!payload.result.proposalId || payload.result.requiresConfirmation !== true)
+        ) {
+          throw new WorkflowTransitionError('Awaiting confirmation requires a real proposal');
+        }
+        operation.result = {
+          path: payload.result.path,
+          action: payload.result.action,
+        };
+        if (payload.result.proposalId) operation.result.proposalId = payload.result.proposalId;
+        if (payload.result.requiresConfirmation === true) {
+          operation.result.requiresConfirmation = true;
+        }
+        if (typeof payload.result.protocolVersion === 'number') {
+          operation.result.protocolVersion = payload.result.protocolVersion;
+        }
       }
       if (nextState === 'failed') {
         operation.error = {
@@ -125,7 +143,13 @@ export class WorkflowStore {
     await this.transition(operation.operationId, 'running');
     try {
       const result = await task();
-      await this.transition(operation.operationId, 'succeeded', { result });
+      await this.transition(
+        operation.operationId,
+        result.proposalId && result.requiresConfirmation === true
+          ? 'awaiting-confirmation'
+          : 'succeeded',
+        { result },
+      );
       return result;
     } catch (error) {
       await this.transition(operation.operationId, 'failed', {
@@ -184,12 +208,13 @@ export class WorkflowStore {
   }
 
   private prune(operations: WorkflowOperation[]): WorkflowOperation[] {
-    const active = operations.filter((operation) => !TERMINAL_STATES.has(operation.state));
-    const terminal = operations
-      .filter((operation) => TERMINAL_STATES.has(operation.state))
+    const active = operations.filter((operation) =>
+      operation.state === 'queued' || operation.state === 'running');
+    const retained = operations
+      .filter((operation) => operation.state !== 'queued' && operation.state !== 'running')
       .sort((left, right) => right.updatedAt - left.updatedAt)
       .slice(0, Math.max(0, this.maxOperations - active.length));
-    return [...active, ...terminal];
+    return [...active, ...retained];
   }
 }
 

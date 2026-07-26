@@ -19,7 +19,10 @@ test('high-risk debugger access is optional and unused desktop capture access is
 test('the Feishu FAB reports success only after a direct operation returns a final path', async () => {
   const content = await readFile(contentUrl, 'utf8');
   assert.match(content, /directSync: true/);
-  assert.match(content, /!response\?\.ok \|\| !response\.result\?\.path/);
+  assert.match(content, /!response\?\.ok/);
+  assert.match(content, /!response\.result\?\.path/);
+  assert.match(content, /!response\.result\?\.proposalId/);
+  assert.match(content, /response\.result\.requiresConfirmation !== true/);
   assert.doesNotMatch(content, /\.then\(\(\) => \{\s*setFabState\('success'/);
 });
 

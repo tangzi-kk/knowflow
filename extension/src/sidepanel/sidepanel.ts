@@ -13,7 +13,7 @@ import {
   type PropertyTemplate,
   type SyncConfig,
 } from '../client.js';
-import type { ClipResponse, FetchResponse, TreeNode } from '@sync/shared';
+import { PROTOCOL_VERSION, type ClipResponse, type FetchResponse, type TreeNode } from '@sync/shared';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig } from '../storage.js';
 import { resolveAiRoute } from '../ai-routing.js';
 
@@ -812,8 +812,10 @@ async function confirmSync(): Promise<void> {
       meta: collectMeta(),
     });
     await saveRecentTargetDir(targetDir);
-    const codeMsg = result.编码 ? `（编码 ${result.编码}）` : '';
-    setStatus(`${result.action === 'created' ? '已创建' : '已更新'}：${result.path}${codeMsg}`, 'success');
+    setStatus(formatProposalLandingStatus(
+      `${result.action === 'created' ? '已创建' : '已更新'}：${result.path}`,
+      result,
+    ), 'info');
     updateSteps(4, 'done');
   } catch (err) {
     setStatus(`同步失败：${err instanceof Error ? err.message : String(err)}`, 'error');
@@ -844,8 +846,25 @@ async function confirmWebClip(current: PanelState, dir: string): Promise<void> {
     meta: draft.meta,
   });
   await saveRecentTargetDir(dir);
-  setStatus(`${appendEnabled ? '已补充' : '已保存'}：${result.path}`, 'success');
+  setStatus(formatProposalLandingStatus(
+    `${appendEnabled ? '已补充' : '已保存'}：${result.path}`,
+    result,
+  ), 'info');
   updateSteps(4, 'done');
+}
+
+function formatProposalLandingStatus(
+  landingMessage: string,
+  result: Pick<FetchResponse | ClipResponse, 'proposalId' | 'requiresConfirmation' | 'protocolVersion'>,
+): string {
+  if (
+    result.proposalId
+    && result.requiresConfirmation === true
+    && result.protocolVersion === PROTOCOL_VERSION
+  ) {
+    return `${landingMessage}；已生成待确认整理建议 ${result.proposalId.slice(0, 8)}，请在 Obsidian KnowFlow 中确认。`;
+  }
+  return `${landingMessage}；内容已落地，但当前 Obsidian 插件未返回整理提案，请手动整理此文档。`;
 }
 
 function getReadyMessage(next: PanelState): string {

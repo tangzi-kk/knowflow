@@ -1,0 +1,62 @@
+{
+  "contractVersion": "1",
+  "source": {
+    "repository": "tangzi-kk/skr-knowledge",
+    "commit": "85cab3b942cb5ff967d8fd9e56cfb7b53915aa72",
+    "knowledgeVersion": "1.2.1",
+    "schemaVersion": 1,
+    "sourceSchemaVersion": 1
+  },
+  "tags": {
+    "allowed": [
+      "S",
+      "X",
+      "L",
+      "Z",
+      "Q",
+      "J"
+    ]
+  },
+  "statuses": [
+    "收集",
+    "整理中",
+    "已消化",
+    "应用中",
+    "已归档"
+  ],
+  "encoding": {
+    "fullFormat": "YY_MMDD_TAG_TOPIC_LEVEL",
+    "fullPattern": "^[0-9]{2}_[0-9]{4}_[SXLZQJ]_[0-9]{2}_[a-z][0-9]+(?:[a-z][0-9]+)*$",
+    "shortFormat": "TAGTOPIC.LEVEL",
+    "shortPattern": "^[SXLZQJ][0-9]{2}\\.[a-z][0-9]+(?:[a-z][0-9]+)*$"
+  },
+  "identity": {
+    "primaryKey": "文档ID",
+    "shortEncodingIsDerived": true,
+    "preserveDocumentIdOnMove": true,
+    "preserveDocumentIdOnRename": true,
+    "preserveDocumentIdOnTagChange": true
+  },
+  "sourceFiles": [
+    {
+      "path": "schema/enums.yaml",
+      "sha256": "966df6985f77b3926705ac779d64429930c64a8c431a9d79712a7b8721033cd1"
+    },
+    {
+      "path": "schema/note.schema.json",
+      "sha256": "6f0c07555151cdb09b018dfab78303f8969ad6917e9a326c78119219bbee45ab"
+    },
+    {
+      "path": "schema/encoding.yaml",
+      "sha256": "5ca6a5ccf8b40a15506260cc61665d63c1eadc514de2722a33d0d777919eb766"
+    },
+    {
+      "path": "schema/feishu-sync.yaml",
+      "sha256": "255bb531709b074017c02f6c691612f81764636a164394a82b08b8bd4ae1f4fb"
+    },
+    {
+      "path": "plugin-contract/sync-event.schema.json",
+      "sha256": "322419ca6d88f0421547315f6249cb40d01adec417b02159a27022202896454c"
+    }
+  ]
+}

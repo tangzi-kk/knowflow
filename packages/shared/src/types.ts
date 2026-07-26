@@ -33,10 +33,16 @@ export const TAG_NAMES: Record<Tag, string> = {
 
 /** 知识库元数据（OB 维护，回写飞书成 callout）。依据 `02_YAML字段规范.md`。 */
 export interface KnowledgeMeta {
+  /** SKR Knowledge 协议主版本。 */
+  协议版本?: 1;
+  /** 永久文档身份；移动、改名和标签变化时保持不变。 */
+  文档ID?: string;
   /** 标签，封闭枚举。置信度 <0.6 → S。 */
   标签?: Tag;
-  /** 编码，auto-rename 分配，格式 YY_MMDD_标签_序号[_子序号]。 */
+  /** 插件分配的完整编码，格式 YY_MMDD_TAG_TOPIC_LEVEL。 */
   编码?: string;
+  /** 由完整编码派生的人类可读短编码。 */
+  短编码?: string;
   /** 输入完整路径（最深注册路径）。 */
   输入?: string;
   /** 日期，ISO 格式 YYYY-MM-DD。 */
@@ -51,6 +57,8 @@ export interface KnowledgeMeta {
   评分?: number | '';
   /** 评分显示串，如 "🌟🌟🌟｜实践"。 */
   评分_显示?: string;
+  /** 知识条目的独立生命周期。 */
+  状态?: '收集' | '整理中' | '已消化' | '应用中' | '已归档';
   /** 索引_知识库（正财/偏财/...）。 */
   索引_知识库?: string;
   /** 索引_颜色。 */

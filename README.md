@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/development-4.0.2-blue" alt="development version">
+  <img src="https://img.shields.io/badge/development-4.1.0-blue" alt="development version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前发布 | `fs-TB` + `KnowFlow` | `4.0.2` | `artifacts/` | 自动门禁、构建和安装包 SHA256 通过，已同步 GitHub；尚未真机安装 |
+| 发布候选 | `fs-TB` + `KnowFlow` | `4.1.0` | `artifacts/` | 统一整理事务开发线；须完成备份 Vault 与真机门禁后才能发布 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -31,8 +31,8 @@
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.0.2.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.0.2/` 或 `artifacts/KnowFlow-Browser-4.0.2.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.1.0.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.1.0/` 或 `artifacts/KnowFlow-Browser-4.1.0.zip`
 
 阅读入口：
 
@@ -82,8 +82,8 @@
 │  └───────────────────────────────────────────┘          │
 │                                                         │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────┐ │
-│  │ callout  │ │ 图片     │ │ auto-    │ │ 删除       │ │
-│  │ 双向转换  │ │ token    │ │ rename   │ │ registry   │ │
+│  │ callout  │ │ 图片     │ │ 整理预览  │ │ 删除       │ │
+│  │ 双向转换  │ │ token    │ │ + 事务回滚│ │ registry   │ │
 │  └──────────┘ └──────────┘ └──────────┘ └────────────┘ │
 │                                                         │
 │  ┌────────────────────────────────────────────────────┐ │
@@ -126,7 +126,7 @@
 **[⬇️ 下载最新版浏览器扩展](https://github.com/tangzi-kk/knowflow/releases/latest)**
 
 **安装步骤**：
-1. 下载 `browser-feishu-doc-exporter-X.X.X.zip` 并解压
+1. 下载 `KnowFlow-Browser-X.X.X.zip` 并解压
 2. Chrome → `chrome://extensions` → 打开「开发者模式」
 3. 点击「加载已解压的扩展程序」→ 选择解压后的文件夹
 4. 点击扩展图标 → 设置页填入 OB 插件地址 `127.0.0.1:4567` 和启动令牌

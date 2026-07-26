@@ -17,6 +17,7 @@ export interface RecoverySnapshotInput {
   now?: Date;
   nonce?: string;
   maxSnapshots?: number;
+  deferRotation?: boolean;
 }
 
 export async function createRecoverySnapshot(
@@ -43,7 +44,9 @@ export async function createRecoverySnapshot(
   };
 
   await adapter.write(snapshotPath, JSON.stringify(snapshot, null, 2));
-  await rotateSnapshots(adapter, Math.max(1, input.maxSnapshots ?? 20));
+  if (!input.deferRotation) {
+    await rotateRecoverySnapshots(adapter, Math.max(1, input.maxSnapshots ?? 20));
+  }
   return snapshotPath;
 }
 
@@ -56,13 +59,19 @@ async function ensureDirectory(adapter: RecoveryAdapter, path: string): Promise<
   }
 }
 
-async function rotateSnapshots(adapter: RecoveryAdapter, maxSnapshots: number): Promise<void> {
+export async function rotateRecoverySnapshots(
+  adapter: RecoveryAdapter,
+  maxSnapshots: number,
+  protectedPaths: readonly string[] = [],
+): Promise<void> {
   try {
     const entries = await adapter.list(RECOVERY_ROOT);
+    const protectedSet = new Set(protectedPaths);
     const files = entries.files
       .filter((path) => path.endsWith('.json'))
       .sort();
-    const excess = files.slice(0, Math.max(0, files.length - maxSnapshots));
+    const removable = files.filter((path) => !protectedSet.has(path));
+    const excess = removable.slice(0, Math.max(0, files.length - Math.max(1, maxSnapshots)));
     await Promise.all(excess.map((path) => adapter.remove(path)));
   } catch (error) {
     console.warn('[sync/recovery] snapshot rotation failed:', error);

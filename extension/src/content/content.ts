@@ -10,6 +10,7 @@
  * 6. 位置持久化到 localStorage
  */
 import './content.css';
+import { PROTOCOL_VERSION } from '@sync/shared';
 
 const FAB_ID = 'feishu-sync-fab';
 const LABEL_ID = 'feishu-sync-fab-label';
@@ -413,11 +414,17 @@ async function onSyncClick(): Promise<void> {
         domain: window.location.hostname,
       },
     });
-    if (!response?.ok || !response.result?.path) {
+    if (
+      !response?.ok
+      || !response.result?.path
+      || !response.result?.proposalId
+      || response.result.requiresConfirmation !== true
+      || response.result.protocolVersion !== PROTOCOL_VERSION
+    ) {
       throw new Error(response?.error || 'Obsidian 未返回最终文件路径。');
     }
     setFabState('success', fab);
-    showToast(`已同步：${response.result.path}`);
+    showToast(`内容已落地，等待整理确认：${response.result.path}`);
     setTimeout(() => setFabState('idle', fab), 2000);
   } catch (error) {
     setFabState('error', fab);

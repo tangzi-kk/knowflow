@@ -33,7 +33,7 @@ const { generateSyncToken, migrateSettings } = await import(
   pathToFileURL(path.join(compiledDirectory, 'settingsMigration.js')).href
 );
 
-test('manifest and package retain the fs-TB identity at 4.0.2', async () => {
+test('manifest and package retain the fs-TB identity at 4.1.0', async () => {
   const manifest = JSON.parse(await readFile(
     path.resolve(testDirectory, '../manifest.json'),
     'utf8',
@@ -44,7 +44,7 @@ test('manifest and package retain the fs-TB identity at 4.0.2', async () => {
   ));
 
   assert.equal(manifest.id, 'fs-TB');
-  assert.equal(manifest.version, '4.0.2');
+  assert.equal(manifest.version, '4.1.0');
   assert.equal(packageJson.version, manifest.version);
 });
 
@@ -58,7 +58,7 @@ test('fresh installs receive only the current defaults', () => {
     syncToken: '',
     larkCliPath: '',
     defaultDir: '0️⃣输入',
-    autoRename: true,
+    autoRename: false,
     autoDeleteRegistry: false,
     cacheCleanup: 'weekly',
     keepDecorativeImages: true,
@@ -67,6 +67,18 @@ test('fresh installs receive only the current defaults', () => {
     hideSystemProperties: true,
     recentActivity: [],
   });
+});
+
+test('4.1 runtime migration converts autoRename into proposals and disables silent writes', async () => {
+  const mainSource = await readFile(path.join(sourceDirectory, 'main.ts'), 'utf8');
+  const settingsSource = await readFile(path.join(sourceDirectory, 'settings.ts'), 'utf8');
+
+  assert.match(settingsSource, /createProposalsAfterCapture: boolean/);
+  assert.match(settingsSource, /autoRename: false/);
+  assert.match(settingsSource, /createProposalsAfterCapture: true/);
+  assert.match(mainSource, /createProposalsAfterCapture !== DEFAULT_CAPTURE_PROPOSALS/);
+  assert.match(mainSource, /this\.settings\.createProposalsAfterCapture = DEFAULT_CAPTURE_PROPOSALS/);
+  assert.match(mainSource, /this\.settings\.autoRename = false/);
 });
 
 test('empty note folders recover the generated 3.2.1 runtime default', () => {

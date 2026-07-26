@@ -6,8 +6,8 @@
 
 | 分类 | 组件 | 当前发布版本 | 源码/产物路径 | 运行位置 |
 |---|---|---:|---|---|
-| Obsidian 插件 | `fs-TB` | `4.0.2` | 源码：`packages/ob-plugin/`；安装包：`artifacts/fs-TB-Obsidian-4.0.2.zip` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
-| 浏览器扩展 | `KnowFlow` | `4.0.2` | 源码：`extension/`；加载目录：`artifacts/KnowFlow-Browser-4.0.2/` | Chrome/Edge 扩展管理页加载已解压目录 |
+| Obsidian 插件 | `fs-TB` | `4.1.0` | 源码：`packages/ob-plugin/`；安装包：`artifacts/fs-TB-Obsidian-4.1.0.zip` | Obsidian vault 的 `.obsidian/plugins/fs-TB/` |
+| 浏览器扩展 | `KnowFlow` | `4.1.0` | 源码：`extension/`；加载目录：`artifacts/KnowFlow-Browser-4.1.0/` | Chrome/Edge 扩展管理页加载已解压目录 |
 | 共享层 | `@sync/shared` | `0.1.0` | `packages/shared/` | 被 Obsidian 插件和浏览器扩展共同引用 |
 
 ## 关键边界
@@ -51,8 +51,8 @@ npm run build:ext
 当前发布校验：
 
 ```bash
-shasum -a 256 -c artifacts/KnowFlow-4.0.2-SHA256SUMS
-(cd artifacts && shasum -a 256 -c KnowFlow-4.0.2-PACKAGES-SHA256SUMS)
+shasum -a 256 -c artifacts/KnowFlow-4.1.0-SHA256SUMS
+(cd artifacts && shasum -a 256 -c KnowFlow-4.1.0-PACKAGES-SHA256SUMS)
 ```
 
 ## 依赖升级策略
@@ -64,9 +64,10 @@ shasum -a 256 -c artifacts/KnowFlow-4.0.2-SHA256SUMS
 
 ## 当前已知状态
 
-- 当前 4.0.2 源码、安装包和文档已同步 GitHub `main`。
-- 自动验收 130/130、两端类型检查、构建和安装包 SHA256 已通过。
+- 当前 4.1.0 位于隔离功能分支，尚未合并、打 tag 或发布。
+- 自动验收、两端类型检查、构建和安装包 SHA256 必须全部通过后才可进入真机门禁。
 - 真实 Vault、飞书账号和 Chrome/Edge 真机验收尚未执行，不能写成已通过。
+- `skr-knowledge` 是协议上游；KnowFlow 是唯一插件实现。采集只生成待确认 proposal，不得静默编码。
 - `releases/obsidian-fs-TB/3.2.1/` 与旧浏览器 0.3.0 仅作为历史真机归档。
 - 设计文档已集中到 `docs/design/`
 - Mermaid 图已集中到 `docs/diagrams/`

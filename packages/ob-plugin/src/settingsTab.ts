@@ -34,6 +34,7 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
   display(): void {
     const { containerEl } = this;
     containerEl.empty();
+    containerEl.addClass('fstb-settings-root');
 
     containerEl.createEl('h2', { text: '飞书同步 (fs-TB)', cls: 'fstb-title' });
 
@@ -201,8 +202,8 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(el)
-      .setName('保留装饰图片')
-      .setDesc('飞书排版物料等纯图片是否落地到 Obsidian')
+      .setName('同步装饰/排版图片')
+      .setDesc('开启后，飞书中的装饰图片和排版素材会同步落地到 Obsidian')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.keepDecorativeImages)
@@ -274,21 +275,9 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
   private renderEncoding(el: HTMLElement): void {
     el.createEl('h3', { text: '🔢 编码系统' });
 
-    new Setting(el)
-      .setName('自动分配编码')
-      .setDesc('飞书文档成功落地后，使用当前安全编码流程分配编码')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.autoRename)
-          .onChange(async (value) => {
-            this.plugin.settings.autoRename = value;
-            await this.save();
-          }),
-      );
-
     el.createDiv({
       cls: 'fstb-info-box',
-      text: '此处只控制当前同步流程的编码开关，不会加载旧版 auto-rename 子插件或其写入逻辑。',
+      text: '采集后始终生成待确认整理建议；所有编码变更都必须先预览再确认，不提供静默写入开关。',
     });
   }
 

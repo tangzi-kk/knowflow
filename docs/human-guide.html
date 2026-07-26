@@ -161,15 +161,15 @@
         <tr>
           <td>Obsidian 插件</td>
           <td><code>fs-TB</code></td>
-          <td><code>4.0.2</code></td>
-          <td><code>artifacts/fs-TB-Obsidian-4.0.2.zip</code></td>
+          <td><code>4.1.0</code></td>
+          <td><code>artifacts/fs-TB-Obsidian-4.1.0.zip</code></td>
           <td>目标 vault 的 <code>.obsidian/plugins/fs-TB/</code></td>
         </tr>
         <tr>
           <td>浏览器扩展</td>
           <td><code>KnowFlow</code></td>
-          <td><code>4.0.2</code></td>
-          <td><code>artifacts/KnowFlow-Browser-4.0.2/</code></td>
+          <td><code>4.1.0</code></td>
+          <td><code>artifacts/KnowFlow-Browser-4.1.0/</code></td>
           <td>Chrome/Edge 扩展管理页加载已解压目录</td>
         </tr>
       </tbody>
@@ -218,7 +218,7 @@
         </tr>
         <tr>
           <td><code>artifacts/</code></td>
-          <td>当前 4.0.2 双端安装包、浏览器解包目录和 SHA256 校验文件。</td>
+          <td>当前 4.1.0 双端候选安装包、浏览器解包目录和 SHA256 校验文件。</td>
         </tr>
       </tbody>
     </table>
@@ -226,11 +226,11 @@
     <h2>常用验证命令</h2>
     <pre><code>npm run release:verify
 git diff --check
-shasum -a 256 -c artifacts/KnowFlow-4.0.2-SHA256SUMS
-(cd artifacts &amp;&amp; shasum -a 256 -c KnowFlow-4.0.2-PACKAGES-SHA256SUMS)</code></pre>
+shasum -a 256 -c artifacts/KnowFlow-4.1.0-SHA256SUMS
+(cd artifacts &amp;&amp; shasum -a 256 -c KnowFlow-4.1.0-PACKAGES-SHA256SUMS)</code></pre>
 
     <div class="notice">
-      4.0.2 已通过 130/130 自动测试、两端类型检查、完整构建和安装包 SHA256，并已同步 GitHub。真实 Vault、飞书账号和 Chrome/Edge 真机验收尚未执行。
+      4.1.0 是隔离功能分支中的发布候选。自动门禁完成后仍须验证真实 Vault、飞书账号和 Chrome/Edge；真机通过前不得声明为最新稳定版。
     </div>
 
     <h2>继续阅读</h2>

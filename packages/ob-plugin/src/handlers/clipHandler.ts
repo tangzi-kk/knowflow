@@ -4,20 +4,27 @@
  * MVP 决策：
  * - 不绑定 feishu_id，避免把普通网页伪装成飞书同步文件。
  * - 写入插件默认目录或请求传入目录。
- * - 使用知识库字段预设填充基础 YAML，编码仍交给 auto-rename。
+ * - 使用知识库字段预设填充基础 YAML，落地后只创建待确认整理提案。
  */
-import { assembleFile, type ClipRequest, type ClipResponse } from '@sync/shared';
+import { assembleFile, PROTOCOL_VERSION, type ClipRequest, type ClipResponse } from '@sync/shared';
 import { App, TFile, TFolder } from 'obsidian';
 import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings } from '../settings.js';
 import { makeFilename, makePath } from '../fileio/writer.js';
-import { assignEncoding } from '../autoRename.js';
 import { normalizeVaultDir, normalizeVaultMarkdownPath } from '../vaultPath.js';
 
 export interface ClipDeps {
   app: App;
   settings: FeishuSyncSettings;
   notice: (msg: string) => void;
+  /**
+   * 由主插件知识库事务工作流注入。handler 只请求预览提案，
+   * 不在内容落地链路里自行实现编码事务或发布同步事件。
+   */
+  createKnowledgeProposal: (input: {
+    paths: string[];
+    source: 'fetch' | 'clip';
+  }) => Promise<{ proposalId: string; protocolVersion: typeof PROTOCOL_VERSION }>;
 }
 
 export function createClipHandler(deps: ClipDeps) {
@@ -75,11 +82,15 @@ export function createClipHandler(deps: ClipDeps) {
       const appendix = buildAppendMarkdown(contentInput);
       await deps.app.vault.modify(target, `${current.replace(/\s*$/, '')}\n\n${appendix}\n`);
       deps.notice(`📝 已补充到 ${appendPath}`);
+      const proposal = await createPendingProposal(deps, target.path);
       return {
         ok: true,
         path: target.path,
         filename: target.name,
         action: 'updated',
+        proposalId: proposal.proposalId,
+        requiresConfirmation: true,
+        protocolVersion: proposal.protocolVersion,
       };
     }
 
@@ -97,22 +108,34 @@ export function createClipHandler(deps: ClipDeps) {
     await deps.app.vault.create(finalPath, content);
     deps.notice(`📎 已剪存 ${title}`);
 
-    if (deps.settings.autoRename) {
-      try {
-        await assignEncoding(deps.app, finalPath, targetDir);
-      } catch (err) {
-        console.warn('[sync/clip] auto-rename failed:', err);
-        deps.notice(`⚠ 剪藏已保存，但自动编码失败：${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-
+    const proposal = await createPendingProposal(deps, finalPath);
     return {
       ok: true,
       path: finalPath,
       filename: finalPath.split('/').pop() ?? filename,
       action: 'created',
+      proposalId: proposal.proposalId,
+      requiresConfirmation: true,
+      protocolVersion: proposal.protocolVersion,
     };
   };
+}
+
+async function createPendingProposal(
+  deps: ClipDeps,
+  path: string,
+): Promise<{ proposalId: string; protocolVersion: typeof PROTOCOL_VERSION }> {
+  try {
+    return await deps.createKnowledgeProposal({ paths: [path], source: 'clip' });
+  } catch (error) {
+    const failure = new Error(
+      `内容已落地到 ${path}，但整理提案创建失败；请先检查该文件，不要盲目重试。`
+        + ` 原因：${error instanceof Error ? error.message : String(error)}`,
+    ) as Error & { code: string; status: number };
+    failure.code = 'KNOWLEDGE_PROPOSAL_FAILED_AFTER_LANDING';
+    failure.status = 500;
+    throw failure;
+  }
 }
 
 function buildClipMarkdown(input: {

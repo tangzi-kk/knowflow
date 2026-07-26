@@ -12,12 +12,10 @@ import { Notice, Modal, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
-import { createEncodingWorkflow } from './encodingWorkflow.js';
-import { PreviewModal, registerEncodingContextMenu } from './encodingUi.js';
+import { openOrganizationPreview, registerEncodingContextMenu } from './encodingUi.js';
 
 export function registerCommands(plugin: FeishuSyncPlugin): void {
   const { app, settings } = plugin;
-  const encodingWorkflow = createEncodingWorkflow(app, plugin.syncCoordinator);
   registerEncodingContextMenu(plugin);
 
   // 回写当前文件到飞书
@@ -104,10 +102,10 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
     },
   });
 
-  // 批量分配编码（当前目录）
+  // 保留旧 command id 供快捷键迁移，但统一进入 4.1 整理预览。
   plugin.addCommand({
     id: 'assign-encoding-dir',
-    name: '批量分配编码（当前目录）',
+    name: '整理当前目录…',
     callback: async () => {
       const file = app.workspace.getActiveFile();
       if (!file) {
@@ -118,10 +116,9 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       if (!dir) return;
 
       try {
-        const plan = await encodingWorkflow.previewDirectory(dir);
-        new PreviewModal(app, encodingWorkflow, plan).open();
+        await openOrganizationPreview(plugin, [dir], 'directory');
       } catch (error) {
-        new Notice(`❌ 编码预览失败：${error instanceof Error ? error.message : String(error)}`);
+        new Notice(`❌ 整理预览失败：${error instanceof Error ? error.message : String(error)}`);
       }
     },
   });

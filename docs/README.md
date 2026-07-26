@@ -13,6 +13,7 @@
 
 - [人类阅读说明 HTML](human-guide.html)
 - [AI 接手说明 Markdown](AI_HANDOFF.md)
+- [KnowFlow 4.1 验收边界](validation/4.1-acceptance.md)
 
 ## Diagrams
 

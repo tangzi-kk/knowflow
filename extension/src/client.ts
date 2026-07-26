@@ -9,6 +9,7 @@
 import {
   TOKEN_HEADER,
   DEFAULT_PORT,
+  PROTOCOL_VERSION,
   evaluateProtocolCompatibility,
   type SyncCapability,
   type StatusResponse,
@@ -387,7 +388,10 @@ async function requireWriteCapability(
   capability: SyncCapability,
 ): Promise<void> {
   const status = await getStatus(config);
-  const compatibility = evaluateProtocolCompatibility(status, [capability]);
+  const compatibility = evaluateProtocolCompatibility(status, [
+    capability,
+    'capture-proposal-v1',
+  ]);
   if (!compatibility.compatible) {
     throw new Error(
       `浏览器扩展与 Obsidian 插件不兼容：${compatibility.reason ?? '未知协议错误'}。请将两端升级到同一版本。`,
@@ -401,7 +405,9 @@ export async function postFetch(
   req: FetchRequest,
 ): Promise<FetchResponse> {
   await requireWriteCapability(config, 'fetch');
-  return request<FetchResponse>(config, 'POST', '/fetch', withRequestId(req), 120000);
+  const result = await request<FetchResponse>(config, 'POST', '/fetch', withRequestId(req), 120000);
+  assertProposalResponse(result);
+  return result;
 }
 
 /** POST /clip — 任意网页/划词剪存。 */
@@ -410,7 +416,27 @@ export async function postClip(
   req: ClipRequest,
 ): Promise<ClipResponse> {
   await requireWriteCapability(config, 'clip');
-  return request<ClipResponse>(config, 'POST', '/clip', withRequestId(req), 30000);
+  const result = await request<ClipResponse>(config, 'POST', '/clip', withRequestId(req), 30000);
+  assertProposalResponse(result);
+  return result;
+}
+
+function assertProposalResponse(
+  result: Partial<FetchResponse | ClipResponse>,
+): asserts result is FetchResponse | ClipResponse {
+  if (
+    typeof result.path === 'string'
+    && result.path
+    && typeof result.proposalId === 'string'
+    && result.proposalId
+    && result.requiresConfirmation === true
+    && result.protocolVersion === PROTOCOL_VERSION
+  ) {
+    return;
+  }
+  throw new Error(
+    '内容可能已落地，但 Obsidian 未返回完整的 4.1 整理提案。请先检查目标文件，不要盲目重试。',
+  );
 }
 
 function withRequestId<T extends { requestId?: string }>(requestBody: T): T & { requestId: string } {

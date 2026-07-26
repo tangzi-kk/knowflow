@@ -14,8 +14,13 @@ export interface FeishuSyncSettings {
   larkCliPath: string;
   /** 默认落地目录（相对 vault 根）。 */
   defaultDir: string;
-  /** 自动触发 auto-rename 编码分配。 */
+  /**
+   * 旧写通道兼容字段。4.1 运行时始终迁移为 false，禁止采集后静默编码。
+   * @deprecated 使用 createProposalsAfterCapture。
+   */
   autoRename: boolean;
+  /** 4.1 安全迁移标记；运行时固定为 true，采集后必须生成待确认建议。 */
+  createProposalsAfterCapture: boolean;
   /** 自动登记删除（写飞书多维表格）。 */
   autoDeleteRegistry: boolean;
   /** 图片缓存清理周期。 */
@@ -40,7 +45,8 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   syncToken: '',
   larkCliPath: '',
   defaultDir: '0️⃣输入',
-  autoRename: true,
+  autoRename: false,
+  createProposalsAfterCapture: true,
   autoDeleteRegistry: false,
   cacheCleanup: 'weekly',
   keepDecorativeImages: true,

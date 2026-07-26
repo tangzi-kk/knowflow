@@ -83,6 +83,7 @@ async function triggerFetch(plugin: FeishuSyncPlugin, input: TriggerInput): Prom
         settings: plugin.settings,
         state: plugin.state,
         notice: (message) => new Notice(message),
+        createKnowledgeProposal: (proposalInput) => plugin.createKnowledgeProposal(proposalInput),
       });
       const targetDir = normalizeVaultDir(dir || req.dir || plugin.settings.defaultDir);
       const result = await plugin.syncCoordinator.run(`document:${req.node_token}`, undefined, () =>
@@ -94,7 +95,9 @@ async function triggerFetch(plugin: FeishuSyncPlugin, input: TriggerInput): Prom
           body: { ...req, dir: targetDir },
           token: '',
         })));
-      new Notice(`${result.action === 'created' ? '已创建' : '已更新'}：${result.path}`);
+      new Notice(
+        `${result.action === 'created' ? '已创建' : '已更新'}：${result.path}；整理提案待确认`,
+      );
     } catch (err) {
       new Notice(`同步失败：${err instanceof Error ? err.message : String(err)}`);
     }

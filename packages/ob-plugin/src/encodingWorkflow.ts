@@ -1,17 +1,31 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { App } from 'obsidian';
-import { assembleFile, parseFrontmatter, type Tag } from '@sync/shared';
-import { createRecoverySnapshot } from './recovery.js';
+import { assembleFile, inspectFrontmatter } from '@sync/shared';
+import { createRecoverySnapshot, rotateRecoverySnapshots } from './recovery.js';
 import type { SyncCoordinator } from './syncCoordinator.js';
+import {
+  ALLOWED_STATUSES,
+  ALLOWED_TAGS,
+  deriveShortEncoding,
+  encodingTag,
+  FILE_PREFIX_RE,
+  FULL_ENCODING_RE,
+  LEGACY_FILE_PREFIX_RE,
+  PROTOCOL_VERSION,
+} from './knowledgeContract.js';
 
-const CODE_RE = /^(\d{2})_(\d{4})_([SXLZQJ])_(\d+)(?:_([a-z]\d+))?$/;
-const FILE_CODE_RE = /^(\d{2}_\d{4}_[SXLZQJ]_\d+(?:_[a-z]\d+)?)\s+/;
-
-const TAG_BY_DIR_HINT: Record<string, Tag> = {
-  '0️⃣输入': 'S',
-  '1️⃣输出': 'X',
-  '2️⃣🗃知识池': 'Z',
-};
+const ARRAY_FIELDS = [
+  '日期索引',
+  '关键词',
+  '索引_块',
+  '索引_风险',
+  '关联项目',
+  '关联文档',
+  '关联人物',
+] as const;
+const PROTECTED_PATH_RE = /^(?:AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface VaultFileLike {
   path: string;
@@ -26,238 +40,890 @@ interface VaultFolderLike {
   children: unknown[];
 }
 
-export interface EncodingPlanItem {
+export interface KnowledgeChangeScope {
+  kind: 'file' | 'directory' | 'selection';
+  depth: 'direct';
+  mode?: 'organize' | 'manual' | 'clear';
+  manualCode?: string;
+}
+
+export interface KnowledgePlanItem {
   originalPath: string;
   expectedContentHash: string;
   originalContent: string;
   newContent: string;
   newPath: string;
   code: string;
-  tag: Tag;
+  shortCode: string;
+  documentId: string;
+  changedFields: string[];
+  warnings: string[];
 }
 
-export interface EncodingPlan {
-  directory: string;
-  items: EncodingPlanItem[];
+export interface KnowledgeChangePlan {
+  operationId: string;
+  scope: KnowledgeChangeScope;
+  targetPaths: string[];
+  items: KnowledgePlanItem[];
   skipped: number;
+  warnings: string[];
+  blockedReasons: string[];
   conflicts: string[];
 }
 
-export interface EncodingApplyResult {
-  total: number;
-  assigned: number;
-  paths: string[];
+export interface KnowledgeSyncEvent {
+  schemaVersion: 1;
+  eventId: string;
+  operationId: string;
+  type: 'note.created' | 'note.updated' | 'note.renamed';
+  occurredAt: string;
+  documentId: string;
+  path: string;
+  encoding: string;
+  shortEncoding: string;
+  contentHash: string;
+  changedFields: string[];
 }
 
-export interface EncodingWorkflow {
-  previewDirectory(directory: string, orderedPaths?: string[]): Promise<EncodingPlan>;
-  previewFile(path: string, directory?: string): Promise<EncodingPlan>;
-  apply(plan: EncodingPlan, requestId?: string): Promise<EncodingApplyResult>;
+export interface KnowledgeTransactionResult {
+  operationId: string;
+  status: 'committed' | 'rolled_back' | 'rollback_failed';
+  changedPaths: string[];
+  recoveryPaths: string[];
+  syncEvents: KnowledgeSyncEvent[];
+  rollbackErrors: string[];
+  deliveryErrors: string[];
 }
 
-export function createEncodingWorkflow(
+interface AppliedJournal {
+  plan: KnowledgeChangePlan;
+  result: KnowledgeTransactionResult;
+  rollbackResult?: KnowledgeTransactionResult;
+}
+
+export interface KnowledgeWorkflowHooks {
+  rebuildIndex?: () => Promise<void>;
+  emitSyncEvents?: (events: KnowledgeSyncEvent[]) => Promise<void>;
+  appendAudit?: (result: KnowledgeTransactionResult) => Promise<void>;
+}
+
+export interface KnowledgeWorkflow {
+  previewTargets(paths: string[], scope: KnowledgeChangeScope): Promise<KnowledgeChangePlan>;
+  commitPlan(operationId: string): Promise<KnowledgeTransactionResult>;
+  rollbackOperation(operationId: string): Promise<KnowledgeTransactionResult>;
+}
+
+export function createKnowledgeWorkflow(
   app: App,
   coordinator: SyncCoordinator,
-): EncodingWorkflow {
+  hooks: KnowledgeWorkflowHooks = {},
+): KnowledgeWorkflow {
+  const plans = new Map<string, KnowledgeChangePlan>();
+  const applied = new Map<string, AppliedJournal>();
+
   return {
-    previewDirectory: (directory, orderedPaths) =>
-      previewEncodingDirectory(app, directory, orderedPaths),
-    previewFile: (path, directory) =>
-      previewEncodingFile(app, path, directory),
-    apply: (plan, requestId) =>
-      coordinator.run(`directory:${normalizeDirectory(plan.directory)}`, requestId, () =>
-        applyEncodingPlan(app, plan)),
+    async previewTargets(paths, scope) {
+      const plan = await previewKnowledgeTargets(app, paths, scope);
+      plans.set(plan.operationId, plan);
+      return plan;
+    },
+    commitPlan(operationId) {
+      const plan = plans.get(operationId);
+      if (!plan) throw codedError('KNOWLEDGE_PLAN_MISSING', `整理计划不存在或已过期：${operationId}`);
+      return coordinator.run('knowledge:vault', operationId, async () => {
+        const result = await commitKnowledgePlan(app, plan, hooks);
+        applied.set(operationId, { plan, result });
+        plans.delete(operationId);
+        return result;
+      });
+    },
+    rollbackOperation(operationId) {
+      const journal = applied.get(operationId);
+      if (!journal) throw codedError('KNOWLEDGE_ROLLBACK_MISSING', `没有可回滚的操作：${operationId}`);
+      return coordinator.run('knowledge:vault', `rollback:${operationId}`, async () => {
+        if (journal.rollbackResult) {
+          return retryRollbackDelivery(journal, hooks, applied);
+        }
+        await verifyRollbackFresh(app, journal.plan, journal.result.recoveryPaths);
+        const result = await restorePlan(
+          app,
+          journal.plan,
+          journal.result.recoveryPaths,
+          new Map(),
+          true,
+        );
+        if (result.status === 'rolled_back') {
+          await hooks.rebuildIndex?.();
+          result.syncEvents = journal.plan.items.map((item) =>
+            buildRollbackSyncEvent(operationId, item));
+          try {
+            await hooks.emitSyncEvents?.(result.syncEvents);
+          } catch (error) {
+            result.deliveryErrors.push(messageOf(error));
+            journal.rollbackResult = result;
+          }
+        }
+        if (result.status === 'rolled_back' && result.deliveryErrors.length === 0) {
+          applied.delete(operationId);
+        }
+        await hooks.appendAudit?.(result);
+        return result;
+      });
+    },
   };
 }
 
-export async function previewEncodingDirectory(
+export async function previewKnowledgeTargets(
   app: App,
-  directory: string,
-  orderedPaths?: string[],
-): Promise<EncodingPlan> {
-  const normalizedDirectory = normalizeDirectory(directory);
-  const folder = app.vault.getAbstractFileByPath(normalizedDirectory);
-  if (!isFolder(folder)) {
-    return { directory: normalizedDirectory, items: [], skipped: 0, conflicts: [] };
-  }
-
-  const files = folder.children.filter(isMarkdownFile);
-  const order = new Map((orderedPaths ?? []).map((path, index) => [path, index]));
-  files.sort((left, right) => {
-    const leftOrder = order.get(left.path);
-    const rightOrder = order.get(right.path);
-    if (leftOrder !== undefined || rightOrder !== undefined) {
-      return (leftOrder ?? Number.MAX_SAFE_INTEGER) - (rightOrder ?? Number.MAX_SAFE_INTEGER);
-    }
-    return left.path.localeCompare(right.path, 'zh-CN');
-  });
-  return buildPlan(app, normalizedDirectory, files);
-}
-
-export async function previewEncodingFile(
-  app: App,
-  path: string,
-  directory?: string,
-): Promise<EncodingPlan> {
-  const file = app.vault.getAbstractFileByPath(path);
-  const normalizedDirectory = normalizeDirectory(
-    directory ?? (isMarkdownFile(file) ? file.parent?.path ?? '' : ''),
-  );
-  if (!isMarkdownFile(file)) {
-    return { directory: normalizedDirectory, items: [], skipped: 0, conflicts: [] };
-  }
-  return buildPlan(app, normalizedDirectory, [file]);
-}
-
-export async function applyEncodingPlan(
-  app: App,
-  plan: EncodingPlan,
-): Promise<EncodingApplyResult> {
-  if (plan.conflicts.length > 0) {
-    throw new Error(`编码计划存在路径冲突：${plan.conflicts.join('、')}`);
-  }
-
-  const verified: Array<{ file: VaultFileLike; item: EncodingPlanItem }> = [];
-  for (const item of plan.items) {
-    const file = app.vault.getAbstractFileByPath(item.originalPath);
-    if (!isMarkdownFile(file)) {
-      throw stalePlanError(item.originalPath, '文件已移动或不存在');
-    }
-    const content = await app.vault.read(file as never);
-    if (hashContent(content) !== item.expectedContentHash) {
-      throw stalePlanError(item.originalPath, '内容已变化');
-    }
-    if (item.newPath !== item.originalPath) {
-      const target = app.vault.getAbstractFileByPath(item.newPath);
-      if (target && target !== file) {
-        throw stalePlanError(item.originalPath, `目标路径已被占用：${item.newPath}`);
-      }
-    }
-    verified.push({ file, item });
-  }
-
-  // 整批恢复点先全部落盘。任一恢复点创建失败时，不开始改名或改正文，
-  // 避免批处理中途才发现无法恢复而留下半完成状态。
-  for (const { item } of verified) {
-    await createRecoverySnapshot(app.vault.adapter, {
-      originalPath: item.originalPath,
-      content: item.originalContent,
-      source: 'local',
-    });
-  }
-
-  const paths: string[] = [];
-  for (const { file, item } of verified) {
-    if (item.newPath !== item.originalPath) {
-      await app.vault.rename(file as never, item.newPath);
-    }
-    const current = app.vault.getAbstractFileByPath(item.newPath);
-    if (!isMarkdownFile(current)) {
-      throw new Error(`重命名后无法定位文件：${item.newPath}`);
-    }
-    await app.vault.modify(current as never, item.newContent);
-    paths.push(item.newPath);
-  }
-
-  return { total: plan.items.length + plan.skipped, assigned: plan.items.length, paths };
-}
-
-async function buildPlan(
-  app: App,
-  directory: string,
-  files: VaultFileLike[],
-): Promise<EncodingPlan> {
-  const sequenceByTag = await collectSequences(app, directory);
-  const items: EncodingPlanItem[] = [];
+  paths: string[],
+  scope: KnowledgeChangeScope,
+): Promise<KnowledgeChangePlan> {
+  const operationId = randomUUID();
+  const targetPaths = [...new Set(paths.map(normalizePath))];
+  const warnings: string[] = [];
+  const blockedReasons: string[] = [];
   const conflicts: string[] = [];
-  let skipped = 0;
+  const expansion = expandTargets(app, targetPaths, scope, blockedReasons);
+  const files = expansion.files;
+  const targetFilePaths = new Set(files.map((file) => file.path));
+  const occupied = await collectOccupiedEncodings(app);
+  const reservedCodes = new Set<string>();
   const reservedPaths = new Set<string>();
+  const items: KnowledgePlanItem[] = [];
+  let skipped = expansion.skipped;
 
   for (const file of files) {
-    const content = await app.vault.read(file as never);
-    const { frontmatter, body } = parseFrontmatter(content);
-    const fm = frontmatter ?? {};
-    const yamlCode = typeof fm.编码 === 'string' ? fm.编码.trim() : '';
-    if (CODE_RE.test(yamlCode)) {
-      skipped += 1;
+    if (PROTECTED_PATH_RE.test(file.path)) {
+      blockedReasons.push(`${file.path}：受保护路径不允许整理`);
       continue;
     }
-
-    const filenameCode = file.basename.match(FILE_CODE_RE)?.[1];
-    const tag = inferTag(directory, fm.标签 as Tag | undefined);
-    const code = filenameCode && CODE_RE.test(filenameCode)
-      ? filenameCode
-      : allocateCode(tag, sequenceByTag);
-    const newContent = assembleFile({ ...fm, 标签: tag, 编码: code }, body);
-    const unprefixedName = file.basename.replace(FILE_CODE_RE, '');
-    const newPath = joinPath(directory, `${code} ${unprefixedName}.${file.extension}`);
-
-    const existing = app.vault.getAbstractFileByPath(newPath);
-    if ((existing && existing.path !== file.path) || reservedPaths.has(newPath)) {
-      conflicts.push(newPath);
+    const itemResult = await buildPlanItem(
+      app,
+      file,
+      scope,
+      occupied,
+      reservedCodes,
+      targetFilePaths,
+    );
+    if ('blocked' in itemResult) {
+      blockedReasons.push(...itemResult.blocked.map((reason) => `${file.path}：${reason}`));
+      warnings.push(...itemResult.warnings.map((warning) => `${file.path}：${warning}`));
+      continue;
     }
-    reservedPaths.add(newPath);
-    items.push({
+    if (!itemResult.item) {
+      skipped += 1;
+      warnings.push(...itemResult.warnings.map((warning) => `${file.path}：${warning}`));
+      continue;
+    }
+    const { item } = itemResult;
+    warnings.push(...itemResult.warnings.map((warning) => `${file.path}：${warning}`));
+    const existing = app.vault.getAbstractFileByPath(item.newPath);
+    const occupiedByMovingPlanItem = existing
+      && targetFilePaths.has(existing.path)
+      && existing.path !== item.originalPath;
+    if (
+      (existing && item.newPath !== item.originalPath && !occupiedByMovingPlanItem)
+      || reservedPaths.has(item.newPath)
+    ) {
+      conflicts.push(`${item.originalPath} → ${item.newPath}`);
+    }
+    reservedPaths.add(item.newPath);
+    items.push(item);
+  }
+
+  return {
+    operationId,
+    scope,
+    targetPaths,
+    items,
+    skipped,
+    warnings,
+    blockedReasons: [...new Set(blockedReasons)],
+    conflicts: [...new Set(conflicts)],
+  };
+}
+
+export async function commitKnowledgePlan(
+  app: App,
+  plan: KnowledgeChangePlan,
+  hooks: KnowledgeWorkflowHooks = {},
+): Promise<KnowledgeTransactionResult> {
+  if (plan.blockedReasons.length) {
+    throw codedError('KNOWLEDGE_PLAN_BLOCKED', `整理计划被阻止：${plan.blockedReasons.join('；')}`);
+  }
+  if (plan.conflicts.length) {
+    throw codedError('KNOWLEDGE_PLAN_CONFLICT', `整理计划存在冲突：${plan.conflicts.join('；')}`);
+  }
+
+  await verifyPlanFresh(app, plan);
+  const recoveryPaths: string[] = [];
+  for (const item of plan.items) {
+    try {
+      recoveryPaths.push(await createRecoverySnapshot(app.vault.adapter, {
+        originalPath: item.originalPath,
+        content: item.originalContent,
+        source: 'local',
+        // 事务恢复点不得在同一批次完成前被普通轮转淘汰。
+        deferRotation: true,
+      }));
+    } catch (error) {
+      let rotationFailure = '';
+      try {
+        await rotateRecoverySnapshots(
+          app.vault.adapter,
+          Math.max(200, recoveryPaths.length),
+          recoveryPaths,
+        );
+      } catch (rotationError) {
+        rotationFailure = `；恢复点轮转失败：${messageOf(rotationError)}`;
+      }
+      const existingRecovery = recoveryPaths.length
+        ? `；已创建恢复点：${recoveryPaths[0]}（共 ${recoveryPaths.length} 个）`
+        : '';
+      throw codedError(
+        'KNOWLEDGE_BACKUP_FAILED',
+        `整理事务未开始：${item.originalPath} 备份失败（${messageOf(error)}）${existingRecovery}${rotationFailure}`,
+      );
+    }
+  }
+  await rotateRecoverySnapshots(
+    app.vault.adapter,
+    Math.max(200, recoveryPaths.length),
+    recoveryPaths,
+  );
+
+  const changedPaths: string[] = [];
+  const temporaryPaths = new Map<string, string>();
+  try {
+    for (const item of plan.items) {
+      const file = app.vault.getAbstractFileByPath(item.originalPath);
+      if (!isMarkdownFile(file)) throw staleError(item.originalPath, '写入前文件不存在');
+      try {
+        await app.vault.modify(file as never, item.newContent);
+      } catch (error) {
+        throw operationError('写入', item.originalPath, error);
+      }
+    }
+
+    const renameItems = plan.items.filter((item) => item.newPath !== item.originalPath);
+    for (const [index, item] of renameItems.entries()) {
+      const file = app.vault.getAbstractFileByPath(item.originalPath);
+      if (!isMarkdownFile(file)) throw staleError(item.originalPath, '临时换序前文件不存在');
+      const temporaryPath = transactionTemporaryPath(item.originalPath, plan.operationId, index);
+      if (app.vault.getAbstractFileByPath(temporaryPath)) {
+        throw staleError(item.originalPath, `临时路径已被占用：${temporaryPath}`);
+      }
+      temporaryPaths.set(item.originalPath, temporaryPath);
+      try {
+        await renameWithLinks(app, file, temporaryPath);
+      } catch (error) {
+        throw operationError('临时换序', `${item.originalPath} → ${temporaryPath}`, error);
+      }
+    }
+    for (const item of plan.items) {
+      if (item.newPath === item.originalPath) {
+        changedPaths.push(item.originalPath);
+        continue;
+      }
+      const temporaryPath = temporaryPaths.get(item.originalPath);
+      const file = temporaryPath
+        ? app.vault.getAbstractFileByPath(temporaryPath)
+        : null;
+      if (!isMarkdownFile(file)) throw staleError(item.originalPath, '最终换序前临时文件不存在');
+      try {
+        await renameWithLinks(app, file, item.newPath);
+      } catch (error) {
+        throw operationError('最终换序', `${temporaryPath} → ${item.newPath}`, error);
+      }
+      changedPaths.push(item.newPath);
+    }
+
+    try {
+      await hooks.rebuildIndex?.();
+    } catch (error) {
+      throw operationError('重建索引', plan.operationId, error);
+    }
+    const syncEvents = plan.items.map((item) => buildSyncEvent(plan.operationId, item));
+    const result: KnowledgeTransactionResult = {
+      operationId: plan.operationId,
+      status: 'committed',
+      changedPaths,
+      recoveryPaths,
+      syncEvents,
+      rollbackErrors: [],
+      deliveryErrors: [],
+    };
+    await hooks.appendAudit?.(result);
+    try {
+      await hooks.emitSyncEvents?.(syncEvents);
+    } catch (error) {
+      result.deliveryErrors.push(error instanceof Error ? error.message : String(error));
+    }
+    return result;
+  } catch (error) {
+    const rollback = await restorePlan(app, plan, recoveryPaths, temporaryPaths);
+    await hooks.appendAudit?.(rollback);
+    const detail = error instanceof Error ? error.message : String(error);
+    const transactionError = codedError(
+      rollback.status === 'rolled_back' ? 'KNOWLEDGE_TRANSACTION_ROLLED_BACK' : 'KNOWLEDGE_ROLLBACK_FAILED',
+      `整理事务失败并${rollback.status === 'rolled_back' ? '已回滚' : '回滚不完整'}：${detail}`
+        + (recoveryPaths.length ? `；恢复点：${recoveryPaths[0]}（共 ${recoveryPaths.length} 个）` : ''),
+    ) as Error & { result?: KnowledgeTransactionResult };
+    transactionError.result = rollback;
+    throw transactionError;
+  }
+}
+
+export async function restorePlan(
+  app: App,
+  plan: KnowledgeChangePlan,
+  recoveryPaths: string[] = [],
+  temporaryPaths: ReadonlyMap<string, string> = new Map(),
+  verifyCommittedState = false,
+): Promise<KnowledgeTransactionResult> {
+  const rollbackErrors: string[] = [];
+  const restored: string[] = [];
+  const located = new Map<string, VaultFileLike>();
+  const usedFiles = new Set<VaultFileLike>();
+  const orderedItems = [...plan.items].reverse();
+
+  for (const [index, item] of orderedItems.entries()) {
+    try {
+      const candidates = [
+        item.newPath,
+        item.originalPath,
+        temporaryPaths.get(item.originalPath),
+        rollbackTemporaryPath(item.originalPath, plan.operationId, index),
+      ].filter((path): path is string => Boolean(path))
+        .map((path): unknown => app.vault.getAbstractFileByPath(path))
+        .filter((value): value is VaultFileLike => isMarkdownFile(value) && !usedFiles.has(value));
+      const current = await findRollbackCandidate(app, candidates, item);
+      if (!isMarkdownFile(current)) throw new Error('无法定位事务中的文件');
+      usedFiles.add(current);
+      located.set(item.originalPath, current);
+    } catch (error) {
+      rollbackErrors.push(`${item.originalPath}：${messageOf(error)}`);
+      if (verifyCommittedState) break;
+    }
+  }
+
+  if (rollbackErrors.length === 0) {
+    for (const [index, item] of orderedItems.entries()) {
+      const current = located.get(item.originalPath);
+      if (!current || current.path === item.originalPath) continue;
+      try {
+        if (verifyCommittedState) {
+          await assertRollbackContentFresh(app, current, item, recoveryPaths);
+        }
+        const rollbackPath = rollbackTemporaryPath(item.originalPath, plan.operationId, index);
+        const occupant: unknown = app.vault.getAbstractFileByPath(rollbackPath);
+        if (occupant && occupant !== current) throw new Error(`回滚临时路径已被占用：${rollbackPath}`);
+        await renameWithLinks(app, current, rollbackPath);
+      } catch (error) {
+        rollbackErrors.push(`${item.originalPath}：${messageOf(error)}`);
+        break;
+      }
+    }
+  }
+
+  if (rollbackErrors.length === 0) {
+    for (const item of orderedItems) {
+      const current = located.get(item.originalPath);
+      if (!current) continue;
+      try {
+        if (verifyCommittedState) {
+          await assertRollbackContentFresh(app, current, item, recoveryPaths);
+        }
+        if (current.path !== item.originalPath) {
+          const occupant: unknown = app.vault.getAbstractFileByPath(item.originalPath);
+          if (occupant && occupant !== current) throw new Error(`原路径已被占用：${item.originalPath}`);
+          await renameWithLinks(app, current, item.originalPath);
+        }
+      } catch (error) {
+        rollbackErrors.push(`${item.originalPath}：${messageOf(error)}`);
+        break;
+      }
+    }
+  }
+
+  if (rollbackErrors.length === 0) {
+    for (const item of orderedItems) {
+      try {
+        const original = app.vault.getAbstractFileByPath(item.originalPath);
+        if (!isMarkdownFile(original)) throw new Error('恢复路径后无法定位文件');
+        if (verifyCommittedState) {
+          await assertRollbackContentFresh(app, original, item, recoveryPaths);
+        }
+        await app.vault.modify(original as never, item.originalContent);
+        restored.push(item.originalPath);
+      } catch (error) {
+        rollbackErrors.push(`${item.originalPath}：${messageOf(error)}`);
+        break;
+      }
+    }
+  }
+  return {
+    operationId: plan.operationId,
+    status: rollbackErrors.length ? 'rollback_failed' : 'rolled_back',
+    changedPaths: restored,
+    recoveryPaths,
+    syncEvents: [],
+    rollbackErrors,
+    deliveryErrors: [],
+  };
+}
+
+async function buildPlanItem(
+  app: App,
+  file: VaultFileLike,
+  scope: KnowledgeChangeScope,
+  occupied: Map<string, string[]>,
+  reservedCodes: Set<string>,
+  targetFilePaths: ReadonlySet<string>,
+): Promise<
+  | { item: KnowledgePlanItem | null; warnings: string[] }
+  | { blocked: string[]; warnings: string[] }
+> {
+  const content = await app.vault.read(file as never);
+  const inspected = inspectFrontmatter(content);
+  if (inspected.status === 'invalid') {
+    return { blocked: [`frontmatter 损坏：${inspected.error ?? '无法解析'}`], warnings: [] };
+  }
+
+  const before = inspected.frontmatter ?? {};
+  const next = cloneRecord(before);
+  const warnings: string[] = [];
+  const blocked: string[] = [];
+  const filenameCode = file.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
+  const legacyFilenameCode = file.basename.match(LEGACY_FILE_PREFIX_RE)?.[1] ?? '';
+  const yamlCode = stringValue(before.编码);
+  const currentCode = FULL_ENCODING_RE.test(yamlCode)
+    ? yamlCode
+    : FULL_ENCODING_RE.test(filenameCode) ? filenameCode : '';
+
+  if (yamlCode && !FULL_ENCODING_RE.test(yamlCode)) warnings.push(`旧版或非法 YAML 编码：${yamlCode}`);
+  if (legacyFilenameCode && !filenameCode) warnings.push(`旧版文件名编码：${legacyFilenameCode}`);
+  if (filenameCode && yamlCode && filenameCode !== yamlCode) {
+    blocked.push(`文件名编码与 YAML 编码冲突（${filenameCode} / ${yamlCode}）`);
+  }
+
+  const mode = scope.mode ?? 'organize';
+  let code = '';
+  if (mode === 'clear') {
+    code = '';
+  } else if (mode === 'manual') {
+    code = scope.manualCode?.trim() ?? '';
+    if (!FULL_ENCODING_RE.test(code)) blocked.push(`手动编码格式不合法：${code || '空'}`);
+  } else if (currentCode) {
+    const selectedTag = stringValue(before.标签);
+    if (ALLOWED_TAGS.includes(selectedTag) && encodingTag(currentCode) !== selectedTag) {
+      const parts = currentCode.split('_');
+      code = `${parts[0]}_${parts[1]}_${selectedTag}_${parts[3]}_${parts.slice(4).join('_')}`;
+      warnings.push(`标签已变化，编码标签段将由 ${encodingTag(currentCode)} 更新为 ${selectedTag}`);
+    } else {
+      code = currentCode;
+    }
+  } else {
+    const tag = stringValue(before.标签);
+    if (!ALLOWED_TAGS.includes(tag)) {
+      blocked.push('缺少合法标签，不能由目录猜测标签');
+    } else {
+      code = allocateEncoding(before, tag, occupied, reservedCodes);
+    }
+  }
+
+  if (code) {
+    const tag = encodingTag(code);
+    const existingTag = stringValue(before.标签);
+    if (existingTag && existingTag !== tag) {
+      blocked.push(`标签与编码字母冲突（${existingTag} / ${tag}）`);
+    } else if (!existingTag && mode === 'manual') {
+      next.标签 = tag;
+    }
+    const owners = occupied.get(code) ?? [];
+    if (
+      owners.some((path) => path !== file.path && !targetFilePaths.has(path))
+      || reservedCodes.has(code)
+    ) {
+      blocked.push(`编码重复：${code}`);
+    }
+    next.编码 = code;
+    next.短编码 = deriveShortEncoding(code);
+    reservedCodes.add(code);
+  } else {
+    delete next.编码;
+    delete next.短编码;
+  }
+
+  normalizeRequiredFields(next, before, blocked);
+  if (blocked.length) return { blocked, warnings };
+
+  const unprefixedName = file.basename
+    .replace(FILE_PREFIX_RE, '')
+    .replace(LEGACY_FILE_PREFIX_RE, '');
+  const directory = normalizePath(file.parent?.path ?? '');
+  const newName = code ? `${code} ${unprefixedName}.${file.extension}` : `${unprefixedName}.${file.extension}`;
+  const newPath = joinPath(directory, newName);
+  const newContent = assembleFile(next, inspected.body, {
+    hasBom: inspected.hasBom,
+    lineEnding: inspected.lineEnding,
+  });
+  const changedFields = diffFields(before, next);
+  if (newPath !== file.path) changedFields.push('path');
+  if (newContent === content && newPath === file.path) return { item: null, warnings };
+
+  return {
+    warnings,
+    item: {
       originalPath: file.path,
       expectedContentHash: hashContent(content),
       originalContent: content,
       newContent,
       newPath,
       code,
-      tag,
-    });
-  }
-
-  return { directory, items, skipped, conflicts };
+      shortCode: code ? deriveShortEncoding(code) : '',
+      documentId: String(next.文档ID),
+      changedFields: [...new Set(changedFields)],
+      warnings,
+    },
+  };
 }
 
-async function collectSequences(app: App, directory: string): Promise<Map<Tag, number>> {
-  const maximums = new Map<Tag, number>();
-  const folder = app.vault.getAbstractFileByPath(directory);
-  if (!isFolder(folder)) return maximums;
+function normalizeRequiredFields(
+  next: Record<string, unknown>,
+  before: Record<string, unknown>,
+  blocked: string[],
+): void {
+  next.协议版本 = PROTOCOL_VERSION;
+  const documentId = stringValue(before.文档ID);
+  if (documentId && !UUID_RE.test(documentId)) {
+    blocked.push(`文档ID非法：${documentId}`);
+  } else {
+    next.文档ID = documentId || randomUUID();
+  }
 
-  for (const file of folder.children.filter(isMarkdownFile)) {
-    let code = file.basename.match(FILE_CODE_RE)?.[1];
-    if (!code) {
-      try {
-        const { frontmatter } = parseFrontmatter(await app.vault.read(file as never));
-        code = typeof frontmatter?.编码 === 'string' ? frontmatter.编码.trim() : undefined;
-      } catch {
+  const tag = stringValue(next.标签);
+  if (!ALLOWED_TAGS.includes(tag)) blocked.push(`标签缺失或非法：${tag || '空'}`);
+
+  const date = stringValue(before.日期);
+  next.日期 = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date
+    : new Date().toISOString().slice(0, 10);
+
+  const status = stringValue(before.状态);
+  if (status && !ALLOWED_STATUSES.includes(status)) {
+    blocked.push(`状态不在封闭枚举中：${status}`);
+  } else {
+    next.状态 = status || '收集';
+  }
+
+  for (const field of ARRAY_FIELDS) {
+    const value = before[field];
+    if (Array.isArray(value)) {
+      next[field] = [...new Set(value.map(String).filter(Boolean))];
+    } else if (value === undefined || value === null || value === '') {
+      next[field] = [];
+    } else if (field === '关键词') {
+      blocked.push('关键词仍是旧字符串，必须在预览中人工确认拆分');
+    } else {
+      next[field] = [String(value)];
+    }
+  }
+}
+
+function allocateEncoding(
+  frontmatter: Record<string, unknown>,
+  tag: string,
+  occupied: Map<string, string[]>,
+  reservedCodes: Set<string>,
+): string {
+  const date = stringValue(frontmatter.日期);
+  const stableDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date
+    : new Date().toISOString().slice(0, 10);
+  const timestamp = `${stableDate.slice(2, 4)}_${stableDate.slice(5, 7)}${stableDate.slice(8, 10)}`;
+  for (let sequence = 1; sequence <= 99; sequence += 1) {
+    const code = `${timestamp}_${tag}_${String(sequence).padStart(2, '0')}_a1`;
+    if (!occupied.has(code) && !reservedCodes.has(code)) return code;
+  }
+  throw codedError('KNOWLEDGE_NAMESPACE_FULL', `${timestamp}_${tag} 命名空间已满`);
+}
+
+async function collectOccupiedEncodings(app: App): Promise<Map<string, string[]>> {
+  const occupied = new Map<string, string[]>();
+  const files = typeof app.vault.getMarkdownFiles === 'function'
+    ? app.vault.getMarkdownFiles()
+    : [];
+  for (const file of files) {
+    if (!isMarkdownFile(file) || PROTECTED_PATH_RE.test(file.path)) continue;
+    let code = file.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
+    try {
+      const inspected = inspectFrontmatter(await app.vault.read(file as never));
+      const yamlCode = stringValue(inspected.frontmatter?.编码);
+      if (FULL_ENCODING_RE.test(yamlCode)) code = yamlCode;
+    } catch {
+      // 损坏文档会在自己的预览中阻断，不参与猜测。
+    }
+    if (!code) continue;
+    occupied.set(code, [...(occupied.get(code) ?? []), file.path]);
+  }
+  return occupied;
+}
+
+function expandTargets(
+  app: App,
+  paths: string[],
+  scope: KnowledgeChangeScope,
+  blockedReasons: string[],
+): { files: VaultFileLike[]; skipped: number } {
+  const result: VaultFileLike[] = [];
+  let skipped = 0;
+  for (const path of paths) {
+    const target = path
+      ? app.vault.getAbstractFileByPath(path)
+      : app.vault.getRoot();
+    if (isMarkdownFile(target)) {
+      result.push(target);
+      continue;
+    }
+    if (isFolder(target)) {
+      if (scope.depth !== 'direct') {
+        blockedReasons.push(`${path || '/'}：只允许直属层整理`);
         continue;
       }
+      result.push(...target.children.filter(isMarkdownFile));
+      continue;
     }
-    const match = code?.match(CODE_RE);
-    if (!match) continue;
-    const tag = match[3] as Tag;
-    maximums.set(tag, Math.max(maximums.get(tag) ?? 0, Number(match[4])));
+    if (scope.kind === 'selection') {
+      skipped += 1;
+    } else {
+      blockedReasons.push(`${path || '/'}：不是可整理的 Markdown 文件或目录`);
+    }
   }
-  return maximums;
+  return {
+    files: [...new Map(result.map((file) => [file.path, file])).values()],
+    skipped,
+  };
 }
 
-function allocateCode(tag: Tag, maximums: Map<Tag, number>): string {
-  const next = (maximums.get(tag) ?? 0) + 1;
-  maximums.set(tag, next);
-  const now = new Date();
-  const yy = String(now.getFullYear()).slice(2);
-  const mmdd = `${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
-  return `${yy}_${mmdd}_${tag}_${String(next).padStart(2, '0')}`;
+async function verifyPlanFresh(app: App, plan: KnowledgeChangePlan): Promise<void> {
+  const originalPaths = new Set(plan.items.map((item) => item.originalPath));
+  const occupied = await collectOccupiedEncodings(app);
+  for (const item of plan.items) {
+    const file = app.vault.getAbstractFileByPath(item.originalPath);
+    if (!isMarkdownFile(file)) throw staleError(item.originalPath, '文件已移动或不存在');
+    const content = await app.vault.read(file as never);
+    if (hashContent(content) !== item.expectedContentHash) {
+      throw staleError(item.originalPath, '内容已变化');
+    }
+    if (item.newPath !== item.originalPath) {
+      const target = app.vault.getAbstractFileByPath(item.newPath);
+      if (target && target !== file && !originalPaths.has(target.path)) {
+        throw staleError(item.originalPath, `目标路径已被占用：${item.newPath}`);
+      }
+    }
+    if (item.code) {
+      const owners = occupied.get(item.code) ?? [];
+      const outsidePlan = owners.filter((path) => path !== item.originalPath && !originalPaths.has(path));
+      if (outsidePlan.length) {
+        throw staleError(item.originalPath, `编码已被占用：${item.code} → ${outsidePlan.join(', ')}`);
+      }
+    }
+  }
 }
 
-function inferTag(directory: string, existingTag?: Tag): Tag {
-  if (existingTag && ['S', 'X', 'L', 'Z', 'Q', 'J'].includes(existingTag)) {
-    return existingTag;
+async function verifyRollbackFresh(
+  app: App,
+  plan: KnowledgeChangePlan,
+  recoveryPaths: string[],
+): Promise<void> {
+  const orderedItems = [...plan.items].reverse();
+  for (const [index, item] of orderedItems.entries()) {
+    const candidates = [
+      item.newPath,
+      item.originalPath,
+      rollbackTemporaryPath(item.originalPath, plan.operationId, index),
+    ].map((path): unknown => app.vault.getAbstractFileByPath(path))
+      .filter(isMarkdownFile);
+    const current = await findRollbackCandidate(app, candidates, item);
+    if (!isMarkdownFile(current)) {
+      throw codedError(
+        'KNOWLEDGE_ROLLBACK_STALE',
+        `拒绝覆盖式回滚（${item.newPath}）：提交后的文件已移动；原恢复点：${recoveryPaths[0] ?? '无'}`,
+      );
+    }
+    const currentContent = await app.vault.read(current as never);
+    if (
+      hashContent(currentContent) === hashContent(item.newContent)
+      || hashContent(currentContent) === hashContent(item.originalContent)
+    ) continue;
+    const currentRecovery = await createRecoverySnapshot(app.vault.adapter, {
+      originalPath: current.path,
+      content: currentContent,
+      source: 'local',
+    });
+    throw codedError(
+      'KNOWLEDGE_ROLLBACK_STALE',
+      `拒绝覆盖式回滚（${item.newPath}）：提交后内容已变化；当前内容恢复点：${currentRecovery}`,
+    );
   }
-  for (const [hint, tag] of Object.entries(TAG_BY_DIR_HINT)) {
-    if (directory.startsWith(hint)) return tag;
+}
+
+async function findRollbackCandidate(
+  app: App,
+  candidates: VaultFileLike[],
+  item: KnowledgePlanItem,
+): Promise<VaultFileLike | undefined> {
+  const expectedHashes = new Set([
+    hashContent(item.newContent),
+    hashContent(item.originalContent),
+  ]);
+  for (const candidate of candidates) {
+    const content = await app.vault.read(candidate as never);
+    if (expectedHashes.has(hashContent(content))) return candidate;
   }
-  if (directory.includes('知识池') || directory.includes('🗃')) {
-    if (directory.includes('领域')) return 'L';
-    if (directory.includes('灵感')) return 'Q';
-    if (directory.includes('技能')) return 'J';
-    return 'Z';
+  return candidates[0];
+}
+
+async function assertRollbackContentFresh(
+  app: App,
+  current: VaultFileLike,
+  item: KnowledgePlanItem,
+  recoveryPaths: string[],
+): Promise<void> {
+  const currentContent = await app.vault.read(current as never);
+  const currentHash = hashContent(currentContent);
+  if (
+    currentHash === hashContent(item.newContent)
+    || currentHash === hashContent(item.originalContent)
+  ) {
+    return;
   }
-  if (directory.includes('输出') || directory.includes('1️⃣')) return 'X';
-  return 'S';
+  const currentRecovery = await createRecoverySnapshot(app.vault.adapter, {
+    originalPath: current.path,
+    content: currentContent,
+    source: 'local',
+  });
+  throw codedError(
+    'KNOWLEDGE_ROLLBACK_STALE',
+    `拒绝覆盖式回滚（${item.newPath}）：提交后内容已变化；当前内容恢复点：${currentRecovery}`
+      + `；原恢复点：${recoveryPaths[0] ?? '无'}`,
+  );
+}
+
+async function renameWithLinks(app: App, file: VaultFileLike, newPath: string): Promise<void> {
+  const fileManager = (app as App & {
+    fileManager?: { renameFile?: (file: unknown, path: string) => Promise<void> };
+  }).fileManager;
+  if (fileManager?.renameFile) {
+    await fileManager.renameFile(file, newPath);
+  } else {
+    await app.vault.rename(file as never, newPath);
+  }
+}
+
+function buildSyncEvent(operationId: string, item: KnowledgePlanItem): KnowledgeSyncEvent {
+  return {
+    schemaVersion: 1,
+    eventId: randomUUID(),
+    operationId,
+    type: item.originalPath === item.newPath ? 'note.updated' : 'note.renamed',
+    occurredAt: new Date().toISOString(),
+    documentId: item.documentId,
+    path: item.newPath,
+    encoding: item.code,
+    shortEncoding: item.shortCode,
+    contentHash: hashContent(item.newContent),
+    changedFields: item.changedFields,
+  };
+}
+
+function buildRollbackSyncEvent(
+  operationId: string,
+  item: KnowledgePlanItem,
+): KnowledgeSyncEvent {
+  const inspected = inspectFrontmatter(item.originalContent);
+  const encoding = stringValue(inspected.frontmatter?.编码);
+  const shortEncoding = stringValue(inspected.frontmatter?.短编码);
+  return {
+    schemaVersion: 1,
+    eventId: randomUUID(),
+    operationId: `rollback:${operationId}`,
+    type: item.originalPath === item.newPath ? 'note.updated' : 'note.renamed',
+    occurredAt: new Date().toISOString(),
+    documentId: item.documentId,
+    path: item.originalPath,
+    encoding,
+    shortEncoding,
+    contentHash: hashContent(item.originalContent),
+    changedFields: item.changedFields,
+  };
+}
+
+async function retryRollbackDelivery(
+  journal: AppliedJournal,
+  hooks: KnowledgeWorkflowHooks,
+  applied: Map<string, AppliedJournal>,
+): Promise<KnowledgeTransactionResult> {
+  const result = journal.rollbackResult;
+  if (!result) throw new Error('回滚补偿状态不存在');
+  result.deliveryErrors = [];
+  try {
+    await hooks.emitSyncEvents?.(result.syncEvents);
+  } catch (error) {
+    result.deliveryErrors.push(messageOf(error));
+  }
+  if (result.deliveryErrors.length === 0) {
+    applied.delete(journal.plan.operationId);
+    journal.rollbackResult = undefined;
+  }
+  await hooks.appendAudit?.(result);
+  return result;
+}
+
+function diffFields(before: Record<string, unknown>, after: Record<string, unknown>): string[] {
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter((field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]));
+}
+
+function cloneRecord(value: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function normalizePath(path: string): string {
+  return path.replace(/^\/+|\/+$/g, '');
+}
+
+function joinPath(directory: string, name: string): string {
+  return directory ? `${directory}/${name}` : name;
+}
+
+function transactionTemporaryPath(
+  originalPath: string,
+  operationId: string,
+  index: number,
+): string {
+  const separator = originalPath.lastIndexOf('/');
+  const directory = separator >= 0 ? originalPath.slice(0, separator) : '';
+  return joinPath(directory, `.${operationId}.${index}.knowflow-tmp.md`);
+}
+
+function rollbackTemporaryPath(
+  originalPath: string,
+  operationId: string,
+  index: number,
+): string {
+  const separator = originalPath.lastIndexOf('/');
+  const directory = separator >= 0 ? originalPath.slice(0, separator) : '';
+  return joinPath(directory, `.${operationId}.${index}.knowflow-rollback.md`);
+}
+
+function hashContent(content: string): string {
+  return createHash('sha256').update(content).digest('hex');
 }
 
 function isMarkdownFile(value: unknown): value is VaultFileLike {
@@ -272,38 +938,20 @@ function isFolder(value: unknown): value is VaultFolderLike {
   return Boolean(value && typeof value === 'object' && Array.isArray((value as VaultFolderLike).children));
 }
 
-function normalizeDirectory(directory: string): string {
-  return directory.replace(/^\/+|\/+$/g, '');
+function staleError(path: string, reason: string): Error & { code: string } {
+  return codedError('KNOWLEDGE_PLAN_STALE', `整理预览已过期（${path}）：${reason}`);
 }
 
-function joinPath(directory: string, name: string): string {
-  return directory ? `${directory}/${name}` : name;
-}
-
-function hashContent(content: string): string {
-  return createHash('sha256').update(content).digest('hex');
-}
-
-function stalePlanError(path: string, reason: string): Error & { code: string } {
-  const error = new Error(`编码预览已过期（${path}）：${reason}`) as Error & { code: string };
-  error.code = 'ENCODING_PLAN_STALE';
+function codedError(code: string, message: string): Error & { code: string } {
+  const error = new Error(message) as Error & { code: string };
+  error.code = code;
   return error;
 }
 
-export function decodeEncoding(code: string): {
-  yy: string;
-  mmdd: string;
-  tag: Tag;
-  seq: number;
-  sub?: string;
-} | null {
-  const match = code.match(CODE_RE);
-  if (!match) return null;
-  return {
-    yy: match[1],
-    mmdd: match[2],
-    tag: match[3] as Tag,
-    seq: Number(match[4]),
-    sub: match[5],
-  };
+function operationError(action: string, target: string, error: unknown): Error {
+  return new Error(`${action}失败（${target}）：${messageOf(error)}`);
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

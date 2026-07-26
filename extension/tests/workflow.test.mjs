@@ -46,6 +46,28 @@ test('a workflow succeeds only after the real task returns its final path', asyn
   assert.deepEqual(operation.result, { path: 'notes/final.md', action: 'created' });
 });
 
+test('a capture landing with a real proposal remains awaiting confirmation', async () => {
+  const { store } = makeStore();
+  const result = await store.run('clip', 'request-proposal', async () => ({
+    path: 'capture.md',
+    action: 'created',
+    proposalId: 'proposal-1',
+    requiresConfirmation: true,
+    protocolVersion: 1,
+  }));
+  const operation = (await store.list())[0];
+
+  assert.equal(result.proposalId, 'proposal-1');
+  assert.equal(operation.state, 'awaiting-confirmation');
+  assert.deepEqual(operation.result, {
+    path: 'capture.md',
+    action: 'created',
+    proposalId: 'proposal-1',
+    requiresConfirmation: true,
+    protocolVersion: 1,
+  });
+});
+
 test('failures persist a redacted terminal error and remain retryable as a new operation', async () => {
   const { store } = makeStore();
   await assert.rejects(

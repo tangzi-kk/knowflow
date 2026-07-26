@@ -10,6 +10,8 @@ import * as YAML from 'js-yaml';
 const FM_DELIMITER = '---';
 /** frontmatter 输出时的字段顺序。依据 `02_YAML字段规范.md` §一模板。 */
 const FIELD_ORDER = [
+    '协议版本',
+    '文档ID',
     'feishu_id',
     'feishu_doc_id',
     'feishu_title',
@@ -17,6 +19,7 @@ const FIELD_ORDER = [
     'sync_time',
     '标签',
     '编码',
+    '短编码',
     '输入',
     '日期',
     '日期索引',
@@ -24,6 +27,7 @@ const FIELD_ORDER = [
     '概述',
     '评分',
     '评分_显示',
+    '状态',
     '索引_知识库',
     '索引_颜色',
     '索引_操作&反馈',
@@ -67,32 +71,83 @@ export function serializeFrontmatter(fm) {
  * @returns { frontmatter, body }，frontmatter 为 null 表示无 frontmatter
  */
 export function parseFrontmatter(content) {
+    const inspected = inspectFrontmatter(content);
+    if (inspected.status === 'valid') {
+        return { frontmatter: inspected.frontmatter, body: inspected.body };
+    }
+    if (inspected.status === 'invalid') {
+        console.warn('[sync/shared] frontmatter parse failed:', inspected.error);
+    }
+    return { frontmatter: null, body: content };
+}
+/**
+ * 严格检查 frontmatter，区分“没有 frontmatter”和“存在但损坏”。
+ * 写事务必须使用本函数，避免把损坏的 YAML 当正文再包一层 frontmatter。
+ */
+export function inspectFrontmatter(content) {
     const offset = content.charCodeAt(0) === 0xfeff ? 1 : 0;
+    const lineEnding = content.includes('\r\n') ? '\r\n' : '\n';
+    const base = {
+        hasBom: offset === 1,
+        lineEnding,
+    };
     if (!content.startsWith(FM_DELIMITER, offset)) {
-        return { frontmatter: null, body: content };
+        return {
+            ...base,
+            status: 'none',
+            frontmatter: null,
+            body: content,
+        };
     }
     const rest = content.slice(offset + FM_DELIMITER.length);
     const match = rest.match(/^\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/);
     if (!match) {
-        return { frontmatter: null, body: content };
+        return {
+            ...base,
+            status: 'invalid',
+            frontmatter: null,
+            body: content,
+            error: 'frontmatter 分隔符未闭合',
+        };
     }
     const yamlBlock = match[1];
     const bodyStart = offset + FM_DELIMITER.length + match[0].length;
     const body = content.slice(bodyStart).replace(/^(?:\r?\n)+/, '');
     try {
         const fm = YAML.load(yamlBlock);
-        return { frontmatter: fm ?? {}, body };
+        if (fm !== undefined && (fm === null || Array.isArray(fm) || typeof fm !== 'object')) {
+            return {
+                ...base,
+                status: 'invalid',
+                frontmatter: null,
+                body: content,
+                error: 'frontmatter 顶层必须是对象',
+            };
+        }
+        return {
+            ...base,
+            status: 'valid',
+            frontmatter: fm ?? {},
+            body,
+        };
     }
     catch (e) {
-        // YAML 解析失败：视为无 frontmatter
-        console.warn('[sync/shared] frontmatter parse failed:', e);
-        return { frontmatter: null, body: content };
+        return {
+            ...base,
+            status: 'invalid',
+            frontmatter: null,
+            body: content,
+            error: e instanceof Error ? e.message : String(e),
+        };
     }
 }
 /**
  * 将 frontmatter + body 拼成完整文件内容。
  */
-export function assembleFile(fm, body) {
-    return `${serializeFrontmatter(fm)}\n\n${body}`;
+export function assembleFile(fm, body, format) {
+    const lineEnding = format?.lineEnding ?? '\n';
+    const serialized = serializeFrontmatter(fm).replace(/\n/g, lineEnding);
+    const bom = format?.hasBom ? '\uFEFF' : '';
+    return `${bom}${serialized}${lineEnding}${lineEnding}${body}`;
 }
 //# sourceMappingURL=yaml.js.map

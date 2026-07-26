@@ -19,6 +19,7 @@ export const SERVER_CAPABILITIES = [
     'clip',
     'exists',
     'pushback',
+    'capture-proposal-v1',
 ];
 /** 完整写入协议的最低能力集合。 */
 export const REQUIRED_WRITE_CAPABILITIES = [

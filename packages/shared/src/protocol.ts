@@ -17,7 +17,24 @@ export const TOKEN_HEADER = 'X-Sync-Token';
 /** 跨端协议版本；不一致时写操作必须失败关闭。 */
 export const PROTOCOL_VERSION = 1;
 
-export type SyncCapability = 'status' | 'tree' | 'fetch' | 'clip' | 'exists' | 'pushback';
+export type SyncCapability =
+  | 'status'
+  | 'tree'
+  | 'fetch'
+  | 'clip'
+  | 'exists'
+  | 'pushback'
+  | 'capture-proposal-v1';
+
+/** 内容已安全落地、但知识库整理事务仍需用户确认时返回的提案引用。 */
+export interface KnowledgeProposalRef {
+  /** 交给 Obsidian 端知识库工作流继续预览/提交的提案 ID。 */
+  proposalId: string;
+  /** 写死为 true，防止调用方把内容落地误认为编码事务已完成。 */
+  requiresConfirmation: true;
+  /** 生成该提案的本地协议版本。 */
+  protocolVersion: typeof PROTOCOL_VERSION;
+}
 
 export interface ProtocolInfo {
   protocolVersion: number;
@@ -38,6 +55,7 @@ export const SERVER_CAPABILITIES: readonly SyncCapability[] = [
   'clip',
   'exists',
   'pushback',
+  'capture-proposal-v1',
 ];
 
 /** 完整写入协议的最低能力集合。 */
@@ -146,7 +164,7 @@ export interface FetchRequest {
 }
 
 /** POST /fetch 响应。 */
-export interface FetchResponse {
+export interface FetchResponse extends KnowledgeProposalRef {
   ok: true;
   /** 落地完整路径（相对 vault 根）。 */
   path: string;
@@ -154,7 +172,7 @@ export interface FetchResponse {
   filename: string;
   /** 本次是新建还是更新。 */
   action: 'created' | 'updated';
-  /** 分配到的编码（auto-rename 触发后）。 */
+  /** @deprecated 内容落地不再静默编码；字段仅为旧调用方兼容保留。 */
   编码?: string;
   /** 飞书原始标题。 */
   feishu_title: string;
@@ -187,7 +205,7 @@ export interface ClipRequest {
 }
 
 /** POST /clip 响应。 */
-export interface ClipResponse {
+export interface ClipResponse extends KnowledgeProposalRef {
   ok: true;
   /** 落地完整路径（相对 vault 根）。 */
   path: string;

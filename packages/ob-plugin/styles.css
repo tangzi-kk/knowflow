@@ -3,6 +3,10 @@
  */
 
 /* ── 标题 ── */
+.fstb-settings-root {
+  container-type: inline-size;
+}
+
 .fstb-title {
   margin-bottom: 12px !important;
 }
@@ -144,115 +148,125 @@ body.fstb-hide-system-properties .metadata-property:has(.metadata-property-key-i
   display: none !important;
 }
 
-/* 本层编码重排 */
-.fstb-layer-sort-modal {
-  display: flex;
-  flex-direction: column;
-  width: min(760px, calc(100vw - 48px));
-  max-height: calc(100vh - 120px);
-  overflow: hidden;
-}
-
-.fstb-sort-list {
+/* 整理事务预览 */
+.fstb-encoding-preview-list {
   display: grid;
-  gap: 6px;
-  margin: 14px 0;
-  min-height: 120px;
-  max-height: none;
-  flex: 1 1 auto;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.fstb-sort-row {
-  display: grid;
-  grid-template-columns: 22px 64px minmax(0, 1fr) 104px 70px;
   gap: 8px;
-  align-items: center;
-  min-height: 48px;
-  padding: 6px 8px;
+  max-height: min(50vh, 480px);
+  margin: 12px 0;
+  overflow-y: auto;
+}
+
+.fstb-encoding-preview-row {
+  min-width: 0;
+  padding: 8px 10px;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
-  background: var(--background-primary);
+  overflow-wrap: anywhere;
 }
 
-.fstb-sort-row.is-dragging {
-  opacity: 0.55;
-  border-color: var(--interactive-accent);
+.fstb-plan-blockers,
+.fstb-plan-conflicts,
+.fstb-plan-warnings {
+  padding: 8px 10px;
+  margin: 8px 0;
+  border-radius: 6px;
+  overflow-wrap: anywhere;
 }
 
-.fstb-sort-handle {
-  cursor: grab;
-  color: var(--text-muted);
-  font-size: 18px;
-  text-align: center;
+.fstb-plan-blockers,
+.fstb-plan-conflicts {
+  background: rgba(var(--color-red-rgb), 0.12);
+  color: var(--text-error);
 }
 
-.fstb-sort-code {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.fstb-plan-warnings {
+  background: rgba(var(--color-yellow-rgb), 0.12);
 }
 
-.fstb-sort-title {
+.fstb-advanced-actions {
+  margin: 12px 0;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+}
+
+.fstb-advanced-row {
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.fstb-advanced-row input {
+  flex: 1 1 260px;
   min-width: 0;
-  flex-direction: column;
 }
 
-.fstb-sort-title strong,
-.fstb-sort-title span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.fstb-recent-sync-list {
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
-.fstb-sort-title span {
-  color: var(--text-muted);
-  font-size: var(--font-smallest);
-}
-
-.fstb-sort-type {
-  width: 100%;
-}
-
-.fstb-sort-row-actions,
-.fstb-sort-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
-}
-
-.fstb-sort-actions {
-  flex: 0 0 auto;
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
-  padding: 12px 0 2px;
-  border-top: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-}
-
-.fstb-structure-modal .fstb-sort-actions {
-  margin-top: 16px;
-}
-
-.fstb-sort-row-actions button {
-  width: 30px;
-  height: 30px;
-  padding: 0;
-}
-
-@media (max-width: 700px) {
-  .fstb-layer-sort-modal {
-    width: calc(100vw - 32px);
+/* 设置页窄宽度：标题/说明与控件分行，避免开关压住文案。 */
+@media (max-width: 520px) {
+  .fstb-title {
+    font-size: 1.35em;
   }
 
-  .fstb-sort-row {
-    grid-template-columns: 22px 58px minmax(0, 1fr) 66px;
+  .fstb-tab {
+    padding-inline: 10px;
   }
 
-  .fstb-sort-type {
-    grid-column: 3 / 5;
+  .fstb-tab-content .setting-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fstb-tab-content .setting-item-info,
+  .fstb-tab-content .setting-item-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fstb-tab-content .setting-item-control {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .fstb-tab-content .setting-item-control input[type='text'] {
+    width: 100%;
+  }
+}
+
+@container (max-width: 520px) {
+  .fstb-title {
+    font-size: 1.35em;
+  }
+
+  .fstb-tab {
+    padding-inline: 10px;
+  }
+
+  .fstb-tab-content .setting-item {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .fstb-tab-content .setting-item-info,
+  .fstb-tab-content .setting-item-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .fstb-tab-content .setting-item-control {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .fstb-tab-content .setting-item-control input[type='text'] {
+    width: 100%;
   }
 }

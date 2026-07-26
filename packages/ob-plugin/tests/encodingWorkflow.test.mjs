@@ -14,15 +14,17 @@ registerHooks({
 });
 
 const {
-  applyEncodingPlan,
-  createEncodingWorkflow,
-  previewEncodingDirectory,
+  commitKnowledgePlan,
+  createKnowledgeWorkflow,
+  previewKnowledgeTargets,
 } = await import('../src/encodingWorkflow.ts');
 
 class MemoryAdapter {
   directories = new Set();
   files = new Map();
   events;
+  failWriteAt = 0;
+  writeCount = 0;
 
   constructor(events) {
     this.events = events;
@@ -37,6 +39,8 @@ class MemoryAdapter {
   }
 
   async write(path, content) {
+    this.writeCount += 1;
+    if (this.failWriteAt === this.writeCount) throw new Error('backup disk full');
     this.events.push({ kind: 'recovery', path, content });
     this.files.set(path, content);
   }
@@ -53,35 +57,67 @@ class MemoryAdapter {
   }
 }
 
-function createApp() {
-  const events = [];
-  const behavior = { failRename: false };
-  const directory = { path: '0️⃣输入', children: [] };
-  const note = {
-    path: '0️⃣输入/测试.md',
-    name: '测试.md',
-    basename: '测试',
+function note(path, content, parent) {
+  const name = path.split('/').pop();
+  return {
+    path,
+    name,
+    basename: name.replace(/\.md$/, ''),
     extension: 'md',
-    parent: directory,
-    content: '---\n标签: S\n---\n# 测试\n',
+    parent,
+    content,
   };
-  directory.children.push(note);
-  const entries = new Map([
-    [directory.path, directory],
-    [note.path, note],
-  ]);
+}
+
+function validContent(tag = 'S', body = '# 测试\n') {
+  return `---\n标签: ${tag}\n日期: 2026-07-26\n状态: 收集\n---\n${body}`;
+}
+
+function createApp(contents = [validContent()]) {
+  const events = [];
+  const behavior = {
+    failRenameAt: 0,
+    failModifyAt: 0,
+    renameCount: 0,
+    modifyCount: 0,
+    readCount: 0,
+    onRead: null,
+  };
+  const root = { path: '', name: '', children: [] };
+  const directory = { path: '0️⃣输入', name: '0️⃣输入', children: [] };
+  root.children.push(directory);
+  const entries = new Map([[directory.path, directory]]);
+  contents.forEach((content, index) => {
+    const title = index === 0 ? '测试' : `第${index + 1}篇`;
+    const file = note(`0️⃣输入/${title}.md`, content, directory);
+    directory.children.push(file);
+    entries.set(file.path, file);
+  });
   const adapter = new MemoryAdapter(events);
   const vault = {
     adapter,
     getAbstractFileByPath(path) {
       return entries.get(path) ?? null;
     },
+    getRoot() {
+      return root;
+    },
+    getMarkdownFiles() {
+      return [...entries.values()].filter((entry) => entry.extension === 'md');
+    },
     async read(file) {
-      return file.content;
+      behavior.readCount += 1;
+      const content = file.content;
+      await behavior.onRead?.(file, behavior.readCount);
+      return content;
     },
     async rename(file, newPath) {
+      behavior.renameCount += 1;
       events.push({ kind: 'rename', from: file.path, to: newPath });
-      if (behavior.failRename) throw new Error('rename denied');
+      if (behavior.failRenameAt === behavior.renameCount) {
+        behavior.failRenameAt = 0;
+        throw new Error('rename denied');
+      }
       entries.delete(file.path);
       file.path = newPath;
       file.name = newPath.split('/').pop();
@@ -89,86 +125,333 @@ function createApp() {
       entries.set(newPath, file);
     },
     async modify(file, content) {
+      behavior.modifyCount += 1;
       events.push({ kind: 'modify', path: file.path });
+      if (behavior.failModifyAt === behavior.modifyCount) {
+        behavior.failModifyAt = 0;
+        throw new Error('modify denied');
+      }
       file.content = content;
     },
   };
-  return { app: { vault }, behavior, directory, entries, events, note };
+  return {
+    app: { vault },
+    adapter,
+    behavior,
+    directory,
+    root,
+    entries,
+    events,
+    notes: directory.children,
+  };
 }
 
-test('preview is pure and produces no recovery, rename, or content write', async () => {
+const directoryScope = { kind: 'directory', depth: 'direct' };
+
+test('preview is pure and proposes strict encoding, short code, identity and protocol', async () => {
   const fixture = createApp();
-  const plan = await previewEncodingDirectory(fixture.app, fixture.directory.path);
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
 
   assert.equal(plan.items.length, 1);
-  assert.equal(plan.items[0].originalPath, '0️⃣输入/测试.md');
-  assert.match(plan.items[0].newPath, /^0️⃣输入\/\d{2}_\d{4}_S_01 测试\.md$/);
+  assert.match(plan.items[0].code, /^26_0726_S_01_a1$/);
+  assert.equal(plan.items[0].shortCode, 'S01.a1');
+  assert.match(plan.items[0].documentId, /^[0-9a-f-]{36}$/);
+  assert.match(plan.items[0].newContent, /协议版本:\s*1/);
+  assert.match(plan.items[0].newContent, /短编码:\s*S01\.a1/);
   assert.deepEqual(fixture.events, []);
-  assert.equal(fixture.note.content, '---\n标签: S\n---\n# 测试\n');
 });
 
-test('apply rejects a stale preview before any recovery or mutation', async () => {
+test('missing label is blocked instead of inferred from directory', async () => {
+  const fixture = createApp(['---\n日期: 2026-07-26\n状态: 收集\n---\n正文']);
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.equal(plan.items.length, 0);
+  assert.match(plan.blockedReasons.join('\n'), /不能由目录猜测标签/);
+});
+
+test('invalid YAML is blocked and never wrapped in a second frontmatter', async () => {
+  const original = '---\n标签: [\n---\n正文';
+  const fixture = createApp([original]);
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.equal(plan.items.length, 0);
+  assert.match(plan.blockedReasons.join('\n'), /frontmatter 损坏/);
+  assert.equal(fixture.notes[0].content, original);
+});
+
+test('a human tag change proposes the matching encoding segment and keeps document identity', async () => {
+  const content = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: X
+编码: 26_0726_S_01_a1
+短编码: S01.a1
+日期: 2026-07-26
+状态: 收集
+---
+正文`;
+  const fixture = createApp([content]);
+  const file = fixture.notes[0];
+  fixture.entries.delete(file.path);
+  file.path = '0️⃣输入/26_0726_S_01_a1 测试.md';
+  file.name = '26_0726_S_01_a1 测试.md';
+  file.basename = '26_0726_S_01_a1 测试';
+  fixture.entries.set(file.path, file);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.equal(plan.blockedReasons.length, 0);
+  assert.equal(plan.items[0].code, '26_0726_X_01_a1');
+  assert.equal(plan.items[0].shortCode, 'X01.a1');
+  assert.equal(plan.items[0].documentId, '550e8400-e29b-41d4-a716-446655440000');
+  assert.match(plan.warnings.join('\n'), /编码标签段将由 S 更新为 X/);
+});
+
+test('root directory scope is direct-only and selection skips unsupported files', async () => {
   const fixture = createApp();
-  const plan = await previewEncodingDirectory(fixture.app, fixture.directory.path);
-  fixture.note.content += '\n用户刚刚修改';
+  const rootNote = note('根文档.md', validContent('X'), fixture.root);
+  fixture.root.children.push(rootNote);
+  fixture.entries.set(rootNote.path, rootNote);
+  const image = {
+    path: '0️⃣输入/图片.png',
+    name: '图片.png',
+    basename: '图片',
+    extension: 'png',
+    parent: fixture.directory,
+  };
+  fixture.entries.set(image.path, image);
+
+  const rootPlan = await previewKnowledgeTargets(fixture.app, [''], directoryScope);
+  assert.deepEqual(rootPlan.items.map((item) => item.originalPath), ['根文档.md']);
+
+  const selectionPlan = await previewKnowledgeTargets(
+    fixture.app,
+    [fixture.notes[0].path, image.path],
+    { kind: 'selection', depth: 'direct' },
+  );
+  assert.equal(selectionPlan.items.length, 1);
+  assert.equal(selectionPlan.skipped, 1);
+  assert.equal(selectionPlan.blockedReasons.length, 0);
+});
+
+test('commit rejects stale preview before recovery or mutation', async () => {
+  const fixture = createApp();
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+  fixture.notes[0].content += '\n用户刚刚修改';
+
+  await assert.rejects(commitKnowledgePlan(fixture.app, plan), /预览已过期.*内容已变化/);
+  assert.deepEqual(fixture.events, []);
+});
+
+test('commit rechecks global encoding uniqueness after preview', async () => {
+  const fixture = createApp();
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+  const code = plan.items[0].code;
+  const external = note(
+    `外部/${code} 抢占.md`,
+    `---
+协议版本: 1
+文档ID: 650e8400-e29b-41d4-a716-446655440000
+标签: S
+编码: ${code}
+短编码: S01.a1
+日期: 2026-07-26
+状态: 收集
+---
+外部写入`,
+    { path: '外部' },
+  );
+  fixture.entries.set(external.path, external);
 
   await assert.rejects(
-    applyEncodingPlan(fixture.app, plan),
-    /编码预览已过期.*内容已变化/,
+    commitKnowledgePlan(fixture.app, plan),
+    /预览已过期.*编码已被占用/,
   );
-  assert.deepEqual(fixture.events, []);
+  assert.equal(fixture.events.some((event) => event.kind === 'recovery'), false);
 });
 
-test('recovery snapshot completes before rename and content write', async () => {
-  const fixture = createApp();
-  const plan = await previewEncodingDirectory(fixture.app, fixture.directory.path);
-  const result = await applyEncodingPlan(fixture.app, plan);
+test('two-path encoding swap commits and explicitly rolls back through temporary paths', async () => {
+  const first = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: X
+编码: 26_0726_S_01_a1
+短编码: S01.a1
+日期: 2026-07-26
+状态: 收集
+---
+第一篇`;
+  const second = `---
+协议版本: 1
+文档ID: 650e8400-e29b-41d4-a716-446655440000
+标签: S
+编码: 26_0726_X_01_a1
+短编码: X01.a1
+日期: 2026-07-26
+状态: 收集
+---
+第二篇`;
+  const fixture = createApp([first, second]);
+  const paths = [
+    '0️⃣输入/26_0726_S_01_a1 同名.md',
+    '0️⃣输入/26_0726_X_01_a1 同名.md',
+  ];
+  fixture.notes.forEach((file, index) => {
+    fixture.entries.delete(file.path);
+    file.path = paths[index];
+    file.name = paths[index].split('/').pop();
+    file.basename = file.name.replace(/\.md$/, '');
+    fixture.entries.set(file.path, file);
+  });
+  const coordinator = { run: async (_key, _requestId, task) => task() };
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
 
-  assert.equal(result.assigned, 1);
+  assert.equal(plan.conflicts.length, 0);
+  const result = await workflow.commitPlan(plan.operationId);
+  assert.equal(result.status, 'committed');
+  assert.deepEqual(
+    new Set(fixture.notes.map((file) => file.path)),
+    new Set(paths),
+  );
+  assert.equal(
+    fixture.events.filter((event) => event.kind === 'rename')
+      .some((event) => event.to.includes('.knowflow-tmp.md')),
+    true,
+  );
+  const rolledBack = await workflow.rollbackOperation(plan.operationId);
+  assert.equal(rolledBack.status, 'rolled_back');
+  assert.deepEqual(
+    fixture.notes.map((file) => file.path),
+    paths,
+  );
+  assert.equal(fixture.notes[0].content, first);
+  assert.equal(fixture.notes[1].content, second);
+  assert.equal(
+    fixture.events.filter((event) => event.kind === 'rename')
+      .some((event) => event.to.includes('.knowflow-rollback.md')),
+    true,
+  );
+});
+
+test('commit creates all recoveries, writes content, renames, rebuilds and then emits events', async () => {
+  const fixture = createApp([validContent(), validContent()]);
+  const hookEvents = [];
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+  const result = await commitKnowledgePlan(fixture.app, plan, {
+    rebuildIndex: async () => hookEvents.push('index'),
+    emitSyncEvents: async (events) => hookEvents.push(['sync', events]),
+  });
+
+  assert.equal(result.status, 'committed');
   assert.deepEqual(
     fixture.events.map((event) => event.kind),
-    ['recovery', 'rename', 'modify'],
+    ['recovery', 'recovery', 'modify', 'modify', 'rename', 'rename', 'rename', 'rename'],
   );
-  assert.match(fixture.note.content, /编码:\s*["']?\d{2}_\d{4}_S_01/);
+  assert.equal(hookEvents[0], 'index');
+  assert.equal(hookEvents[1][0], 'sync');
+  assert.equal(hookEvents[1][1].length, 2);
+  assert.equal(hookEvents[1][1][0].documentId.length, 36);
 });
 
-test('batch writes every recovery snapshot before the first mutation', async () => {
+test('backup failure identifies the object and starts no mutation or success event', async () => {
+  const fixture = createApp([validContent(), validContent()]);
+  const emitted = [];
+  fixture.adapter.failWriteAt = 2;
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  await assert.rejects(
+    commitKnowledgePlan(fixture.app, plan, { emitSyncEvents: async (events) => emitted.push(events) }),
+    /第2篇\.md 备份失败.*backup disk full/,
+  );
+  assert.equal(fixture.events.some((event) => event.kind === 'modify' || event.kind === 'rename'), false);
+  assert.deepEqual(emitted, []);
+});
+
+test('repeated partial backup failures still keep the recovery directory bounded', async () => {
+  const fixture = createApp([validContent(), validContent()]);
+  for (let index = 0; index < 205; index += 1) {
+    fixture.adapter.failWriteAt = fixture.adapter.writeCount + 2;
+    const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+    await assert.rejects(commitKnowledgePlan(fixture.app, plan), /备份失败/);
+  }
+  assert.equal(fixture.adapter.files.size <= 200, true);
+});
+
+for (const failurePosition of [1, 2, 3]) {
+  test(`modify failure at batch position ${failurePosition} restores every document`, async () => {
+    const fixture = createApp([validContent(), validContent(), validContent()]);
+    const originals = fixture.notes.map((item) => ({ path: item.path, content: item.content }));
+    fixture.behavior.failModifyAt = failurePosition;
+    const emitted = [];
+    const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+    await assert.rejects(
+      commitKnowledgePlan(fixture.app, plan, { emitSyncEvents: async (events) => emitted.push(events) }),
+      (error) => {
+        assert.match(error.message, /失败并已回滚.*写入失败.*modify denied/);
+        assert.match(error.message, /恢复点：\.feishu-sync\/recovery\//);
+        return true;
+      },
+    );
+    assert.deepEqual(
+      fixture.notes.map((item) => ({ path: item.path, content: item.content })),
+      originals,
+    );
+    assert.deepEqual(emitted, []);
+  });
+}
+
+test('rename failure restores YAML and original path', async () => {
   const fixture = createApp();
-  const second = {
-    path: '0️⃣输入/第二篇.md',
-    name: '第二篇.md',
-    basename: '第二篇',
-    extension: 'md',
-    parent: fixture.directory,
-    content: '---\n标签: S\n---\n# 第二篇\n',
-  };
-  fixture.directory.children.push(second);
-  fixture.entries.set(second.path, second);
+  const original = { path: fixture.notes[0].path, content: fixture.notes[0].content };
+  fixture.behavior.failRenameAt = 1;
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
 
-  const plan = await previewEncodingDirectory(fixture.app, fixture.directory.path);
-  await applyEncodingPlan(fixture.app, plan);
-
-  assert.deepEqual(
-    fixture.events.map((event) => event.kind),
-    ['recovery', 'recovery', 'rename', 'modify', 'rename', 'modify'],
-  );
+  await assert.rejects(commitKnowledgePlan(fixture.app, plan), /失败并已回滚.*临时换序失败.*rename denied/);
+  assert.equal(fixture.notes[0].path, original.path);
+  assert.equal(fixture.notes[0].content, original.content);
 });
 
-test('rename failure rejects and is never reported as a successful write', async () => {
-  const fixture = createApp();
-  const plan = await previewEncodingDirectory(fixture.app, fixture.directory.path);
-  fixture.behavior.failRename = true;
+test('index failure after all file changes restores names and YAML without an event', async () => {
+  const fixture = createApp([validContent(), validContent()]);
+  const originals = fixture.notes.map((item) => ({ path: item.path, content: item.content }));
+  const emitted = [];
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
 
-  await assert.rejects(applyEncodingPlan(fixture.app, plan), /rename denied/);
-  assert.deepEqual(
-    fixture.events.map((event) => event.kind),
-    ['recovery', 'rename'],
+  await assert.rejects(
+    commitKnowledgePlan(fixture.app, plan, {
+      rebuildIndex: async () => {
+        throw new Error('index read-only');
+      },
+      emitSyncEvents: async (events) => emitted.push(events),
+    }),
+    /失败并已回滚.*重建索引失败.*index read-only/,
   );
-  assert.equal(fixture.note.path, '0️⃣输入/测试.md');
-  assert.equal(fixture.events.some((event) => event.kind === 'modify'), false);
+  assert.deepEqual(
+    fixture.notes.map((item) => ({ path: item.path, content: item.content })),
+    originals,
+  );
+  assert.deepEqual(emitted, []);
 });
 
-test('workflow applies through the directory coordination key', async () => {
+test('duplicate YAML encoding is a blocking conflict', async () => {
+  const duplicate = `---\n协议版本: 1\n文档ID: 550e8400-e29b-41d4-a716-446655440000\n标签: S\n编码: 26_0726_S_01_a1\n短编码: S01.a1\n日期: 2026-07-26\n状态: 收集\n---\n正文`;
+  const fixture = createApp([duplicate, duplicate.replace('550e8400', '650e8400')]);
+  fixture.notes.forEach((item, index) => {
+    const next = `0️⃣输入/26_0726_S_01_a1 文档${index + 1}.md`;
+    fixture.entries.delete(item.path);
+    item.path = next;
+    item.name = next.split('/').pop();
+    item.basename = item.name.replace(/\.md$/, '');
+    fixture.entries.set(next, item);
+  });
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.match(plan.blockedReasons.join('\n'), /编码重复/);
+});
+
+test('stateful workflow exposes only preview, commit and rollback paths', async () => {
   const fixture = createApp();
   const keys = [];
   const coordinator = {
@@ -177,9 +460,91 @@ test('workflow applies through the directory coordination key', async () => {
       return task();
     },
   };
-  const workflow = createEncodingWorkflow(fixture.app, coordinator);
-  const plan = await workflow.previewDirectory(fixture.directory.path);
-  await workflow.apply(plan, 'encoding-test');
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
+  const committed = await workflow.commitPlan(plan.operationId);
+  const rolledBack = await workflow.rollbackOperation(plan.operationId);
 
-  assert.deepEqual(keys, [['directory:0️⃣输入', 'encoding-test']]);
+  assert.equal(committed.status, 'committed');
+  assert.equal(rolledBack.status, 'rolled_back');
+  assert.equal(fixture.notes[0].path, '0️⃣输入/测试.md');
+  assert.deepEqual(keys.map(([key]) => key), [
+    'knowledge:vault',
+    'knowledge:vault',
+  ]);
+  assert.deepEqual(Object.keys(workflow).sort(), [
+    'commitPlan',
+    'previewTargets',
+    'rollbackOperation',
+  ]);
+});
+
+test('explicit rollback refuses to overwrite post-commit edits and preserves a new recovery point', async () => {
+  const fixture = createApp();
+  const coordinator = { run: async (_key, _requestId, task) => task() };
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
+  await workflow.commitPlan(plan.operationId);
+  fixture.notes[0].content += '\n提交后用户编辑';
+
+  await assert.rejects(
+    workflow.rollbackOperation(plan.operationId),
+    /拒绝覆盖式回滚.*当前内容恢复点/,
+  );
+  assert.match(fixture.notes[0].content, /提交后用户编辑/);
+});
+
+test('multi-file rollback rechecks content immediately before every destructive step', async () => {
+  const fixture = createApp([validContent(), validContent()]);
+  const coordinator = { run: async (_key, _requestId, task) => task() };
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
+  await workflow.commitPlan(plan.operationId);
+  fixture.behavior.readCount = 0;
+  fixture.behavior.onRead = (file, count) => {
+    if (count === 5) file.content += '\n并发编辑';
+  };
+
+  const result = await workflow.rollbackOperation(plan.operationId);
+
+  assert.equal(result.status, 'rollback_failed');
+  assert.match(result.rollbackErrors.join('\n'), /拒绝覆盖式回滚/);
+  assert.equal(fixture.notes.some((file) => file.content.includes('并发编辑')), true);
+  assert.equal(
+    fixture.events.some((event) => event.kind === 'recovery' && event.content.includes('并发编辑')),
+    true,
+  );
+});
+
+test('failed rollback keeps its journal and succeeds after the path conflict is removed', async () => {
+  const fixture = createApp();
+  const coordinator = { run: async (_key, _requestId, task) => task() };
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
+  await workflow.commitPlan(plan.operationId);
+  const occupant = note(plan.items[0].originalPath, validContent('X'), fixture.directory);
+  fixture.entries.set(occupant.path, occupant);
+
+  const first = await workflow.rollbackOperation(plan.operationId);
+  assert.equal(first.status, 'rollback_failed');
+  fixture.entries.delete(occupant.path);
+  const second = await workflow.rollbackOperation(plan.operationId);
+  assert.equal(second.status, 'rolled_back');
+});
+
+test('successful rollback emits a compensating sync event', async () => {
+  const fixture = createApp();
+  const coordinator = { run: async (_key, _requestId, task) => task() };
+  const deliveries = [];
+  const workflow = createKnowledgeWorkflow(fixture.app, coordinator, {
+    emitSyncEvents: async (events) => deliveries.push(events),
+  });
+  const plan = await workflow.previewTargets([fixture.directory.path], directoryScope);
+  await workflow.commitPlan(plan.operationId);
+  const rolledBack = await workflow.rollbackOperation(plan.operationId);
+
+  assert.equal(rolledBack.status, 'rolled_back');
+  assert.equal(deliveries.length, 2);
+  assert.match(deliveries[1][0].operationId, /^rollback:/);
+  assert.equal(deliveries[1][0].path, plan.items[0].originalPath);
 });

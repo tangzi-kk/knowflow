@@ -8,14 +8,14 @@ const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const bundle = await readFile(path.resolve(testDirectory, '../main.js'), 'utf8');
 const runtime = bundle.slice(0, bundle.lastIndexOf('//# sourceMappingURL='));
 
-test('the shipped bundle contains the 4.0.0 settings migration path', () => {
+test('the shipped bundle contains the 4.1 settings migration path', () => {
   assert.equal(
     /function migrateSettings\(input\)/.test(runtime),
     true,
     'bundle must include migrateSettings',
   );
   assert.equal(
-    /migrateSettings\(await this\.loadData\(\)\)/.test(runtime),
+    /const migration = migrateSettings\(saved\)/.test(runtime),
     true,
     'plugin load must call migrateSettings',
   );

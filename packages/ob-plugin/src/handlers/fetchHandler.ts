@@ -8,11 +8,10 @@
  * 4. exists 检查：已有同 feishu_id → 更新分支；无 → 新建
  * 5. 组装 YAML（feishu_id/feishu_doc_id/feishu_title/sync_time）+ 正文
  * 6. 文件名 = 安全清洗(feishu_title)，写入 dir
- * 7. auto-rename 触发编码 → 写回文件名 + YAML 编码
- * 8. 计算 sync_hash，写 sync_time
- * 9. 返回落地路径
+ * 7. 为落地文件创建待确认的知识库整理提案（不静默编码）
+ * 8. 返回落地路径 + proposal 引用
  */
-import type { FetchRequest, FetchResponse } from '@sync/shared';
+import { PROTOCOL_VERSION, type FetchRequest, type FetchResponse } from '@sync/shared';
 import { App, TFile, TFolder } from 'obsidian';
 import type { RequestContext } from '../server.js';
 import type { FeishuSyncSettings, PluginState } from '../settings.js';
@@ -24,7 +23,6 @@ import {
   makeFilename,
   makePath,
 } from '../fileio/writer.js';
-import { assignEncoding } from '../autoRename.js';
 import { findUniqueVaultBinding } from '../vaultBinding.js';
 import { normalizeVaultDir, normalizeVaultMarkdownPath } from '../vaultPath.js';
 import { assertReplacementBinding } from '../bindingIndex.js';
@@ -37,6 +35,14 @@ export interface FetchDeps {
   settings: FeishuSyncSettings;
   state: PluginState;
   notice: (msg: string) => void;
+  /**
+   * 由主插件知识库事务工作流注入。handler 只请求预览提案，
+   * 不在内容落地链路里自行实现编码事务或发布同步事件。
+   */
+  createKnowledgeProposal: (input: {
+    paths: string[];
+    source: 'fetch' | 'clip';
+  }) => Promise<{ proposalId: string; protocolVersion: typeof PROTOCOL_VERSION }>;
 }
 
 export function createFetchHandler(deps: FetchDeps) {
@@ -83,7 +89,6 @@ export function createFetchHandler(deps: FetchDeps) {
     const syncTime = new Date().toISOString();
     let action: 'created' | 'updated';
     let finalPath: string;
-    let encoding: string | undefined;
 
     if (existingFile) {
       // 更新分支：保留用户改的元数据，只刷正文 + 绑定字段
@@ -157,29 +162,41 @@ export function createFetchHandler(deps: FetchDeps) {
 
       deps.notice(`✅ 已创建 ${filename}`);
 
-      // 步骤 7：auto-rename 编码分配
-      if (settings.autoRename) {
-        try {
-          encoding = await assignEncoding(deps.app, finalPath, targetDir);
-          if (encoding) {
-            deps.notice(`🔢 编码：${encoding}`);
-          }
-        } catch (err) {
-          console.warn('[sync/fetch] auto-rename failed:', err);
-          deps.notice(`⚠ 文档已创建，但自动编码失败：${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
     }
 
+    const proposal = await createPendingProposal(deps, finalPath);
     return {
       ok: true,
       path: finalPath,
       filename: finalPath.split('/').pop() ?? '',
       action,
-      编码: encoding,
       feishu_title: feishuTitle,
+      proposalId: proposal.proposalId,
+      requiresConfirmation: true,
+      protocolVersion: proposal.protocolVersion,
     };
   };
+}
+
+async function createPendingProposal(
+  deps: FetchDeps,
+  path: string,
+): Promise<{ proposalId: string; protocolVersion: typeof PROTOCOL_VERSION }> {
+  try {
+    return await deps.createKnowledgeProposal({ paths: [path], source: 'fetch' });
+  } catch (error) {
+    throw proposalFailure(path, error);
+  }
+}
+
+function proposalFailure(path: string, cause: unknown): Error & { code: string; status: number } {
+  const error = new Error(
+    `内容已落地到 ${path}，但整理提案创建失败；请先检查该文件，不要盲目重试。`
+      + ` 原因：${cause instanceof Error ? cause.message : String(cause)}`,
+  ) as Error & { code: string; status: number };
+  error.code = 'KNOWLEDGE_PROPOSAL_FAILED_AFTER_LANDING';
+  error.status = 500;
+  return error;
 }
 
 /**

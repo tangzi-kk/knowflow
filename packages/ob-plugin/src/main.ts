@@ -9,6 +9,7 @@
  * 5. 卸载时停止 server
  */
 import { Plugin, Notice, TFile } from 'obsidian';
+import { PROTOCOL_VERSION } from '@sync/shared';
 import {
   type FeishuSyncSettings,
   type PluginState,
@@ -27,7 +28,7 @@ import { createPushbackHandler } from './handlers/pushbackHandler.js';
 import { registerCommands } from './commands.js';
 import { registerFetchEntrypoints } from './fetchEntrypoints.js';
 import { registerImageRenderer, cleanupImageCache } from './imageRender.js';
-import { refreshMapping } from './mapping.js';
+import { registerKnowFlowRibbon } from './uiEntry.js';
 import {
   isSystemPropertyKey,
   SYSTEM_PROPERTY_BODY_CLASS,
@@ -40,6 +41,15 @@ import type { ClipRequest, FetchRequest, PushbackRequest } from '@sync/shared';
 import { extractFeishuId } from './bindingIndex.js';
 import { normalizeVaultDir, normalizeVaultMarkdownPath } from './vaultPath.js';
 import { appendActivity, normalizeActivity, type ActivityKind } from './activity.js';
+import {
+  createKnowledgeWorkflow,
+  type KnowledgeChangePlan,
+  type KnowledgeTransactionResult,
+  type KnowledgeWorkflow,
+} from './encodingWorkflow.js';
+import { rebuildEncodingIndex } from './encodingIndex.js';
+
+const DEFAULT_CAPTURE_PROPOSALS = true;
 
 export class FeishuSyncPlugin extends Plugin {
   settings!: FeishuSyncSettings;
@@ -48,6 +58,8 @@ export class FeishuSyncPlugin extends Plugin {
   private systemPropertyObserver?: MutationObserver;
   private activitySaveTail: Promise<void> = Promise.resolve();
   readonly syncCoordinator = new SyncCoordinator();
+  knowledgeWorkflow!: KnowledgeWorkflow;
+  private pendingKnowledgePlans: KnowledgeChangePlan[] = [];
 
   async onload(): Promise<void> {
     enableCli();
@@ -70,6 +82,19 @@ export class FeishuSyncPlugin extends Plugin {
       await this.saveSettings();
     }
     this.applySystemPropertiesVisibility();
+    this.knowledgeWorkflow = createKnowledgeWorkflow(this.app, this.syncCoordinator, {
+      rebuildIndex: async () => {
+        await rebuildEncodingIndex(this.app);
+      },
+      appendAudit: async (result) => {
+        this.recordKnowledgeTransaction(result);
+      },
+      emitSyncEvents: async (events) => {
+        for (const event of events) {
+          document.dispatchEvent(new CustomEvent('knowflow:sync-event', { detail: event }));
+        }
+      },
+    });
 
     // 探测 lark-cli
     const larkInfo = resolveCli(this.settings.larkCliPath || undefined);
@@ -85,20 +110,14 @@ export class FeishuSyncPlugin extends Plugin {
     // 设置页
     this.addSettingTab(new FeishuSyncSettingTab(this.app, this));
 
-    // 命令
-    registerCommands(this);
-    registerFetchEntrypoints(this);
-
-    // 图片渲染
-    registerImageRenderer(this);
+    // UI 入口互相隔离：单一 Ribbon 或菜单注册失败时，不中断本地服务。
+    this.registerUi('KnowFlow 按钮', () => registerKnowFlowRibbon(this));
+    this.registerUi('命令与文件树菜单', () => registerCommands(this));
+    this.registerUi('拉取入口', () => registerFetchEntrypoints(this));
+    this.registerUi('图片渲染', () => registerImageRenderer(this));
 
     // 启动 HTTP server
     await this.startHttpServer();
-
-    // ribbon 图标
-    this.addRibbonIcon('refresh-cw', '飞书同步', async () => {
-      await refreshMapping(this.app, this.settings.spaceId);
-    });
 
     // 启动时清理一次过期缓存
     this.app.workspace.onLayoutReady(() => {
@@ -106,6 +125,15 @@ export class FeishuSyncPlugin extends Plugin {
     });
 
     console.log(`[fs-TB] ${this.manifest.version} loaded on port ${this.settings.port}`);
+  }
+
+  private registerUi(label: string, register: () => void): void {
+    try {
+      register();
+    } catch (error) {
+      console.error(`[fs-TB] 注册${label}失败：`, error);
+      new Notice(`⚠️ ${label}注册失败，其余功能不受影响`);
+    }
   }
 
   async onunload(): Promise<void> {
@@ -127,9 +155,22 @@ export class FeishuSyncPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<boolean> {
-    const migration = migrateSettings(await this.loadData());
+    const saved = await this.loadData() as Record<string, unknown> | null;
+    const migration = migrateSettings(saved);
     this.settings = migration.settings;
-    return migration.changed;
+    let changed = migration.changed;
+
+    // 4.1 将旧 autoRename 迁移为“采集后生成待确认建议”。
+    // 无论旧值为何，写通道使用的 autoRename 都关闭，避免 fetch/clip 静默编码。
+    if (this.settings.createProposalsAfterCapture !== DEFAULT_CAPTURE_PROPOSALS) {
+      this.settings.createProposalsAfterCapture = DEFAULT_CAPTURE_PROPOSALS;
+      changed = true;
+    }
+    if (this.settings.autoRename !== false) {
+      this.settings.autoRename = false;
+      changed = true;
+    }
+    return changed;
   }
 
   async saveSettings(): Promise<void> {
@@ -223,6 +264,7 @@ export class FeishuSyncPlugin extends Plugin {
       settings: this.settings,
       state: this.state,
       notice: (m) => new Notice(m),
+      createKnowledgeProposal: (input) => this.createKnowledgeProposal(input),
     });
     routes.set('/fetch', (ctx) => {
       const req = ctx.body as FetchRequest;
@@ -235,6 +277,7 @@ export class FeishuSyncPlugin extends Plugin {
       app: this.app,
       settings: this.settings,
       notice: (m) => new Notice(m),
+      createKnowledgeProposal: (input) => this.createKnowledgeProposal(input),
     });
     routes.set('/clip', (ctx) => {
       const req = ctx.body as ClipRequest;
@@ -286,6 +329,55 @@ export class FeishuSyncPlugin extends Plugin {
       });
       throw error;
     }
+  }
+
+  async createKnowledgeProposal(input: {
+    paths: string[];
+    source: 'fetch' | 'clip';
+  }): Promise<{ proposalId: string; protocolVersion: typeof PROTOCOL_VERSION }> {
+    const plan = await this.knowledgeWorkflow.previewTargets(input.paths, {
+      kind: input.paths.length > 1 ? 'selection' : 'file',
+      depth: 'direct',
+      mode: 'organize',
+    });
+    this.pendingKnowledgePlans = [
+      plan,
+      ...this.pendingKnowledgePlans.filter((item) => item.operationId !== plan.operationId),
+    ].slice(0, 20);
+    this.recordActivity({
+      time: new Date().toISOString(),
+      kind: 'system',
+      status: plan.blockedReasons.length ? 'failed' : 'succeeded',
+      action: `${input.source}-proposal`,
+      path: input.paths[0],
+      errorCode: plan.blockedReasons.length ? 'KNOWLEDGE_PLAN_BLOCKED' : undefined,
+    });
+    return {
+      proposalId: plan.operationId,
+      protocolVersion: PROTOCOL_VERSION,
+    };
+  }
+
+  getPendingKnowledgePlans(): readonly KnowledgeChangePlan[] {
+    return this.pendingKnowledgePlans;
+  }
+
+  consumeKnowledgePlan(operationId: string): void {
+    this.pendingKnowledgePlans = this.pendingKnowledgePlans
+      .filter((plan) => plan.operationId !== operationId);
+  }
+
+  private recordKnowledgeTransaction(result: KnowledgeTransactionResult): void {
+    this.recordActivity({
+      time: new Date().toISOString(),
+      kind: 'system',
+      status: result.status === 'committed' || result.status === 'rolled_back'
+        ? 'succeeded'
+        : 'failed',
+      action: `knowledge-${result.status}`,
+      path: result.changedPaths[0],
+      errorCode: result.status === 'rollback_failed' ? 'KNOWLEDGE_ROLLBACK_FAILED' : undefined,
+    });
   }
 
   private recordActivity(record: Record<string, unknown>): void {

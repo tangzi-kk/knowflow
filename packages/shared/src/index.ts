@@ -37,6 +37,7 @@ export type {
   ErrorResponse,
   ProtocolInfo,
   ProtocolCompatibility,
+  KnowledgeProposalRef,
   SyncCapability,
   ObsidianLarkDocParams,
   ProgressStage,
@@ -71,8 +72,10 @@ export {
 export {
   serializeFrontmatter,
   parseFrontmatter,
+  inspectFrontmatter,
   assembleFile,
 } from './yaml.js';
+export type { FrontmatterInspection } from './yaml.js';
 export {
   stripVariationSelectors,
   unescapeFeishuTilde,

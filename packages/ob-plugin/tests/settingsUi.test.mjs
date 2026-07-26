@@ -33,9 +33,12 @@ test('the unified Obsidian settings page exposes the recovered six tabs', () => 
   assert.match(settingsSource, /fstb-tab-content/);
 });
 
-test('the restored UI only maps Lark Doc and encoding to current safe settings', () => {
+test('the restored UI maps Lark Doc and encoding proposals to current safe settings', () => {
   assert.match(settingsSource, /this\.plugin\.settings\.defaultNoteFolder/);
-  assert.match(settingsSource, /this\.plugin\.settings\.autoRename/);
+  assert.match(settingsSource, /采集后始终生成待确认整理建议/);
+  assert.match(settingsSource, /不提供静默写入开关/);
+  assert.match(settingsSource, /同步装饰\/排版图片/);
+  assert.match(settingsSource, /装饰图片和排版素材会同步落地/);
   assert.doesNotMatch(settingsSource, /registerView/);
   assert.doesNotMatch(settingsSource, /registerObsidianProtocolHandler/);
   assert.doesNotMatch(settingsSource, /require\(['"]\.\.\/lark-doc\.js['"]\)/);
@@ -50,9 +53,15 @@ test('the Obsidian package ships the recovered tab styles', () => {
     '.fstb-tab-active',
     '.fstb-tab-content h3',
     '.fstb-info-box',
+    '.fstb-encoding-preview-list',
+    '.fstb-advanced-actions',
   ]) {
     assert.equal(styles.includes(selector), true, `missing ${selector}`);
   }
 
   assert.match(buildConfig, /access\(new URL\('\.\/styles\.css'/);
+  assert.match(styles, /@media \(max-width: 520px\)/);
+  assert.match(styles, /@container \(max-width: 520px\)/);
+  assert.match(styles, /container-type: inline-size/);
+  assert.match(styles, /\.fstb-tab-content \.setting-item-control/);
 });
