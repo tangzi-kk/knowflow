@@ -1,37 +1,34 @@
-# KnowFlow 4.0 升级进度
+# KnowFlow 4.1 发布收口
 
 ## 当前决策
 
-- 执行规格：`SPEC.md`
-- 实施计划：`docs/plans/2026-07-19-knowflow-4.0.md`
-- 开发线：`4.0.2`，包含融合设置 UI、安全编码流程，以及浏览器 AI Provider 路由、Gemini Web 模型目录和 DeepSeek Web 消息桥修复。
-- 发布状态：源码、构建产物、双端安装包和文档已提交并同步到 GitHub `main`。
-- 不再拆分中间发布；自动通过项与必须真机执行的项目分开记录。
+- 协议上游：`tangzi-kk/skr-knowledge` 1.2.1，协议主版本保持为 1。
+- 唯一实现：`tangzi-kk/knowflow` 4.1.0；`obsidian-auto-rename` 仅作为事务核心迁移来源。
+- 发布状态：源码、文档、双端安装包、SHA256 和真机门禁已完成，4.1.0 为当前稳定版。
+- 本机 Obsidian 运行目录：`.obsidian/plugins/fs-TB/`；浏览器从 4.1.0 解包目录加载。
 
 ## 子目标状态
 
 | 子目标 | 状态 | 说明 |
 | --- | --- | --- |
-| 3.2.2 可升级基线 | 已完成 | 身份/设置迁移、密钥本地化、协议协商、构建门禁 |
-| 3.3.0 数据安全 | 已完成 | 唯一绑定、请求幂等、文档/目录双锁、Vault 路径验证 |
-| 3.4.0 冲突/恢复 | 已完成 | 三方冲突决策、双端当前内容校验和有界写前恢复副本 |
-| 3.5.0 浏览器可信事务 | 已完成 | 后台单写通道、真实终态、可恢复操作账本、显式工具栏状态与最小权限 |
-| 3.6.0 安全删除/运行时 | 已折叠到 4.0 | 确认式删除、持久活动、HTTP/CLI 加固 |
-| 4.0.0 产品收口 | 自动验收完成 | 统一门禁、灾难矩阵和发布物 SHA256 已通过；真实账号/Vault/浏览器验收待执行 |
-| 4.0.1 AI 修复发布 | 自动验收完成 | 浏览器 AI 路由与 DeepSeek 消息桥修复；真实登录会话验收待执行 |
-| 4.0.2 融合版本纠正 | 自动验收完成 | 恢复六标签设置 UI，并将自动编码写入收口到协调器与恢复流程；真机验收待执行 |
+| 协议快照 | 已完成 | 上游仓库、commit、知识库版本、Schema/协议版本离线锁定 |
+| 整理事务 | 已完成 | 预览、确认、全批备份、两阶段换序、逆序恢复、审计与同步事件 |
+| 单一 UI | 已完成 | 一套文件树右键、一个 Ribbon、无持久侧栏、设置页窄宽修复 |
+| 采集 proposal | 已完成 | fetch/clip 先落地再等待确认；旧服务失败关闭 |
+| 发布门禁 | 已完成 | 版本一致性、构建、发布审计、SHA256、暂存 Vault 与真机通信通过 |
+| 真机安装 | 已完成 | Obsidian 4.1.0 运行正常；Chrome Profile 4 使用 4.1.0 解包目录 |
 
 ## 验证记录
 
-- `npm test`：130/130 通过。
-- `npm run typecheck:ob` 和 `npm run typecheck:ext`：通过。
-- `npm run build`：shared、Obsidian、浏览器扩展全部通过。
-- `artifacts/KnowFlow-4.0.2-SHA256SUMS`：12/12 构建产物校验通过。
-- `artifacts/KnowFlow-4.0.2-PACKAGES-SHA256SUMS`：浏览器与 Obsidian 两个安装包校验通过。
-- 验证在本地临时镜像执行，避免 SMB 目录与架构不匹配的 `node_modules` 影响结果。
-- 当前对外文件：`artifacts/fs-TB-Obsidian-4.0.2.zip` 与 `artifacts/KnowFlow-Browser-4.0.2.zip`。
+- 完整发布基线：163/163 通过；两端 typecheck、build、release audit 与版本一致性通过。
+- 通信专项：25/25 通过；真实 localhost 回环：7/7 通过。
+- `artifacts/KnowFlow-4.1.0-SHA256SUMS`：构建产物校验通过。
+- `artifacts/KnowFlow-4.1.0-PACKAGES-SHA256SUMS`：浏览器与 Obsidian 安装包校验通过。
+- Obsidian 真机：HTTP 200、版本 4.1.0、协议 1、`capture-proposal-v1` 可用、`lark-cli` 就绪。
+- 当前对外文件：`artifacts/fs-TB-Obsidian-4.1.0.zip` 与 `artifacts/KnowFlow-Browser-4.1.0.zip`。
 
-## 风险与待确认
+## 运行记录与边界
 
-- 未做真实飞书云端拉取/回写；未使用用户令牌或改动真实 Vault。
-- 旧浏览器归档 `Feishu Doc Exporter 0.3.0` 是独立产品，不声称能原位升级到 KnowFlow。
+- 最近活动使用有界元数据记录，不保存正文、Token 或原始错误；最新一次 `fetch-proposal` 被 `KNOWLEDGE_PLAN_BLOCKED` 安全阻断。
+- proposal 队列为会话级；插件重载后内容仍安全保留，可从落地 Markdown 重新发起整理。
+- 旧浏览器归档 `Feishu Doc Exporter 0.3.0` 是独立历史产品，不声称能原位升级到 KnowFlow。

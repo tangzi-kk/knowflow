@@ -6,8 +6,8 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `4.1.0` | `artifacts/fs-TB-Obsidian-4.1.0.zip` | 统一整理预览、事务回滚和单一 UI 入口的发布候选；未安装到真实 Vault |
-| 浏览器 `KnowFlow` | `4.1.0` | `artifacts/KnowFlow-Browser-4.1.0/`、同名 ZIP | 采集后返回待确认 proposal 的发布候选；未加载到真实 Chrome/Edge |
+| Obsidian `fs-TB` | `4.1.0` | `artifacts/fs-TB-Obsidian-4.1.0.zip` | 当前稳定版；已安装到真实 Vault 并通过 localhost 状态握手 |
+| 浏览器 `KnowFlow` | `4.1.0` | `artifacts/KnowFlow-Browser-4.1.0/`、同名 ZIP | 当前稳定版；Chrome Profile 4 从同版本解包目录加载 |
 
 ## 已核验运行归档
 
@@ -19,7 +19,7 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 当前 4.1.0 候选产物在仓库 `artifacts/` 内；真机通过前不得声明为最新稳定版。
+- 当前 4.1.0 稳定产物在仓库 `artifacts/` 内，并随 GitHub Release 发布。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`

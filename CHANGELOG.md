@@ -2,6 +2,26 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
+## [4.1.0] - 2026-07-26
+
+### 统一整理与唯一插件入口
+- 以 `tangzi-kk/skr-knowledge` 1.2.1 为协议上游，内置带 commit、知识库版本和协议主版本的离线快照；KnowFlow 成为唯一插件实现。
+- 编码入口统一为预览、人工确认、全批备份、YAML/短编码/文件名/索引事务、审计和成功后同步事件；移除静默编码入口。
+- 完整编码严格执行 `YY_MMDD_TAG_TOPIC_LEVEL`，短编码由插件派生，文档 ID 在移动、改名、标签变化和同步时保持稳定。
+- 批量换序和显式回滚都使用临时路径；备份、写入、重命名、索引与并发漂移故障均失败关闭，不产生半完成成功事件。
+
+### 单一 UI 与采集建议
+- 文件树只保留“整理此文档/目录/所选内容”一套入口，Ribbon 只保留一个 KnowFlow 按钮，不创建持久侧栏。
+- 手动编码和清除编码移入预览高级操作；删除无独立协议语义的“新建结构容器”。
+- `/fetch`、`/clip` 和网页/飞书采集先安全落地内容，再返回真实 `proposalId`、`requiresConfirmation: true` 和协议版本。
+- 浏览器写入要求 `capture-proposal-v1` 能力，旧 4.0 服务在 POST 前被拒绝。
+- 移除 Chrome 不支持且高风险的 `debugger` 权限；浏览器上下文读取继续使用普通 `scripting` 能力。
+
+### 发布与真机
+- 163 项完整发布基线、25 项通信专项和 7 项真实 localhost 回环验收通过。
+- Obsidian 真机运行 `fs-TB 4.1.0`，状态接口返回 HTTP 200、协议 1、proposal 能力可用且 `lark-cli` 就绪。
+- 原 `data.json` 原位迁移；真实 Vault 只保留 `.obsidian/plugins/fs-TB/`。按用户后续精简指令，3.2.1 保留压缩回滚包，重复的无配置 4.0.2 安装目录已移除。
+
 ## [4.0.2] - 2026-07-24
 
 ### 融合版本纠正
