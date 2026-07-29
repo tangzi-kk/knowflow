@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>KnowFlow 需求编辑器</title>
-  <meta name="description" content="将自然语言整理成 KnowFlow 需求池的标准 Markdown 格式。">
+  <meta name="description" content="将自然语言整理成产品需求、记忆候选或知识需求的标准 Markdown。">
   <style>
     :root {
       --paper: #f6f5f1;
@@ -198,6 +198,13 @@
 
     .meta-controls { display: flex; align-items: center; gap: 7px; }
 
+    .mode-select {
+      height: 38px;
+      max-width: 190px;
+      border-color: var(--line-strong);
+      font-weight: 700;
+    }
+
     select {
       height: 32px;
       max-width: 142px;
@@ -379,6 +386,8 @@
 
     .hint strong { color: var(--accent); }
 
+    [hidden] { display: none !important; }
+
     .toast {
       position: fixed;
       right: 22px;
@@ -451,9 +460,9 @@
   <main class="shell">
     <header class="topbar">
       <div class="brand">
-        <p class="eyebrow">KnowFlow / Requirement Inbox</p>
+        <p class="eyebrow">KnowFlow / Structured Intake</p>
         <h1>写你的想法，其他交给格式。</h1>
-        <p class="subtitle">自然语言输入 → 规范 Markdown → 本地需求池。原文始终保留。</p>
+        <p class="subtitle" id="subtitle">自然语言输入 → 规范 Markdown → 本地需求池。原文始终保留。</p>
       </div>
       <div class="file-state" id="fileState" aria-live="polite">
         <span class="status-dot" aria-hidden="true"></span>
@@ -461,11 +470,10 @@
       </div>
     </header>
 
-    <section class="toolbar" aria-label="文件操作">
+    <section class="toolbar" id="poolToolbar" aria-label="文件操作">
       <div class="toolbar-group">
         <button class="button primary" id="projectButton" type="button">选择项目目录</button>
         <button class="button" id="openButton" type="button">仅打开需求池</button>
-        <button class="button" id="saveButton" type="button" disabled>保存回原文件</button>
         <button class="button" id="downloadButton" type="button" disabled>下载备份</button>
         <input class="sr-only" id="fallbackFileInput" type="file" accept=".md,text/markdown,text/plain">
         <input class="sr-only" id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
@@ -478,6 +486,12 @@
         <header class="pane-head">
           <div class="pane-title"><span class="pane-index">01</span> 自然语言</div>
           <div class="meta-controls">
+            <label class="sr-only" for="modeSelect">输出模式</label>
+            <select class="mode-select" id="modeSelect">
+              <option value="requirement">产品需求</option>
+              <option value="memory">记忆候选</option>
+              <option value="knowledge">知识需求</option>
+            </select>
             <label class="sr-only" for="typeSelect">需求类型</label>
             <select id="typeSelect">
               <option value="auto">类型：自动</option>
@@ -520,7 +534,7 @@
           <div class="pane-title"><span class="pane-index">02</span> 规范输出</div>
           <div class="preview-actions">
             <button class="button quiet" id="copyButton" type="button" disabled>复制</button>
-            <button class="button primary" id="appendButton" type="button" disabled>加入需求池</button>
+            <button class="button primary" id="appendButton" type="button" disabled>保存需求</button>
           </div>
         </header>
         <div class="preview-wrap">
@@ -531,9 +545,9 @@
       </article>
     </section>
 
-    <aside class="hint">
-      <strong>本地优先</strong>
-      <span>选择 <code>sync-plugin</code> 项目目录后，正式内容保存到本地 <code>需求池.md</code>，截图保存到 <code>需求附件/</code>。截图可能在后续随项目同步到公开 GitHub，请先遮挡 Token、验证码和私人信息。</span>
+    <aside class="hint" id="modeHint">
+      <strong id="hintTitle">本地优先</strong>
+      <span id="hintText">选择 <code>sync-plugin</code> 项目目录后，正式内容保存到本地 <code>需求池.md</code>，截图保存到 <code>需求附件/</code>。截图可能在后续随项目同步到公开 GitHub，请先遮挡 Token、验证码和私人信息。</span>
     </aside>
   </main>
 
@@ -543,16 +557,18 @@
     (() => {
       'use strict';
 
-      const STORAGE_KEY = 'knowflow.requirement-editor.draft.v1';
+      const STORAGE_KEY = 'knowflow.structured-intake.draft.v2';
+      const LEGACY_STORAGE_KEY = 'knowflow.requirement-editor.draft.v1';
       const REQUIRED_SECTION = '## 需求收件箱';
       const emptyPreview = '在左侧写下你的想法。\n\n这里会生成固定格式，但不会替你编造需求。';
 
       const elements = {
         fileState: document.querySelector('#fileState'),
         fileLabel: document.querySelector('#fileLabel'),
+        subtitle: document.querySelector('#subtitle'),
+        poolToolbar: document.querySelector('#poolToolbar'),
         projectButton: document.querySelector('#projectButton'),
         openButton: document.querySelector('#openButton'),
-        saveButton: document.querySelector('#saveButton'),
         downloadButton: document.querySelector('#downloadButton'),
         fallbackFileInput: document.querySelector('#fallbackFileInput'),
         imageInput: document.querySelector('#imageInput'),
@@ -560,6 +576,7 @@
         attachmentBar: document.querySelector('#attachmentBar'),
         attachmentList: document.querySelector('#attachmentList'),
         input: document.querySelector('#naturalInput'),
+        modeSelect: document.querySelector('#modeSelect'),
         typeSelect: document.querySelector('#typeSelect'),
         prioritySelect: document.querySelector('#prioritySelect'),
         typeTag: document.querySelector('#typeTag'),
@@ -568,17 +585,50 @@
         preview: document.querySelector('#markdownPreview'),
         copyButton: document.querySelector('#copyButton'),
         appendButton: document.querySelector('#appendButton'),
+        hintTitle: document.querySelector('#hintTitle'),
+        hintText: document.querySelector('#hintText'),
         toast: document.querySelector('#toast')
+      };
+
+      const modeConfig = {
+        requirement: {
+          subtitle: '自然语言输入 → 规范 Markdown → 本地需求池。原文始终保留。',
+          placeholder: '例如：\n\n我想在批量同步前先看到会改动哪些文档。如果有冲突，不要自动覆盖，先让我选择。',
+          action: '保存需求',
+          empty: '在左侧写下你的想法。\n\n这里会生成固定格式，但不会替你编造需求。',
+          hintTitle: '本地优先',
+          hintHtml: '选择 <code>sync-plugin</code> 项目目录后，正式内容保存到本地 <code>需求池.md</code>，截图保存到 <code>需求附件/</code>。截图可能随项目同步到公开 GitHub，请先遮挡 Token、验证码和私人信息。'
+        },
+        memory: {
+          subtitle: '自然语言输入 → 记忆候选 Markdown。默认不进入正式长期记忆。',
+          placeholder: '例如：\n\nMacBook 是我的主力终端，Mac mini 作为副手。同步时以 MacBook 的主库为权威来源。',
+          action: '下载候选',
+          empty: '在左侧写下需要长期保留的偏好、规则或稳定事实。\n\n输出会遵循 memory/inbox.md 候选格式。',
+          hintTitle: '候选优先',
+          hintHtml: '输出适合人工粘贴到 <code>skr-ai-workspace/memory/inbox.md</code>。请先观察和确认，再人工迁入 <code>core.md</code>。不要输入 Token、Cookie、密码或私密联系方式。'
+        },
+        knowledge: {
+          subtitle: '自然语言输入 → 结构化知识需求。事实、推断和待确认项分开。',
+          placeholder: '例如：\n\n我想统一 Obsidian 中项目笔记的字段，但不能破坏现有编码和飞书同步。先给出影响范围和验收标准。',
+          action: '下载文档',
+          empty: '在左侧写下要整理、研究、迁移或规范化的知识需求。\n\n未提供的信息会标记为待确认，不会自动编造。',
+          hintTitle: '边界清晰',
+          hintHtml: '输出是可复制、可下载的需求文档，不会直接修改 <code>skr-ai-workspace/knowledge</code>。真实规则、Schema 或部署变更仍需要单独审核和验证。'
+        }
+      };
+
+      const typeOptions = {
+        requirement: [['auto', '类型：自动'], ['新功能', '新功能'], ['功能改进', '功能改进'], ['问题修复', '问题修复']],
+        memory: [['auto', '类型：自动'], ['偏好', '偏好'], ['规则', '规则'], ['长期事实', '长期事实']],
+        knowledge: [['auto', '类型：自动'], ['知识整理', '知识整理'], ['协议规范', '协议规范'], ['迁移部署', '迁移部署'], ['研究验证', '研究验证']]
       };
 
       let projectDirectoryHandle = null;
       let fileHandle = null;
       let fileName = '';
       let poolContent = '';
-      let isDirty = false;
       let toastTimer = null;
       let pendingImages = [];
-      let queuedImages = [];
 
       function showToast(message, isError = false) {
         window.clearTimeout(toastTimer);
@@ -600,6 +650,18 @@
       function inferType(text) {
         const selected = elements.typeSelect.value;
         if (selected !== 'auto') return selected;
+        const mode = elements.modeSelect.value;
+        if (mode === 'memory') {
+          if (/(习惯|喜欢|偏好|默认|语言|风格)/.test(text)) return '偏好';
+          if(/(必须|不要|禁止|规则|原则|流程|优先)/.test(text)) return '规则';
+          return '长期事实';
+        }
+        if (mode === 'knowledge') {
+          if (/(协议|Schema|字段|枚举|规范|合同)/i.test(text)) return '协议规范';
+          if (/(迁移|部署|同步|导入|升级)/.test(text)) return '迁移部署';
+          if (/(研究|调研|验证|对比|分析)/.test(text)) return '研究验证';
+          return '知识整理';
+        }
         if (/(bug|BUG|报错|崩溃|错误|无法|失败|丢失|修复)/.test(text)) return '问题修复';
         if (/(优化|改进|调整|更好|体验|性能|变慢|不方便)/.test(text)) return '功能改进';
         return '新功能';
@@ -637,6 +699,14 @@
           .split('\n')
           .map((line) => `  > ${line || ' '}`)
           .join('\n');
+      }
+
+      function todayString() {
+        return new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(new Date());
       }
 
       function imageExtension(file) {
@@ -711,19 +781,15 @@
         renderPreview();
       }
 
-      function buildRequirementBlock() {
+      function buildRequirementBlock(requirementId = '') {
         const original = elements.input.value.trim();
         if (!original) return '';
 
-        const id = nextRequirementId(poolContent);
+        const id = requirementId || nextRequirementId(poolContent);
         const type = inferType(original);
         const priority = inferPriority(original);
         const title = inferTitle(original);
-        const today = new Intl.DateTimeFormat('en-CA', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).format(new Date());
+        const today = todayString();
 
         const lines = [
           `### ${id} ${title}`,
@@ -747,24 +813,155 @@
         return lines.join('\n');
       }
 
+      function buildMemoryBlock() {
+        const original = elements.input.value.trim();
+        if (!original) return '';
+        return [
+          `## 候选：${inferTitle(original)}`,
+          '',
+          `- 提议日期：${todayString()}`,
+          '- 提议来源：人工自然语言输入',
+          `- 类型：${inferType(original)}`,
+          `- 内容：${normalizeLine(original)}`,
+          '- 证据：待人工补充',
+          '- 状态：待人工确认'
+        ].join('\n');
+      }
+
+      function buildKnowledgeDocument() {
+        const original = elements.input.value.trim();
+        if (!original) return '';
+        const title = inferTitle(original);
+        return [
+          `# 知识需求：${title}`,
+          '',
+          `- 记录日期：${todayString()}`,
+          '- 状态：待确认',
+          `- 类型：${inferType(original)}`,
+          `- 优先级：${inferPriority(original)}`,
+          '',
+          '## 背景',
+          '',
+          original,
+          '',
+          '## 目标',
+          '',
+          '- 待人工确认和补充。',
+          '',
+          '## 范围',
+          '',
+          '### 包含',
+          '',
+          '- 待确认。',
+          '',
+          '### 不包含',
+          '',
+          '- 待确认。',
+          '',
+          '## 输入与依据',
+          '',
+          '- 用户原话：',
+          quoteOriginal(original),
+          '- 现有文档、Schema 或数据源：待提供。',
+          '',
+          '## 预期输出',
+          '',
+          '- 规范 Markdown 文档。',
+          '- 其他产物待确认。',
+          '',
+          '## 约束与边界',
+          '',
+          '- 不将未验证推断写成已确认事实。',
+          '- 不写入 Token、Cookie、密码或私人信息。',
+          '- 其他项目边界待确认。',
+          '',
+          '## 冲突与不确定项',
+          '',
+          '- 待根据现有规范、实现和用户决策审计。',
+          '',
+          '## 验收标准',
+          '',
+          '- [ ] 事实、推断和待确认项已分开。',
+          '- [ ] 范围、预期输出和安全边界已由人工确认。',
+          '- [ ] 最终产物有可追溯的验证证据。',
+          '',
+          '## 待确认事项',
+          '',
+          '- 请补充目标读者、权威来源、完成边界和有效期。'
+        ].join('\n');
+      }
+
+      function buildOutput() {
+        if (elements.modeSelect.value === 'memory') return buildMemoryBlock();
+        if (elements.modeSelect.value === 'knowledge') return buildKnowledgeDocument();
+        return buildRequirementBlock();
+      }
+
       function renderPreview() {
         const text = elements.input.value;
-        const block = buildRequirementBlock();
+        const block = buildOutput();
         const type = inferType(text);
         const priority = inferPriority(text);
+        const mode = elements.modeSelect.value;
 
-        elements.preview.textContent = block || emptyPreview;
+        elements.preview.textContent = block || modeConfig[mode].empty;
         elements.typeTag.textContent = type;
         elements.priorityTag.textContent = `${priority}优先级`;
+        elements.priorityTag.hidden = mode === 'memory';
         elements.charCount.textContent = `${text.length} 字`;
         elements.copyButton.disabled = !block;
-        elements.appendButton.disabled = !block || !poolContent;
+        elements.appendButton.disabled = !block || (mode === 'requirement' && !fileHandle);
 
         try {
-          window.localStorage.setItem(STORAGE_KEY, text);
+          if (text.trim()) {
+            window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+              mode,
+              text,
+              type: elements.typeSelect.value,
+              priority: elements.prioritySelect.value
+            }));
+          } else {
+            window.localStorage.removeItem(STORAGE_KEY);
+          }
         } catch (_) {
           // 草稿保存失败不影响正式文件。
         }
+      }
+
+      function setTypeOptions(mode, selectedValue = 'auto') {
+        elements.typeSelect.textContent = '';
+        typeOptions[mode].forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          elements.typeSelect.appendChild(option);
+        });
+        elements.typeSelect.value = typeOptions[mode].some(([value]) => value === selectedValue)
+          ? selectedValue
+          : 'auto';
+      }
+
+      function applyMode(mode, selectedType = 'auto') {
+        const config = modeConfig[mode] || modeConfig.requirement;
+        const isRequirement = mode === 'requirement';
+        elements.modeSelect.value = mode;
+        setTypeOptions(mode, selectedType);
+        elements.subtitle.textContent = config.subtitle;
+        elements.input.placeholder = config.placeholder;
+        elements.appendButton.textContent = config.action;
+        elements.poolToolbar.hidden = !isRequirement;
+        elements.attachmentBar.hidden = !isRequirement;
+        elements.prioritySelect.hidden = mode === 'memory';
+        elements.hintTitle.textContent = config.hintTitle;
+        elements.hintText.innerHTML = config.hintHtml;
+        if (!isRequirement) {
+          setFileState('独立 Markdown 输出，不会写入需求池', 'ready');
+        } else if (poolContent) {
+          setFileState(`${fileName} · 已加载`, 'ready');
+        } else {
+          setFileState('尚未打开需求池.md');
+        }
+        renderPreview();
       }
 
       function validatePool(content) {
@@ -779,8 +976,6 @@
         fileName = name || '需求池.md';
         fileHandle = handle;
         projectDirectoryHandle = directoryHandle;
-        isDirty = false;
-        elements.saveButton.disabled = !fileHandle;
         elements.downloadButton.disabled = false;
         setFileState(`${fileName} · 已加载`, 'ready');
         renderPreview();
@@ -839,61 +1034,134 @@
         return `${before.trimEnd()}\n\n${block}\n${after.startsWith('\n') ? after : `\n${after}`}`;
       }
 
-      function appendRequirement() {
-        const block = buildRequirementBlock();
-        if (!block || !poolContent) return;
+      async function imageNameExists(directory, name) {
+        try {
+          await directory.getFileHandle(name);
+          return true;
+        } catch (error) {
+          if (error && error.name === 'NotFoundError') return false;
+          throw error;
+        }
+      }
+
+      async function rollbackImages(directory, names) {
+        if (!directory || typeof directory.removeEntry !== 'function') return;
+        for (const name of names) {
+          try { await directory.removeEntry(name); } catch (_) {}
+        }
+      }
+
+      async function appendRequirement() {
+        if (!fileHandle) {
+          showToast('请先选择项目目录或打开可写的需求池文件。', true);
+          return;
+        }
         if (pendingImages.length && !projectDirectoryHandle) {
           showToast('要保存截图，请先点击“选择项目目录”。', true);
           return;
         }
-        const id = nextRequirementId(poolContent);
-        queuedImages.push(...plannedImages(id));
-        poolContent = appendToInbox(poolContent, block);
-        isDirty = true;
-        elements.downloadButton.disabled = false;
-        elements.saveButton.disabled = !fileHandle;
-        setFileState(`${fileName} · 有未保存修改`, 'dirty');
-        elements.input.value = '';
-        pendingImages.forEach((entry) => URL.revokeObjectURL(entry.url));
-        pendingImages = [];
-        renderAttachments();
-        try { window.localStorage.removeItem(STORAGE_KEY); } catch (_) {}
-        renderPreview();
-        showToast('已加入需求池，请继续点击“保存回原文件”。');
-      }
 
-      async function savePool() {
-        if (!fileHandle || !poolContent) return;
+        const originalText = elements.input.value;
+        const createdImageNames = [];
+        let attachmentDirectory = null;
+        let poolWritten = false;
+        elements.appendButton.disabled = true;
+        setFileState(`${fileName} · 正在保存`, 'dirty');
+
         try {
-          if (queuedImages.length) {
-            if (!projectDirectoryHandle) throw new Error('截图需要保存到项目目录，请重新选择项目目录。');
-            const attachmentDirectory = await projectDirectoryHandle.getDirectoryHandle('需求附件', { create: true });
-            for (const image of queuedImages) {
+          const sourceFile = await fileHandle.getFile();
+          const sourceContent = await sourceFile.text();
+          validatePool(sourceContent);
+          poolContent = sourceContent;
+
+          const id = nextRequirementId(sourceContent);
+          const block = buildRequirementBlock(id);
+          if (!block) throw new Error('请输入需求内容。');
+          const images = plannedImages(id);
+          const nextContent = appendToInbox(sourceContent, block);
+
+          if (images.length) {
+            attachmentDirectory = await projectDirectoryHandle.getDirectoryHandle('需求附件', { create: true });
+            for (const image of images) {
+              if (await imageNameExists(attachmentDirectory, image.name)) {
+                throw new Error(`附件名称已存在：${image.name}。请重新加载需求池后再试。`);
+              }
               const imageHandle = await attachmentDirectory.getFileHandle(image.name, { create: true });
               const imageWritable = await imageHandle.createWritable();
               await imageWritable.write(image.file);
               await imageWritable.close();
+              createdImageNames.push(image.name);
             }
           }
+
+          const latestFile = await fileHandle.getFile();
+          if (latestFile.lastModified !== sourceFile.lastModified || await latestFile.text() !== sourceContent) {
+            throw new Error('需求池已被其他窗口修改，本次未覆盖。请重新加载后再保存。');
+          }
+
           const writable = await fileHandle.createWritable();
-          await writable.write(poolContent);
+          await writable.write(nextContent);
           await writable.close();
-          queuedImages = [];
-          isDirty = false;
-          setFileState(`${fileName} · 已保存`, 'ready');
-          showToast('已保存回本地需求池。');
+          poolWritten = true;
+          poolContent = nextContent;
+
+          elements.input.value = '';
+          pendingImages.forEach((entry) => URL.revokeObjectURL(entry.url));
+          pendingImages = [];
+          renderAttachments();
+          try {
+            window.localStorage.removeItem(STORAGE_KEY);
+            window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+          } catch (_) {}
+          setFileState(`${fileName} · 已保存 ${id}`, 'ready');
+          showToast(`${id} 已保存到本地需求池。`);
         } catch (error) {
+          if (!poolWritten) await rollbackImages(attachmentDirectory, createdImageNames);
+          elements.input.value = originalText;
           setFileState(`${fileName} · 保存失败`, 'error');
-          showToast(error.message || '保存失败，可先下载备份。', true);
+          showToast(error.message || '保存失败，草稿仍保留。', true);
+        } finally {
+          renderPreview();
         }
+      }
+
+      function safeFilePart(value) {
+        return value
+          .replace(/[\\/:*?"<>|]/g, '-')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+          .slice(0, 48) || '未命名';
+      }
+
+      function downloadGeneratedDocument() {
+        const output = buildOutput();
+        if (!output) return;
+        const mode = elements.modeSelect.value;
+        const prefix = mode === 'memory' ? '记忆候选' : '知识需求';
+        const title = safeFilePart(inferTitle(elements.input.value));
+        const blob = new Blob([`${output}\n`], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${prefix}-${todayString()}-${title}.md`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast(`已下载${prefix} Markdown。`);
+      }
+
+      function handlePrimaryAction() {
+        if (elements.modeSelect.value === 'requirement') {
+          void appendRequirement();
+          return;
+        }
+        downloadGeneratedDocument();
       }
 
       function downloadPool() {
         if (!poolContent) return;
-        if (queuedImages.length) {
-          showToast('需求中包含截图，请使用“保存回原文件”同时写入附件。', true);
-          return;
-        }
         const blob = new Blob([poolContent], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -907,8 +1175,8 @@
       }
 
       async function copyPreview() {
-        const block = buildRequirementBlock();
-        if (!block) return;
+        const block = buildOutput();
+        if (!block) throw new Error('请输入需求内容。');
         try {
           await navigator.clipboard.writeText(block);
           showToast('已复制规范 Markdown。');
@@ -931,11 +1199,11 @@
 
       elements.projectButton.addEventListener('click', openProjectDirectory);
       elements.openButton.addEventListener('click', openPool);
-      elements.saveButton.addEventListener('click', savePool);
       elements.downloadButton.addEventListener('click', downloadPool);
-      elements.appendButton.addEventListener('click', appendRequirement);
+      elements.appendButton.addEventListener('click', handlePrimaryAction);
       elements.copyButton.addEventListener('click', copyPreview);
       elements.input.addEventListener('input', renderPreview);
+      elements.modeSelect.addEventListener('change', () => applyMode(elements.modeSelect.value));
       elements.typeSelect.addEventListener('change', renderPreview);
       elements.prioritySelect.addEventListener('change', renderPreview);
       elements.imageButton.addEventListener('click', () => elements.imageInput.click());
@@ -980,22 +1248,33 @@
       window.addEventListener('keydown', (event) => {
         if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
           event.preventDefault();
-          appendRequirement();
+          handlePrimaryAction();
         }
       });
 
       window.addEventListener('beforeunload', (event) => {
-        if (!isDirty && !pendingImages.length && !queuedImages.length) return;
+        if (!elements.input.value.trim() && !pendingImages.length) return;
         event.preventDefault();
         event.returnValue = '';
       });
 
+      let initialMode = 'requirement';
+      let initialType = 'auto';
       try {
         const draft = window.localStorage.getItem(STORAGE_KEY);
-        if (draft) elements.input.value = draft;
+        if (draft) {
+          const parsed = JSON.parse(draft);
+          initialMode = modeConfig[parsed.mode] ? parsed.mode : 'requirement';
+          initialType = parsed.type || 'auto';
+          elements.input.value = parsed.text || '';
+          elements.prioritySelect.value = parsed.priority || 'auto';
+        } else {
+          const legacyDraft = window.localStorage.getItem(LEGACY_STORAGE_KEY);
+          if (legacyDraft) elements.input.value = legacyDraft;
+        }
       } catch (_) {}
 
-      renderPreview();
+      applyMode(initialMode, initialType);
       renderAttachments();
       tryAutoLoad();
     })();

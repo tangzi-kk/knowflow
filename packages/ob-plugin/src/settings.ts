@@ -21,12 +21,8 @@ export interface FeishuSyncSettings {
   autoRename: boolean;
   /** 4.1 安全迁移标记；运行时固定为 true，采集后必须生成待确认建议。 */
   createProposalsAfterCapture: boolean;
-  /** 自动登记删除（写飞书多维表格）。 */
-  autoDeleteRegistry: boolean;
   /** 图片缓存清理周期。 */
   cacheCleanup: 'daily' | 'weekly' | 'monthly' | 'never';
-  /** 保留装饰图片。 */
-  keepDecorativeImages: boolean;
   /** 飞书知识库 space_id（目录映射用）。 */
   spaceId: string;
   /** 3.2.1 Lark Doc 的兼容目录字段。 */
@@ -47,9 +43,7 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   defaultDir: '0️⃣输入',
   autoRename: false,
   createProposalsAfterCapture: true,
-  autoDeleteRegistry: false,
   cacheCleanup: 'weekly',
-  keepDecorativeImages: true,
   spaceId: '7651314150060067803',
   defaultNoteFolder: '3️⃣附件文件/Lark',
   hideSystemProperties: true,

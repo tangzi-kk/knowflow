@@ -43,7 +43,7 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
         if (isProtectedPath(target.path)) return;
 
         const kind: OrganizationKind = target instanceof TFolder ? 'directory' : 'file';
-        const title = kind === 'directory' ? '整理此目录…' : '整理此文档…';
+        const title = kind === 'directory' ? 'KnowFlow：整理此目录…' : 'KnowFlow：整理此文档…';
         addOrganizationMenuItem(menu, plugin, [target.path], kind, title);
       },
     ));
@@ -61,7 +61,7 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
           plugin,
           targets.map((target) => target.path),
           'selection',
-          '整理所选内容…',
+          'KnowFlow：整理所选内容…',
         );
       },
     ));

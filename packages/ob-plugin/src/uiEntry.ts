@@ -18,7 +18,7 @@ const registeredPlugins = new WeakSet<FeishuSyncPlugin>();
 export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
   if (registeredPlugins.has(plugin)) return;
 
-  plugin.addRibbonIcon('workflow', 'KnowFlow', (event) => {
+  plugin.addRibbonIcon('workflow', 'KnowFlow：整理与同步', (event) => {
     const menu = new Menu();
     const targets = currentFileTreeTargets(plugin.app);
 
@@ -32,7 +32,7 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
 
     const pending = plugin.getPendingKnowledgePlans();
     menu.addItem((item) => item
-      .setTitle(`待确认整理建议${pending.length ? `（${pending.length}）` : ''}`)
+      .setTitle(`待确认任务${pending.length ? `（${pending.length}）` : ''}`)
       .setIcon('inbox')
       .setDisabled(pending.length === 0)
       .onClick(() => {
@@ -49,7 +49,7 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
       }));
 
     menu.addItem((item) => item
-      .setTitle('连接状态与最近同步')
+      .setTitle('同步状态与最近记录')
       .setIcon('activity')
       .onClick(() => new SyncStatusModal(plugin.app, plugin).open()));
 

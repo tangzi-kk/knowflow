@@ -39,7 +39,7 @@
 - 人类阅读说明：[`docs/human-guide.html`](docs/human-guide.html)
 - AI 接手说明：[`docs/AI_HANDOFF.md`](docs/AI_HANDOFF.md)
 - 当前设计入口：[`docs/design/README.md`](docs/design/README.md)
-- 需求池：[`需求池.md`](需求池.md)；本地编辑页：[`需求编辑器.html`](需求编辑器.html)
+- 需求池：[`需求池.md`](需求池.md)；本地编辑页：[`需求编辑器.html`](需求编辑器.html)（产品需求直接保存，另可导出记忆候选与知识需求）
 - UI 原型：[`ui-prototype/README.md`](ui-prototype/README.md)
 
 ---

@@ -6,12 +6,15 @@ const root = new URL('../', import.meta.url);
 const read = (path) => readFile(new URL(path, root), 'utf8');
 
 test('4.1 destructive paths fail closed', async () => {
-  const [settings, deletion, server] = await Promise.all([
+  const [settings, settingsMigration, deletion, server] = await Promise.all([
     read('packages/ob-plugin/src/settings.ts'),
+    read('packages/ob-plugin/src/settingsMigration.ts'),
     read('packages/ob-plugin/src/deleteWorkflow.ts'),
     read('packages/ob-plugin/src/server.ts'),
   ]);
-  assert.match(settings, /autoDeleteRegistry: false/);
+  assert.doesNotMatch(settings, /autoDeleteRegistry|keepDecorativeImages/);
+  assert.match(settingsMigration, /delete migrated\.autoDeleteRegistry/);
+  assert.match(settingsMigration, /delete migrated\.keepDecorativeImages/);
   assert.match(deletion, /Deletion requires explicit confirmation/);
   assert.match(deletion, /confirmedChildren/);
   assert.match(server, /if \(!deps\.validateToken/);

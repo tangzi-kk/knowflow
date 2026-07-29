@@ -1,9 +1,4 @@
-/**
- * fs-TB 统一设置界面。
- *
- * 恢复 3.2.1 的六标签布局，但仅映射当前 4.x 已验证的安全设置。
- * 旧版 lark-doc View、协议处理和写通道不会由设置页重新启用。
- */
+/** KnowFlow 单页设置界面。日常整理留在右键菜单和 Ribbon，设置页只保留长期配置。 */
 import { App, Notice, PluginSettingTab, Setting } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import type { FeishuSyncSettings } from './settings.js';
@@ -11,20 +6,8 @@ import { resolveCli } from './lark/cli.js';
 import { refreshMapping } from './mapping.js';
 import { generateSyncToken } from './settingsMigration.js';
 
-const TABS = [
-  { id: 'comm', label: '通信', icon: '📡' },
-  { id: 'lark-cli', label: 'lark-cli', icon: '🔧' },
-  { id: 'sync', label: '同步', icon: '🔄' },
-  { id: 'wiki', label: '知识库', icon: '📚' },
-  { id: 'encoding', label: '编码系统', icon: '🔢' },
-  { id: 'lark-doc', label: 'Lark Doc', icon: '📄' },
-] as const;
-
-type TabId = (typeof TABS)[number]['id'];
-
 export class FeishuSyncSettingTab extends PluginSettingTab {
   plugin: FeishuSyncPlugin;
-  private activeTab: TabId = 'comm';
 
   constructor(app: App, plugin: FeishuSyncPlugin) {
     super(app, plugin);
@@ -36,68 +19,39 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
     containerEl.empty();
     containerEl.addClass('fstb-settings-root');
 
-    containerEl.createEl('h2', { text: '飞书同步 (fs-TB)', cls: 'fstb-title' });
+    containerEl.createEl('h2', { text: 'KnowFlow', cls: 'fstb-title' });
+    containerEl.createEl('p', {
+      text: '这里只管理长期配置。整理、编码和同步操作请使用文件右键菜单或左侧 KnowFlow 入口。',
+      cls: 'setting-item-description fstb-settings-intro',
+    });
 
-    const tabBar = containerEl.createDiv({ cls: 'fstb-tab-bar' });
-    for (const tab of TABS) {
-      const button = tabBar.createEl('button', {
-        cls: `fstb-tab${this.activeTab === tab.id ? ' fstb-tab-active' : ''}`,
-        text: `${tab.icon} ${tab.label}`,
-        attr: {
-          type: 'button',
-          'aria-selected': String(this.activeTab === tab.id),
-        },
-      });
-      button.onclick = () => {
-        this.activeTab = tab.id;
-        this.display();
-      };
-    }
-
-    const content = containerEl.createDiv({ cls: 'fstb-tab-content' });
-    switch (this.activeTab) {
-      case 'comm':
-        this.renderCommunication(content);
-        break;
-      case 'lark-cli':
-        this.renderLarkCli(content);
-        break;
-      case 'sync':
-        this.renderSync(content);
-        break;
-      case 'wiki':
-        this.renderWiki(content);
-        break;
-      case 'encoding':
-        this.renderEncoding(content);
-        break;
-      case 'lark-doc':
-        this.renderLarkDoc(content);
-        break;
-    }
+    this.renderConnection(this.createSection(containerEl, '连接'));
+    this.renderSync(this.createSection(containerEl, '同步与本地显示'));
+    this.renderWiki(this.createSection(containerEl, '飞书知识库'));
+    this.renderAdvanced(this.createSection(containerEl, '高级设置', true));
   }
 
   private save(): Promise<void> {
     return this.plugin.saveSettings();
   }
 
-  private renderCommunication(el: HTMLElement): void {
-    el.createEl('h3', { text: '📡 通信' });
+  private createSection(container: HTMLElement, title: string, advanced = false): HTMLElement {
+    const section = container.createDiv({
+      cls: `fstb-settings-section${advanced ? ' fstb-settings-section-advanced' : ''}`,
+    });
+    section.createEl('h3', { text: title });
+    return section;
+  }
 
-    new Setting(el)
-      .setName('本地端口')
-      .setDesc('浏览器扩展连接 Obsidian 插件的端口（修改后需重新加载插件）')
-      .addText((text) =>
-        text
-          .setValue(String(this.plugin.settings.port))
-          .onChange(async (value) => {
-            const port = Number.parseInt(value, 10);
-            if (port > 0 && port < 65536) {
-              this.plugin.settings.port = port;
-              await this.save();
-            }
-          }),
-      );
+  private renderConnection(el: HTMLElement): void {
+    const server = this.plugin.state.serverRunning ? '已连接' : '未连接';
+    const cli = this.plugin.state.larkCliResolved
+      ? `命令行工具 ${this.plugin.state.larkCliVersion} 已就绪`
+      : '命令行工具未就绪；本地整理仍可使用';
+    el.createDiv({
+      cls: 'fstb-status-card',
+      text: `浏览器连接：${server} · ${cli}`,
+    });
 
     const tokenSetting = new Setting(el)
       .setName('启动令牌')
@@ -131,19 +85,37 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
     );
   }
 
-  private renderLarkCli(el: HTMLElement): void {
-    el.createEl('h3', { text: '🔧 lark-cli' });
+  private renderAdvanced(el: HTMLElement): void {
+    el.createEl('p', {
+      text: '正常使用无需修改。只在连接故障、自动探测失败或旧版本升级排查时调整。',
+      cls: 'setting-item-description',
+    });
+
+    new Setting(el)
+      .setName('本地服务端口')
+      .setDesc('浏览器扩展连接 Obsidian 的端口；修改后需重新加载插件')
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.port))
+          .onChange(async (value) => {
+            const port = Number.parseInt(value, 10);
+            if (port > 0 && port < 65536) {
+              this.plugin.settings.port = port;
+              await this.save();
+            }
+          }),
+      );
 
     const status = el.createEl('p', {
       cls: 'setting-item-description',
       text: this.plugin.state.larkCliResolved
-        ? `✅ ${this.plugin.state.larkCliVersion} @ ${this.plugin.state.larkCliResolved}`
-        : '❌ 未找到（需 ≥ 1.0.52）',
+        ? `当前命令行工具：${this.plugin.state.larkCliVersion} · ${this.plugin.state.larkCliResolved}`
+        : '未找到命令行工具（需要 1.0.52 或更高版本）',
     });
 
     new Setting(el)
-      .setName('lark-cli 路径')
-      .setDesc('留空则自动探测；自动探测失败时填写绝对路径。')
+      .setName('命令行工具路径')
+      .setDesc('留空自动探测；只有自动探测失败时才填写 lark-cli 的绝对路径')
       .addText((text) =>
         text
           .setValue(this.plugin.settings.larkCliPath)
@@ -169,14 +141,17 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
             this.plugin.state.larkCliResolved = '';
             this.plugin.state.larkCliVersion = '';
             status.setText('❌ 未找到（需 ≥ 1.0.52）');
-            new Notice('❌ 未找到 lark-cli（需 ≥ 1.0.52）');
+            new Notice('❌ 未找到 lark-cli（需要 1.0.52 或更高版本）');
           }),
       );
+
+    el.createDiv({
+      cls: 'fstb-info-box',
+      text: '旧版 Lark Doc 独立视图和写入通道不会启用；升级兼容数据由插件自动处理。',
+    });
   }
 
   private renderSync(el: HTMLElement): void {
-    el.createEl('h3', { text: '🔄 同步行为' });
-
     new Setting(el)
       .setName('默认落地目录')
       .setDesc('扩展未指定目录时，飞书文档落地到此目录（相对 Vault 根目录）')
@@ -185,30 +160,6 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.defaultDir)
           .onChange(async (value) => {
             this.plugin.settings.defaultDir = value;
-            await this.save();
-          }),
-      );
-
-    new Setting(el)
-      .setName('删除自动登记')
-      .setDesc('仅登记待确认删除；不会自动删除飞书节点，默认关闭')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.autoDeleteRegistry)
-          .onChange(async (value) => {
-            this.plugin.settings.autoDeleteRegistry = value;
-            await this.save();
-          }),
-      );
-
-    new Setting(el)
-      .setName('同步装饰/排版图片')
-      .setDesc('开启后，飞书中的装饰图片和排版素材会同步落地到 Obsidian')
-      .addToggle((toggle) =>
-        toggle
-          .setValue(this.plugin.settings.keepDecorativeImages)
-          .onChange(async (value) => {
-            this.plugin.settings.keepDecorativeImages = value;
             await this.save();
           }),
       );
@@ -244,8 +195,6 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
   }
 
   private renderWiki(el: HTMLElement): void {
-    el.createEl('h3', { text: '📚 飞书知识库' });
-
     new Setting(el)
       .setName('知识库 space_id')
       .setDesc('用于目录映射')
@@ -272,33 +221,4 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
     });
   }
 
-  private renderEncoding(el: HTMLElement): void {
-    el.createEl('h3', { text: '🔢 编码系统' });
-
-    el.createDiv({
-      cls: 'fstb-info-box',
-      text: '采集后始终生成待确认整理建议；所有编码变更都必须先预览再确认，不提供静默写入开关。',
-    });
-  }
-
-  private renderLarkDoc(el: HTMLElement): void {
-    el.createEl('h3', { text: '📄 Lark Doc' });
-
-    new Setting(el)
-      .setName('兼容笔记目录')
-      .setDesc('保留 3.2.1 升级兼容字段；当前安全同步仍以“默认落地目录”为准')
-      .addText((text) =>
-        text
-          .setValue(this.plugin.settings.defaultNoteFolder)
-          .onChange(async (value) => {
-            this.plugin.settings.defaultNoteFolder = value;
-            await this.save();
-          }),
-      );
-
-    el.createDiv({
-      cls: 'fstb-info-box',
-      text: '旧版 Lark Doc View、obsidian://lark-doc 协议和独立写通道未启用。浏览器请求继续经过当前已验证的同步入口。',
-    });
-  }
 }

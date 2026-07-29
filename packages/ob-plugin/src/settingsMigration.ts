@@ -63,19 +63,13 @@ export function migrateSettings(input: unknown): SettingsMigrationResult {
     'autoRename',
     DEFAULT_SETTINGS.autoRename,
   );
-  migrated.autoDeleteRegistry = automaticBehavior(
-    [source, feishuSync],
-    'autoDeleteRegistry',
-    DEFAULT_SETTINGS.autoDeleteRegistry,
-  );
   migrated.cacheCleanup = firstCacheCleanup(
     source?.cacheCleanup,
     feishuSync?.cacheCleanup,
   ) ?? DEFAULT_SETTINGS.cacheCleanup;
-  migrated.keepDecorativeImages = firstBoolean(
-    source?.keepDecorativeImages,
-    feishuSync?.keepDecorativeImages,
-  ) ?? DEFAULT_SETTINGS.keepDecorativeImages;
+  // 这两个旧开关从未接入运行链路。升级时删除扁平副本，避免继续制造“已启用”的假预期。
+  delete migrated.autoDeleteRegistry;
+  delete migrated.keepDecorativeImages;
   migrated.spaceId = firstNonEmptyString(source?.spaceId, feishuSync?.spaceId)
     ?? DEFAULT_SETTINGS.spaceId;
   migrated.hideSystemProperties = firstBoolean(
@@ -173,7 +167,7 @@ function firstPort(...values: unknown[]): number | undefined {
 
 function automaticBehavior(
   sources: Array<DataRecord | undefined>,
-  key: 'autoRename' | 'autoDeleteRegistry',
+  key: 'autoRename',
   fallback: boolean,
 ): boolean {
   for (const source of sources) {

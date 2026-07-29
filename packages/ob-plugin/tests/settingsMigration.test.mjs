@@ -59,9 +59,7 @@ test('fresh installs receive only the current defaults', () => {
     larkCliPath: '',
     defaultDir: '0️⃣输入',
     autoRename: false,
-    autoDeleteRegistry: false,
     cacheCleanup: 'weekly',
-    keepDecorativeImages: true,
     spaceId: '7651314150060067803',
     defaultNoteFolder: '3️⃣附件文件/Lark',
     hideSystemProperties: true,
@@ -109,9 +107,13 @@ test('real 3.2.1 flat settings keep every non-empty user value', () => {
   const result = migrateSettings(input);
 
   assert.equal(result.settings.schemaVersion, 1);
-  for (const [key, value] of Object.entries(input)) {
+  for (const [key, value] of Object.entries(input).filter(
+    ([key]) => !['autoDeleteRegistry', 'keepDecorativeImages'].includes(key),
+  )) {
     assert.deepEqual(result.settings[key], value, `preserves ${key}`);
   }
+  assert.equal('autoDeleteRegistry' in result.settings, false);
+  assert.equal('keepDecorativeImages' in result.settings, false);
 });
 
 test('nested legacy settings are flattened without discarding their namespaces', () => {
@@ -147,9 +149,9 @@ test('nested legacy settings are flattened without discarding their namespaces',
   assert.equal(result.settings.defaultNoteFolder, 'Legacy Notes');
   assert.equal(result.settings.larkCliPath, '/legacy/bin/lark-cli');
   assert.equal(result.settings.autoRename, false);
-  assert.equal(result.settings.autoDeleteRegistry, false);
   assert.equal(result.settings.cacheCleanup, 'monthly');
-  assert.equal(result.settings.keepDecorativeImages, false);
+  assert.equal('autoDeleteRegistry' in result.settings, false);
+  assert.equal('keepDecorativeImages' in result.settings, false);
   assert.equal(result.settings.spaceId, 'legacy-space');
   assert.equal(result.settings.futureTopLevelOption, 42);
   assert.deepEqual(result.settings.feishuSync, feishuSync);
@@ -189,8 +191,8 @@ test('unambiguous legacy scalar strings are converted', () => {
 
   assert.equal(result.settings.port, 5678);
   assert.equal(result.settings.autoRename, false);
-  assert.equal(result.settings.autoDeleteRegistry, true);
-  assert.equal(result.settings.keepDecorativeImages, false);
+  assert.equal('autoDeleteRegistry' in result.settings, false);
+  assert.equal('keepDecorativeImages' in result.settings, false);
   assert.equal(result.settings.hideSystemProperties, true);
 });
 
@@ -202,7 +204,7 @@ test('invalid existing automatic behavior settings fail closed', () => {
   });
 
   assert.equal(result.settings.autoRename, false);
-  assert.equal(result.settings.autoDeleteRegistry, false);
+  assert.equal('autoDeleteRegistry' in result.settings, false);
   assert.deepEqual(result.settings._autoRename, legacyNamespace);
 });
 

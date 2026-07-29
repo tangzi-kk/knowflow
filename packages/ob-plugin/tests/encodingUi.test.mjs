@@ -48,12 +48,12 @@ test('clear encoding explains both file and property impact before a second prev
 
 test('the plugin registers one KnowFlow ribbon and no persistent view', () => {
   assert.equal((entrySource.match(/addRibbonIcon\(/g) ?? []).length, 1);
-  assert.match(entrySource, /'KnowFlow'/);
+  assert.match(entrySource, /'KnowFlow：整理与同步'/);
   assert.match(entrySource, /new Menu\(\)/);
   assert.match(entrySource, /整理当前文档…/);
-  assert.match(entrySource, /待确认整理建议/);
+  assert.match(entrySource, /待确认任务/);
   assert.match(entrySource, /getPendingKnowledgePlans/);
-  assert.match(entrySource, /连接状态与最近同步/);
+  assert.match(entrySource, /同步状态与最近记录/);
   assert.match(entrySource, /刷新目录映射/);
   assert.match(entrySource, /重建编码索引/);
   assert.match(entrySource, /导出同步日志/);

@@ -16,42 +16,36 @@ const buildConfig = await readFile(
   'utf8',
 );
 
-test('the unified Obsidian settings page exposes the recovered six tabs', () => {
-  for (const [id, label] of [
-    ['comm', '通信'],
-    ['lark-cli', 'lark-cli'],
-    ['sync', '同步'],
-    ['wiki', '知识库'],
-    ['encoding', '编码系统'],
-    ['lark-doc', 'Lark Doc'],
-  ]) {
-    assert.match(settingsSource, new RegExp(`id: '${id}', label: '${label}'`));
+test('the Obsidian settings page uses one user-oriented flow', () => {
+  for (const label of ['连接', '同步与本地显示', '飞书知识库', '高级设置']) {
+    assert.match(settingsSource, new RegExp(`createSection\\(containerEl, '${label}'`));
   }
 
-  assert.match(settingsSource, /fstb-tab-bar/);
-  assert.match(settingsSource, /fstb-tab-active/);
-  assert.match(settingsSource, /fstb-tab-content/);
+  assert.doesNotMatch(settingsSource, /fstb-tab/);
+  assert.doesNotMatch(settingsSource, /activeTab/);
+  assert.match(settingsSource, /这里只管理长期配置/);
 });
 
-test('the restored UI maps Lark Doc and encoding proposals to current safe settings', () => {
-  assert.match(settingsSource, /this\.plugin\.settings\.defaultNoteFolder/);
-  assert.match(settingsSource, /采集后始终生成待确认整理建议/);
-  assert.match(settingsSource, /不提供静默写入开关/);
-  assert.match(settingsSource, /同步装饰\/排版图片/);
-  assert.match(settingsSource, /装饰图片和排版素材会同步落地/);
+test('technical compatibility stays advanced and dead switches stay hidden', () => {
+  assert.match(settingsSource, /命令行工具路径/);
+  assert.match(settingsSource, /旧版 Lark Doc 独立视图和写入通道不会启用/);
+  assert.doesNotMatch(settingsSource, /this\.plugin\.settings\.defaultNoteFolder/);
+  assert.doesNotMatch(settingsSource, /同步装饰\/排版图片/);
+  assert.doesNotMatch(settingsSource, /keepDecorativeImages/);
+  assert.doesNotMatch(settingsSource, /删除自动登记/);
+  assert.doesNotMatch(settingsSource, /autoDeleteRegistry/);
   assert.doesNotMatch(settingsSource, /registerView/);
   assert.doesNotMatch(settingsSource, /registerObsidianProtocolHandler/);
   assert.doesNotMatch(settingsSource, /require\(['"]\.\.\/lark-doc\.js['"]\)/);
   assert.doesNotMatch(settingsSource, /require\(['"]\.\.\/auto-rename\.js['"]\)/);
 });
 
-test('the Obsidian package ships the recovered tab styles', () => {
+test('the Obsidian package ships responsive single-page settings styles', () => {
   for (const selector of [
     '.fstb-title',
-    '.fstb-tab-bar',
-    '.fstb-tab',
-    '.fstb-tab-active',
-    '.fstb-tab-content h3',
+    '.fstb-settings-intro',
+    '.fstb-settings-section',
+    '.fstb-status-card',
     '.fstb-info-box',
     '.fstb-encoding-preview-list',
     '.fstb-advanced-actions',
@@ -63,5 +57,5 @@ test('the Obsidian package ships the recovered tab styles', () => {
   assert.match(styles, /@media \(max-width: 520px\)/);
   assert.match(styles, /@container \(max-width: 520px\)/);
   assert.match(styles, /container-type: inline-size/);
-  assert.match(styles, /\.fstb-tab-content \.setting-item-control/);
+  assert.match(styles, /\.fstb-settings-section \.setting-item-control/);
 });
