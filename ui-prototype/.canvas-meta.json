@@ -1,0 +1,310 @@
+{
+  "designSystemApproved": false,
+  "activePage": "index.html",
+  "version": 1,
+  "createdAt": "2026-06-25T06:50:57.816Z",
+  "updatedAt": "2026-06-25T17:46:54.122Z",
+  "frames": [
+    {
+      "id": "ui-preview",
+      "kind": "localhost",
+      "title": "飞书同步 → Obsidian 设计预览",
+      "url": "http://127.0.0.1:5273/",
+      "designUrl": "http://127.0.0.1:5273/canvas-design.html",
+      "previewUrl": "http://127.0.0.1:5273/",
+      "route": "/",
+      "code": {
+        "root": "react-vite",
+        "route": "/",
+        "files": [
+          {
+            "path": "react-vite/dist/assets/canvas-design-D3eVYosc.js",
+            "role": "other"
+          },
+          {
+            "path": "react-vite/dist/assets/canvas-design-D5XG3-No.css",
+            "role": "style"
+          },
+          {
+            "path": "react-vite/package-lock.json",
+            "role": "other"
+          },
+          {
+            "path": "react-vite/package.json",
+            "role": "config"
+          },
+          {
+            "path": "react-vite/src/App.jsx",
+            "role": "route",
+            "symbol": "App"
+          },
+          {
+            "path": "react-vite/src/main.jsx",
+            "role": "entry"
+          },
+          {
+            "path": "react-vite/src/new-mascot.jsx",
+            "role": "other"
+          },
+          {
+            "path": "react-vite/src/qoder-design-runtime.jsx",
+            "role": "other"
+          },
+          {
+            "path": "react-vite/src/styles.css",
+            "role": "style"
+          },
+          {
+            "path": "react-vite/vite.config.js",
+            "role": "config"
+          }
+        ],
+        "devServer": {
+          "port": 5273,
+          "url": "http://127.0.0.1:5273"
+        },
+        "packageName": "react-vite"
+      },
+      "x": 0,
+      "y": 0,
+      "width": 1440,
+      "height": 900,
+      "status": "active",
+      "source": "imported",
+      "createdAt": "2026-06-25T07:02:51.441Z",
+      "updatedAt": "2026-06-25T17:43:02.823Z",
+      "lockedAspectRatio": false,
+      "lockedSize": false
+    }
+  ],
+  "activeFrameId": "ui-preview",
+  "tweaks": [
+    {
+      "control": "preset",
+      "group": "Appearance",
+      "label": "Appearance",
+      "presetOptions": [
+        {
+          "label": "Light",
+          "patches": [
+            {
+              "value": "#F7F7F7",
+              "variable": "--seed-bg"
+            },
+            {
+              "value": "#FFFFFF",
+              "variable": "--seed-surface"
+            },
+            {
+              "value": "#F7F7F7",
+              "variable": "--seed-surface-hover"
+            },
+            {
+              "value": "#EDEDED",
+              "variable": "--seed-surface-dim"
+            },
+            {
+              "value": "#EDEDED",
+              "variable": "--seed-divider"
+            },
+            {
+              "value": "#E5E5E5",
+              "variable": "--seed-border"
+            },
+            {
+              "value": "#191919",
+              "variable": "--seed-fg"
+            },
+            {
+              "value": "#666666",
+              "variable": "--seed-text"
+            },
+            {
+              "value": "#999999",
+              "variable": "--seed-muted"
+            },
+            {
+              "value": "#07C160",
+              "variable": "--seed-primary"
+            },
+            {
+              "value": "#06A050",
+              "variable": "--seed-accent"
+            }
+          ],
+          "value": "light"
+        },
+        {
+          "label": "Dark",
+          "patches": [
+            {
+              "value": "#191919",
+              "variable": "--seed-bg"
+            },
+            {
+              "value": "#1E1E1E",
+              "variable": "--seed-surface"
+            },
+            {
+              "value": "#252525",
+              "variable": "--seed-surface-hover"
+            },
+            {
+              "value": "#2C2C2C",
+              "variable": "--seed-surface-dim"
+            },
+            {
+              "value": "#2C2C2C",
+              "variable": "--seed-divider"
+            },
+            {
+              "value": "#404040",
+              "variable": "--seed-border"
+            },
+            {
+              "value": "rgba(255,255,255,0.9)",
+              "variable": "--seed-fg"
+            },
+            {
+              "value": "rgba(255,255,255,0.5)",
+              "variable": "--seed-text"
+            },
+            {
+              "value": "rgba(255,255,255,0.3)",
+              "variable": "--seed-muted"
+            },
+            {
+              "value": "#07C160",
+              "variable": "--seed-primary"
+            },
+            {
+              "value": "#06A050",
+              "variable": "--seed-accent"
+            }
+          ],
+          "value": "dark"
+        },
+        {
+          "label": "Mint Fresh",
+          "patches": [
+            {
+              "value": "#F0F7F2",
+              "variable": "--seed-bg"
+            },
+            {
+              "value": "#FFFFFF",
+              "variable": "--seed-surface"
+            },
+            {
+              "value": "#F0F7F2",
+              "variable": "--seed-surface-hover"
+            },
+            {
+              "value": "#E3F0E8",
+              "variable": "--seed-surface-dim"
+            },
+            {
+              "value": "#E3F0E8",
+              "variable": "--seed-divider"
+            },
+            {
+              "value": "#D0E4D8",
+              "variable": "--seed-border"
+            },
+            {
+              "value": "#1A2E22",
+              "variable": "--seed-fg"
+            },
+            {
+              "value": "#5A6B5F",
+              "variable": "--seed-text"
+            },
+            {
+              "value": "#8A9B8F",
+              "variable": "--seed-muted"
+            },
+            {
+              "value": "#07C160",
+              "variable": "--seed-primary"
+            },
+            {
+              "value": "#06A050",
+              "variable": "--seed-accent"
+            }
+          ],
+          "value": "mint"
+        },
+        {
+          "label": "Obsidian",
+          "patches": [
+            {
+              "value": "#1e1e2e",
+              "variable": "--seed-bg"
+            },
+            {
+              "value": "#181825",
+              "variable": "--seed-surface"
+            },
+            {
+              "value": "#1e1e2e",
+              "variable": "--seed-surface-hover"
+            },
+            {
+              "value": "#11111b",
+              "variable": "--seed-surface-dim"
+            },
+            {
+              "value": "#181825",
+              "variable": "--seed-divider"
+            },
+            {
+              "value": "#313244",
+              "variable": "--seed-border"
+            },
+            {
+              "value": "rgba(205,214,244,0.9)",
+              "variable": "--seed-fg"
+            },
+            {
+              "value": "rgba(205,214,244,0.5)",
+              "variable": "--seed-text"
+            },
+            {
+              "value": "rgba(205,214,244,0.3)",
+              "variable": "--seed-muted"
+            },
+            {
+              "value": "#7c3aed",
+              "variable": "--seed-primary"
+            },
+            {
+              "value": "#a855f7",
+              "variable": "--seed-accent"
+            }
+          ],
+          "value": "obsidian"
+        }
+      ],
+      "value": "light",
+      "variable": "--appearance-preset"
+    },
+    {
+      "control": "color",
+      "group": "Colors",
+      "label": "Primary Color",
+      "value": "#07C160",
+      "variable": "--seed-primary"
+    },
+    {
+      "control": "slider",
+      "group": "Spacing",
+      "label": "Radius Scale",
+      "max": 1.5,
+      "min": 0.5,
+      "step": 0.1,
+      "unit": "",
+      "value": "1",
+      "variable": "--seed-radius"
+    }
+  ]
+}

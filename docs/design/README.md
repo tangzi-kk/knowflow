@@ -1,0 +1,38 @@
+# KnowFlow 当前设计入口
+
+这里只保留当前有效的设计决策和入口。已实施或被替代的设计稿已移入 `../history/`，不再作为当前开发任务。
+
+## 当前产品决策
+
+- 飞书负责创作，Obsidian 负责整理与本地存储。
+- KnowFlow 是唯一正式插件实现，由 Obsidian 插件、浏览器扩展和共享协议组成。
+- 采集、整理和编码默认生成 proposal，只在人工确认后执行。
+- 双方同时修改时暂停，不自动选择覆盖方。
+- 浏览器和 Obsidian 的成功状态必须对应真实写入终态。
+- UI 原型用于试验视觉和交互，不等于正式功能已实现。
+
+## 当前入口
+
+- 产品与安全规格：[`../../SPEC.md`](../../SPEC.md)
+- 需求与优先级：[`../../需求池.md`](../../需求池.md)
+- 需求编辑器：[`../../需求编辑器.html`](../../需求编辑器.html)
+- UI 原型说明：[`../../ui-prototype/README.md`](../../ui-prototype/README.md)
+- 当前验收边界：[`../validation/4.1-acceptance.md`](../validation/4.1-acceptance.md)
+- 状态图与回退流程：[`../diagrams/`](../diagrams/)
+
+## 正式实现与原型边界
+
+| 内容 | 路径 | 是否运行代码 |
+|---|---|---|
+| Chrome / Edge 扩展 | `extension/` | 是 |
+| Obsidian 插件 | `packages/ob-plugin/` | 是 |
+| 双端共享协议 | `packages/shared/` | 是 |
+| UI 原型与样式历史 | `ui-prototype/` | 否 |
+| 历史设计和任务书 | `docs/history/` | 否 |
+
+## 历史资料
+
+- 飞书 ↔ Obsidian v3 方案、悬浮工具栏调研与重设计：[`../history/design/`](../history/design/)
+- KnowFlow 4.0 实施计划：[`../history/plans/`](../history/plans/)
+- KnowFlow 4.0 验收记录：[`../history/validation/`](../history/validation/)
+- KnowFlow 3.0 目标快照：[`../history/GOAL-3.0.md`](../history/GOAL-3.0.md)

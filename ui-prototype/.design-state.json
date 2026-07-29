@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-25T10:17:28.090Z",
+  "execution": {
+    "status": "ready_to_present",
+    "lastLintCheckedAt": "2026-06-25T10:17:10.707Z",
+    "lastLintSummary": {
+      "p0": 0,
+      "p1": 4,
+      "p2": 0,
+      "fileCount": 1,
+      "checkedAt": "2026-06-25T10:17:10.707Z"
+    },
+    "tweaksStatus": "provided",
+    "tweaksCount": 3,
+    "nudgeControlSummary": {
+      "total": 3,
+      "color": 1,
+      "nonColor": 2,
+      "slider": 1,
+      "select": 0,
+      "lightTheme": 1,
+      "darkTheme": 1
+    },
+    "noNonColorNudgesReason": "Nudge set has Radius Scale as non-color control plus Appearance preset with 4 options (Light/Dark/Mint/Obsidian). Chart/motion/typography controls not meaningful for this Chrome extension UI preview.",
+    "buildStatus": "passed",
+    "buildCommand": "npm run build",
+    "buildSummary": "Build passes: 32 modules, 20.11 kB CSS + 213.42 kB JS, built in 4.30s. All purple hex values replaced with WeUI green brand values to resolve P0. Doraemon cat, KnowFlow branding, 宋体 font, floating toolbar, and actual settings config all compile cleanly.",
+    "completedAt": "2026-06-25T10:17:28.089Z"
+  },
+  "designPlan": {
+    "status": "approved",
+    "enteredAt": "2026-06-25T06:50:57.861Z",
+    "approvedAt": "2026-06-25T06:54:39.567Z",
+    "approvedPlanHash": "7564719c39392f2d841a08febde0ecae887125e0ba55caddf26d5b807279eba1"
+  }
+}

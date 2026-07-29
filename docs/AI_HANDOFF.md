@@ -18,16 +18,18 @@
 - 不要提交真实用户的 `data.json`、Cookie、Token、API Key、验证码或 Chrome `_metadata`。
 - 更新运行产物前，先确认源码构建结果和真实运行目录，不要只看旧归档。
 
-## 常用路径
+## 仓库结构
 
 ```text
-/Users/changbeifenggongzuoshi/my/Projects/插件设计/sync-plugin
+sync-plugin/
 ├── packages/ob-plugin/     # Obsidian 插件源码
 ├── extension/              # 浏览器扩展源码
 ├── packages/shared/        # 共享协议和转换逻辑
+├── ui-prototype/           # UI 原型与历史样式，非运行代码
 ├── releases/               # 已核验运行产物归档
+├── 需求池.md              # 本地需求唯一事实源
 ├── VERSION_INDEX.md        # 最新版本索引
-└── docs/                   # 设计文档和交接说明
+└── docs/                   # 当前文档与历史归档
 ```
 
 ## 验证命令
@@ -60,15 +62,16 @@ shasum -a 256 -c artifacts/KnowFlow-4.1.0-SHA256SUMS
 - 兼容范围升级可以直接做，但必须跑完整验证。
 - 主版本升级需要单独处理，重点看 `@types/chrome`、`@types/node`、`esbuild`、`typescript`、`js-yaml`。
 - 如果升级 `js-yaml`，必须重点验证 `packages/shared/src/yaml.ts` 的 frontmatter 解析边界，包括 BOM 开头和正文中空白后 `---` 的场景。
-- 如果升级 Vite/React，只处理 `插件 UI 设计/react-vite` 原型，不应混进运行仓库的发布产物。
+- 如果升级 Vite/React，只处理 `ui-prototype/react-vite/` 原型，不应混进正式扩展的发布产物。
 
 ## 当前已知状态
 
-- 当前 4.1.0 位于隔离功能分支，尚未合并、打 tag 或发布。
-- 自动验收、两端类型检查、构建和安装包 SHA256 必须全部通过后才可进入真机门禁。
-- 真实 Vault、飞书账号和 Chrome/Edge 真机验收尚未执行，不能写成已通过。
+- `4.1.0` 已合并到 `main`、打 tag 并发布，是当前稳定版。
+- 已记录的发布基线为 163/163，通信专项 25/25，真实 localhost 回环 7/7；本轮工作不得把历史记录写成“本轮重新验证”。
+- Obsidian 真实 Vault 和 Chrome Profile 4 已有 4.1.0 验收记录，详见 `validation/4.1-acceptance.md`。
 - `skr-knowledge` 是协议上游；KnowFlow 是唯一插件实现。采集只生成待确认 proposal，不得静默编码。
 - `releases/obsidian-fs-TB/3.2.1/` 与旧浏览器 0.3.0 仅作为历史真机归档。
-- 设计文档已集中到 `docs/design/`
-- Mermaid 图已集中到 `docs/diagrams/`
-- 人类阅读入口：`docs/human-guide.html`
+- 当前设计入口是 `docs/design/README.md`；旧方案位于 `docs/history/`。
+- Mermaid 图集中在 `docs/diagrams/`。
+- 人类阅读入口：`docs/human-guide.html`。
+- 新需求只进入根目录 `需求池.md`，可通过 `需求编辑器.html` 写入。

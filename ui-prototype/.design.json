@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "updatedAt": "2026-06-25T07:10:00.000Z",
+  "abstract": "为「飞书同步到 Obsidian」Chrome 扩展插件做全面 UI 重新设计，采用「温馨知识小窝」概念，以灵动猫咪吉祥物为核心视觉锚点，融合 Cozy 暖色系设计语言。服务对象是使用飞书和 Obsidian 的知识工作者，目标是将功能完善的工具升级为使用愉悦的体验。产出包含 React 交互原型（Canvas 预览）和可直接替换的 Chrome 扩展 CSS/HTML 文件。审批前请重点确认：猫咪吉祥物方向、暖色调板（奶油底+薄荷主色+阳光黄点缀）、圆润胶囊控件风格、以及是否接受对现有 HTML 结构的适度调整。",
+  "brief": {
+    "artifactType": "chrome-extension-ui-redesign",
+    "targetPlatform": [
+      "desktop"
+    ],
+    "audience": "个人知识管理用户，使用飞书和 Obsidian 的知识工作者",
+    "businessGoal": "提升插件的视觉品质和交互体验，让知识管理工具从功能可用升级为使用愉悦",
+    "constraints": "Chrome extension popup width 380px, side panel ~400px, Shadow DOM isolation for toolbar, must maintain system theme follow (light/dark auto), preserve all existing functionality",
+    "style": "cute, playful, Q-version/chibi, artistic, cat mascot elements, warm pastel palette, cozy hand-drawn feel, Nunito + PingFang SC typography"
+  },
+  "output": {
+    "target": "react-vite",
+    "componentLibrary": "shadcn",
+    "previewStrategy": "React/Vite interactive prototype showcasing all 4 UI surfaces (popup, sidepanel, settings, toolbar) in a single scrollable demo page with live theme toggle, then deliver standalone CSS/HTML files for the Chrome extension."
+  },
+  "designDirection": {
+    "fidelity": "high-fidelity",
+    "styleSource": "cozy-kids (primary inspiration) + linear-app (layout discipline)",
+    "visualTone": [
+      "warm",
+      "playful",
+      "cozy",
+      "rounded",
+      "tactile",
+      "animal-mascot"
+    ],
+    "concept": "Cozy Knowledge Nest (温馨知识小窝)",
+    "mascot": "A cute chibi cat (知识猫) that appears in different states: sleeping on idle, sitting alert on active, celebrating on success. Cat uses SVG with warm brown/cream colors. Paw prints as decorative dividers and loading indicators."
+  },
+  "resources": {
+    "skill": {
+      "id": "dashboard",
+      "title": "dashboard",
+      "rationale": "mode matches prototype; platform: desktop; design intelligence favors dashboard/data workflow"
+    },
+    "styleReference": {
+      "primary": "cozy-kids",
+      "inspiration": [
+        "linear-app",
+        "fluent"
+      ],
+      "rationale": "cozy-kids provides the warm, rounded, tactile design language; linear-app provides clean layout discipline; fluent provides productivity tool patterns"
+    },
+    "requiredReads": [
+      {
+        "kind": "design-system",
+        "id": "cozy-kids",
+        "reason": "Primary style reference - warm palette, tokens, component stylings"
+      },
+      {
+        "kind": "craft",
+        "id": "anti-ai-slop",
+        "reason": "Baseline AI-slop guardrail"
+      },
+      {
+        "kind": "craft",
+        "id": "typography",
+        "reason": "Typography quality rule"
+      },
+      {
+        "kind": "craft",
+        "id": "color",
+        "reason": "Color quality rule"
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "react-vite/src/App.jsx",
+      "action": "create",
+      "purpose": "React 交互原型，展示全部 4 个 UI 界面（Popup / Side Panel Sync / Side Panel AI Chat / Settings）的可切换预览，含主题切换按钮",
+      "requirements": [
+        "Tab 切换展示 4 个核心界面",
+        "所有控件使用 cozy-kids 风格的圆润胶囊按钮、暖色卡片、薄荷主色",
+        "猫咪吉祥物 SVG 出现在各界面的适当位置（Popup 头部、Side Panel 空状态、Settings 侧栏底部）",
+        "浅色/深色主题跟随切换按钮演示",
+        "交互反馈：按钮 hover 上浮 + active 下压、loading 猫尾巴摇摆、成功猫举爪动画",
+        "YAML 属性表单用 chip/pill 选择器替代传统下拉框",
+        "AI 对话气泡用温暖圆角，用户气泡薄荷色底，AI 气泡奶油色底"
+      ]
+    },
+    {
+      "path": "react-vite/src/styles.css",
+      "action": "create",
+      "purpose": "完整的 CSS 设计系统，包含 primitive tokens、semantic tokens、组件样式、动效和深色模式",
+      "requirements": [
+        "基于 cozy-kids 色板适配 Chrome 扩展紧凑尺寸（按钮/卡片/间距缩小一档）",
+        "Primitive tokens: cream/card/secondary/title/text/muted/disabled/primary/focus/success/warning/danger",
+        "Semantic tokens: color-bg-page/surface/soft, color-text-primary/body/muted, color-action-primary/hover/active, radius-control/card/panel, shadow-button/input/card, motion-fast/base/slow/ease",
+        "Dark mode: 深暖棕底而非冷灰，保持暖色文字层级",
+        "Nunito (英文) + PingFang SC / Noto Sans SC (中文) 字体栈",
+        "按钮三态动效（rest/hover lift/active press）带底部阴影",
+        "输入框胶囊形，focus 阳光黄光环",
+        "猫咪 SVG 动画 keyframes（idle sway, celebrate bounce, tail wag loading）",
+        "prefers-reduced-motion 降级"
+      ]
+    },
+    {
+      "path": "react-vite/canvas-design.html",
+      "action": "create",
+      "purpose": "Canvas 设计模式预览入口 HTML",
+      "requirements": [
+        "标准 Canvas Vite HTML 入口",
+        "加载 React App 组件"
+      ]
+    },
+    {
+      "path": "extension/dist/popup.css",
+      "action": "modify",
+      "purpose": "Popup 弹出窗口样式重写：猫咪头部、状态胶囊、圆润控件、暖色背景",
+      "requirements": [
+        "替换现有 WeChat 绿色扁平风格为 cozy 暖色系",
+        "状态指示器用猫咪表情替代纯色圆点",
+        "开关/按钮/输入框全部使用圆润胶囊风格",
+        "保持 380px 宽度约束",
+        "深色模式跟随系统"
+      ]
+    },
+    {
+      "path": "extension/dist/sidepanel.css",
+      "action": "modify",
+      "purpose": "Side Panel 样式重写：同步流程卡片化、AI 对话气泡温暖化、属性表单 chip 化",
+      "requirements": [
+        "步骤指示器用猫咪爪印标记当前步骤",
+        "目录树用温暖卡片节点",
+        "YAML 属性表单标签改为 pill/chip 选择器",
+        "AI 对话气泡：用户薄荷底、AI 奶油底，温暖圆角",
+        "空状态展示睡觉猫咪插画",
+        "加载状态用摇摆猫尾巴动画",
+        "同步成功用猫咪举爪庆祝",
+        "保持功能布局不变，仅视觉升级"
+      ]
+    },
+    {
+      "path": "extension/dist/settings.css",
+      "action": "modify",
+      "purpose": "Settings 页面样式重写：侧栏导航圆润化、表单区域卡片化、整体温暖感",
+      "requirements": [
+        "侧栏导航项用圆润胶囊 hover 效果",
+        "每个设置区块用温暖卡片容器",
+        "表单输入框/下拉框全部胶囊化",
+        "Toggle 开关使用 cozy 风格（绿色 on / 暖灰 off）",
+        "页面底部放一个小猫咪装饰",
+        "保持 760px 响应式断点"
+      ]
+    },
+    {
+      "path": "extension/dist/toolbar.css",
+      "action": "modify",
+      "purpose": "划词工具栏（Shadow DOM）样式重写：胶囊更圆润、图标更可爱",
+      "requirements": [
+        "工具栏胶囊容器更圆润（加大 border-radius）",
+        "按钮使用 cozy 风格 hover/active 反馈",
+        "结果窗口使用温暖卡片样式",
+        "保持 Shadow DOM 隔离",
+        "深色模式适配"
+      ]
+    },
+    {
+      "path": "extension/dist/content.css",
+      "action": "modify",
+      "purpose": "飞书内容脚本样式重写：FAB 按钮、预览面板、toast 通知温暖化",
+      "requirements": [
+        "FAB 同步按钮增加猫咪图标",
+        "预览面板使用温暖卡片风格",
+        "toast 通知使用圆润胶囊形",
+        "保持飞书页面上的视觉和谐"
+      ]
+    }
+  ],
+  "structure": {
+    "screens": [
+      {
+        "id": "popup",
+        "name": "Popup 弹出窗口",
+        "sections": [
+          "猫咪状态头部",
+          "连接状态胶囊",
+          "功能按钮区（同步/AI/设置）",
+          "连接配置表单",
+          "结果反馈区"
+        ]
+      },
+      {
+        "id": "sidepanel-sync",
+        "name": "Side Panel - 同步",
+        "sections": [
+          "猫咪爪印步骤条",
+          "文档摘要卡片",
+          "目录树选择器",
+          "YAML 属性表单（chip 选择器）",
+          "AI 建议按钮",
+          "同步按钮 + 状态反馈"
+        ]
+      },
+      {
+        "id": "sidepanel-ai",
+        "name": "Side Panel - AI 对话",
+        "sections": [
+          "AI 提供商胶囊徽章",
+          "对话消息区（温暖气泡）",
+          "加载动画（猫尾巴）",
+          "输入区 + 工具栏",
+          "空状态（睡觉猫咪）"
+        ]
+      },
+      {
+        "id": "settings",
+        "name": "Settings 设置页",
+        "sections": [
+          "侧栏导航（胶囊 hover）",
+          "常规设置卡片",
+          "属性模板卡片",
+          "下拉选项卡片",
+          "AI 解释器卡片",
+          "AI 助手卡片",
+          "划词场景卡片",
+          "底部猫咪装饰"
+        ]
+      }
+    ]
+  },
+  "interaction": {
+    "primaryFlow": "用户打开 Popup → 点击打开同步面板 → Side Panel 中选择飞书文档 → 选目录/填属性 → AI 建议 → 同步到 Obsidian → 猫咪庆祝动画",
+    "states": [
+      "idle: 猫咪安静坐着微微摇摆",
+      "connecting: 猫咪竖起耳朵，尾巴微动",
+      "active: 猫咪坐姿端正，眼神明亮",
+      "loading: 猫尾巴左右摇摆动画",
+      "success: 猫咪举爪庆祝 + 星星粒子",
+      "error: 猫咪歪头问号表情",
+      "empty: 猫咪蜷缩睡觉"
+    ]
+  },
+  "quality": {
+    "responsive": true,
+    "accessibility": true,
+    "lintRequired": true,
+    "acceptanceCriteria": [
+      "所有界面的按钮、输入框、卡片都使用统一的 cozy 圆润风格",
+      "猫咪吉祥物在各界面的适当位置出现，不遮挡功能控件",
+      "浅色/深色主题都可正常使用，文字对比度满足 WCAG AA",
+      "按钮三态动效流畅自然（hover 上浮、active 下压）",
+      "React 原型可在 Canvas 中正常交互预览",
+      "Chrome 扩展 CSS 文件可直接替换 dist 目录中的同名文件",
+      "prefers-reduced-motion 下所有动画降级为即时状态切换"
+    ]
+  },
+  "risks": [
+    "Chrome 扩展 popup 宽度仅 380px，猫咪装饰元素需克制，避免挤占功能空间",
+    "现有 HTML 结构可能需要适度调整 class 名和嵌套层级以适配新 CSS",
+    "Shadow DOM 内的 toolbar 样式需确保不受宿主页面影响",
+    "深色模式下的暖色调需要仔细平衡，避免显得脏暗"
+  ]
+}

@@ -38,6 +38,9 @@
 
 - 人类阅读说明：[`docs/human-guide.html`](docs/human-guide.html)
 - AI 接手说明：[`docs/AI_HANDOFF.md`](docs/AI_HANDOFF.md)
+- 当前设计入口：[`docs/design/README.md`](docs/design/README.md)
+- 需求池：[`需求池.md`](需求池.md)；本地编辑页：[`需求编辑器.html`](需求编辑器.html)
+- UI 原型：[`ui-prototype/README.md`](ui-prototype/README.md)
 
 ---
 
@@ -286,7 +289,7 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 <details>
 <summary><b>Q: 什么是"删除登记"？</b></summary>
 
-在 OB 中删除已同步的文件时，插件自动登记到飞书多维表格，以便后续在飞书端同步删除对应文档。
+当前只完成安全的“主动登记”基础能力；直接删除已绑定文件时，自动识别并生成待确认记录仍是未完成需求 `KF-001`。默认不删除飞书远端文档。
 </details>
 
 ---
@@ -296,12 +299,14 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 - [x] Phase 0：流程验证
 - [x] Phase 1：MVP 核心同步
 - [x] Phase 2：协议通道 + Clipper 兼容 + 构建一致性
-- [ ] Phase 2.5：同步仪表盘 + 收件箱 + 模板工厂
-- [ ] Phase 3：智能管道 + 自动同步规则
-- [ ] Phase 4：知识图谱 + 语义关联
-- [ ] Phase 5：跨端共生
+- [ ] `KF-101`：飞书知识库批量同步
+- [ ] `KF-102`：同步仪表盘与待处理收件箱
+- [ ] `KF-103`：冲突提示与差异界面
+- [ ] `KF-104`：后台定时拉取与规则管道
+- [ ] `KF-105`：条件模板工厂
+- [ ] `KF-108`：知识关联、多 Vault 和跨端长期方向
 
-详见 [docs/README.md](./docs/README.md)。
+状态和优先级只在 [需求池.md](./需求池.md) 维护，设计入口见 [docs/design/README.md](./docs/design/README.md)。
 
 ---
 

@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>KnowFlow 需求编辑器</title>
+  <meta name="description" content="将自然语言整理成 KnowFlow 需求池的标准 Markdown 格式。">
+  <style>
+    :root {
+      --paper: #f6f5f1;
+      --panel: #fffefa;
+      --ink: #20221f;
+      --muted: #74776f;
+      --line: #d9d9d1;
+      --line-strong: #b8bab1;
+      --accent: #315f4b;
+      --accent-soft: #e7efe9;
+      --danger: #a0443f;
+      --shadow: 0 14px 40px rgba(38, 41, 36, 0.08);
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+      --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { min-width: 320px; background: var(--paper); }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(32, 34, 31, 0.035) 1px, transparent 1px),
+        var(--paper);
+      background-size: 100% 28px;
+      font-family: var(--sans);
+    }
+
+    button, select, textarea { font: inherit; }
+
+    button:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 3px solid rgba(49, 95, 75, 0.2);
+      outline-offset: 2px;
+    }
+
+    .shell {
+      width: min(1440px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 28px 0 42px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 18px;
+    }
+
+    .brand { min-width: 0; }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--accent);
+      font: 700 12px/1 var(--mono);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font: 650 clamp(25px, 3vw, 38px)/1.08 var(--sans);
+      letter-spacing: -0.035em;
+    }
+
+    .subtitle {
+      margin: 9px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .file-state {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+      max-width: 420px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      background: rgba(255, 254, 250, 0.78);
+      color: var(--muted);
+      font: 12px/1.35 var(--mono);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--line-strong);
+    }
+
+    .file-state.ready .status-dot { background: var(--accent); }
+    .file-state.dirty .status-dot { background: #b47722; }
+    .file-state.error .status-dot { background: var(--danger); }
+    .file-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      background: rgba(255, 254, 250, 0.9);
+      box-shadow: var(--shadow);
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .button {
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 5px;
+      background: var(--panel);
+      color: var(--ink);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 650;
+      transition: border-color 120ms ease, background 120ms ease, transform 120ms ease;
+    }
+
+    .button:hover:not(:disabled) { border-color: var(--ink); background: #fff; }
+    .button:active:not(:disabled) { transform: translateY(1px); }
+    .button:disabled { cursor: not-allowed; opacity: 0.42; }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button.primary:hover:not(:disabled) { border-color: #244a39; background: #244a39; }
+    .button.quiet { border-color: transparent; background: transparent; color: var(--muted); }
+    .button.quiet:hover:not(:disabled) { border-color: var(--line); color: var(--ink); }
+
+    .shortcut {
+      color: var(--muted);
+      font: 11px/1 var(--mono);
+      white-space: nowrap;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 0.82fr);
+      min-height: 630px;
+      border: 1px solid var(--line-strong);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .pane {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+    }
+
+    .pane + .pane { border-left: 1px solid var(--line-strong); }
+
+    .pane-head {
+      display: flex;
+      min-height: 51px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--line);
+      background: #f0efe9;
+    }
+
+    .pane-title {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .pane-index {
+      color: var(--accent);
+      font: 700 11px/1 var(--mono);
+    }
+
+    .meta-controls { display: flex; align-items: center; gap: 7px; }
+
+    select {
+      height: 32px;
+      max-width: 142px;
+      padding: 0 28px 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--panel);
+      color: var(--ink);
+      font-size: 12px;
+    }
+
+    .editor-wrap {
+      position: relative;
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 410px;
+      flex: 1;
+      resize: none;
+      border: 0;
+      padding: 24px 26px;
+      background: transparent;
+      color: var(--ink);
+      font: 16px/1.85 var(--mono);
+      caret-color: var(--accent);
+    }
+
+    textarea::placeholder { color: #9b9e96; }
+
+    .editor-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 43px;
+      padding: 10px 18px;
+      border-top: 1px solid var(--line);
+      background: rgba(246, 245, 241, 0.65);
+      color: var(--muted);
+      font: 11px/1 var(--mono);
+    }
+
+    .attachment-bar {
+      display: flex;
+      min-height: 88px;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-top: 1px dashed var(--line-strong);
+      background: #faf9f4;
+    }
+
+    .attachment-bar.dragging {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .attachment-trigger {
+      display: grid;
+      min-width: 126px;
+      min-height: 62px;
+      place-items: center;
+      padding: 8px 10px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      line-height: 1.4;
+      text-align: center;
+    }
+
+    .attachment-trigger:hover { border-color: var(--accent); color: var(--accent); }
+
+    .attachment-list {
+      display: flex;
+      min-width: 0;
+      flex: 1;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 1px;
+    }
+
+    .attachment-empty {
+      align-self: center;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .attachment-card {
+      position: relative;
+      width: 76px;
+      height: 62px;
+      flex: 0 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: #fff;
+    }
+
+    .attachment-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .attachment-remove {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      border-radius: 50%;
+      background: rgba(32, 34, 31, 0.82);
+      color: #fff;
+      cursor: pointer;
+      font: 15px/1 var(--sans);
+    }
+
+    .inference { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    .tag {
+      padding: 5px 7px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 254, 250, 0.92);
+    }
+
+    .preview-wrap {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      background: #fbfaf6;
+    }
+
+    pre {
+      flex: 1;
+      min-height: 510px;
+      margin: 0;
+      overflow: auto;
+      padding: 24px 24px 70px;
+      color: #33362f;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font: 13px/1.78 var(--mono);
+      tab-size: 2;
+    }
+
+    .preview-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hint {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 10px;
+      margin-top: 13px;
+      padding: 12px 14px;
+      border-left: 3px solid var(--accent);
+      background: var(--accent-soft);
+      color: #3e5147;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .hint strong { color: var(--accent); }
+
+    .toast {
+      position: fixed;
+      right: 22px;
+      bottom: 22px;
+      z-index: 20;
+      max-width: min(420px, calc(100vw - 44px));
+      padding: 12px 15px;
+      border: 1px solid var(--ink);
+      border-radius: 5px;
+      background: var(--ink);
+      color: #fff;
+      box-shadow: var(--shadow);
+      font-size: 13px;
+      line-height: 1.45;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.error { border-color: var(--danger); background: var(--danger); }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 920px) {
+      .shell { width: min(100% - 22px, 720px); padding-top: 18px; }
+      .topbar { flex-direction: column; gap: 14px; }
+      .file-state { width: 100%; max-width: none; }
+      .toolbar { align-items: stretch; flex-direction: column; }
+      .workspace { grid-template-columns: 1fr; }
+      .pane + .pane { border-top: 1px solid var(--line-strong); border-left: 0; }
+      textarea, pre { min-height: 380px; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: 100%; padding: 0; }
+      .topbar { padding: 18px 16px 0; }
+      .toolbar { margin: 0; border-right: 0; border-left: 0; box-shadow: none; }
+      .workspace { border-right: 0; border-left: 0; box-shadow: none; }
+      .toolbar-group { width: 100%; }
+      .toolbar-group .button { flex: 1; }
+      .shortcut { display: none; }
+      .pane-head { align-items: flex-start; flex-direction: column; }
+      .meta-controls { width: 100%; }
+      select { flex: 1; max-width: none; }
+      textarea { padding: 20px 18px; font-size: 15px; }
+      pre { padding: 20px 18px 72px; }
+      .attachment-bar { align-items: stretch; flex-direction: column; }
+      .attachment-trigger { width: 100%; min-height: 48px; }
+      .hint { margin: 12px 12px 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <p class="eyebrow">KnowFlow / Requirement Inbox</p>
+        <h1>写你的想法，其他交给格式。</h1>
+        <p class="subtitle">自然语言输入 → 规范 Markdown → 本地需求池。原文始终保留。</p>
+      </div>
+      <div class="file-state" id="fileState" aria-live="polite">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="file-label" id="fileLabel">尚未打开需求池.md</span>
+      </div>
+    </header>
+
+    <section class="toolbar" aria-label="文件操作">
+      <div class="toolbar-group">
+        <button class="button primary" id="projectButton" type="button">选择项目目录</button>
+        <button class="button" id="openButton" type="button">仅打开需求池</button>
+        <button class="button" id="saveButton" type="button" disabled>保存回原文件</button>
+        <button class="button" id="downloadButton" type="button" disabled>下载备份</button>
+        <input class="sr-only" id="fallbackFileInput" type="file" accept=".md,text/markdown,text/plain">
+        <input class="sr-only" id="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple>
+      </div>
+      <span class="shortcut">快捷键 ⌘ / Ctrl + Enter</span>
+    </section>
+
+    <section class="workspace" aria-label="KnowFlow 需求编辑器">
+      <article class="pane">
+        <header class="pane-head">
+          <div class="pane-title"><span class="pane-index">01</span> 自然语言</div>
+          <div class="meta-controls">
+            <label class="sr-only" for="typeSelect">需求类型</label>
+            <select id="typeSelect">
+              <option value="auto">类型：自动</option>
+              <option value="新功能">新功能</option>
+              <option value="功能改进">功能改进</option>
+              <option value="问题修复">问题修复</option>
+            </select>
+            <label class="sr-only" for="prioritySelect">优先级</label>
+            <select id="prioritySelect">
+              <option value="auto">优先级：自动</option>
+              <option value="高">高</option>
+              <option value="中">中</option>
+              <option value="低">低</option>
+              <option value="未定">未定</option>
+            </select>
+          </div>
+        </header>
+        <div class="editor-wrap">
+          <textarea id="naturalInput" spellcheck="true" autofocus placeholder="例如：
+
+我想在批量同步前先看到会改动哪些文档。如果有冲突，不要自动覆盖，先让我选择。"></textarea>
+          <div class="attachment-bar" id="attachmentBar">
+            <button class="attachment-trigger" id="imageButton" type="button">＋ 添加截图<br>也可粘贴或拖入</button>
+            <div class="attachment-list" id="attachmentList" aria-live="polite">
+              <span class="attachment-empty">支持 PNG、JPG、WebP 和 GIF，最多 6 张。</span>
+            </div>
+          </div>
+          <div class="editor-foot" aria-live="polite">
+            <div class="inference">
+              <span class="tag" id="typeTag">新功能</span>
+              <span class="tag" id="priorityTag">中优先级</span>
+            </div>
+            <span id="charCount">0 字</span>
+          </div>
+        </div>
+      </article>
+
+      <article class="pane">
+        <header class="pane-head">
+          <div class="pane-title"><span class="pane-index">02</span> 规范输出</div>
+          <div class="preview-actions">
+            <button class="button quiet" id="copyButton" type="button" disabled>复制</button>
+            <button class="button primary" id="appendButton" type="button" disabled>加入需求池</button>
+          </div>
+        </header>
+        <div class="preview-wrap">
+          <pre id="markdownPreview" aria-live="polite">在左侧写下你的想法。
+
+这里会生成固定格式，但不会替你编造需求。</pre>
+        </div>
+      </article>
+    </section>
+
+    <aside class="hint">
+      <strong>本地优先</strong>
+      <span>选择 <code>sync-plugin</code> 项目目录后，正式内容保存到本地 <code>需求池.md</code>，截图保存到 <code>需求附件/</code>。截图可能在后续随项目同步到公开 GitHub，请先遮挡 Token、验证码和私人信息。</span>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const STORAGE_KEY = 'knowflow.requirement-editor.draft.v1';
+      const REQUIRED_SECTION = '## 需求收件箱';
+      const emptyPreview = '在左侧写下你的想法。\n\n这里会生成固定格式，但不会替你编造需求。';
+
+      const elements = {
+        fileState: document.querySelector('#fileState'),
+        fileLabel: document.querySelector('#fileLabel'),
+        projectButton: document.querySelector('#projectButton'),
+        openButton: document.querySelector('#openButton'),
+        saveButton: document.querySelector('#saveButton'),
+        downloadButton: document.querySelector('#downloadButton'),
+        fallbackFileInput: document.querySelector('#fallbackFileInput'),
+        imageInput: document.querySelector('#imageInput'),
+        imageButton: document.querySelector('#imageButton'),
+        attachmentBar: document.querySelector('#attachmentBar'),
+        attachmentList: document.querySelector('#attachmentList'),
+        input: document.querySelector('#naturalInput'),
+        typeSelect: document.querySelector('#typeSelect'),
+        prioritySelect: document.querySelector('#prioritySelect'),
+        typeTag: document.querySelector('#typeTag'),
+        priorityTag: document.querySelector('#priorityTag'),
+        charCount: document.querySelector('#charCount'),
+        preview: document.querySelector('#markdownPreview'),
+        copyButton: document.querySelector('#copyButton'),
+        appendButton: document.querySelector('#appendButton'),
+        toast: document.querySelector('#toast')
+      };
+
+      let projectDirectoryHandle = null;
+      let fileHandle = null;
+      let fileName = '';
+      let poolContent = '';
+      let isDirty = false;
+      let toastTimer = null;
+      let pendingImages = [];
+      let queuedImages = [];
+
+      function showToast(message, isError = false) {
+        window.clearTimeout(toastTimer);
+        elements.toast.textContent = message;
+        elements.toast.classList.toggle('error', isError);
+        elements.toast.classList.add('show');
+        toastTimer = window.setTimeout(() => elements.toast.classList.remove('show'), 2600);
+      }
+
+      function setFileState(label, state = '') {
+        elements.fileLabel.textContent = label;
+        elements.fileState.className = `file-state${state ? ` ${state}` : ''}`;
+      }
+
+      function normalizeLine(value) {
+        return value.replace(/\s+/g, ' ').trim();
+      }
+
+      function inferType(text) {
+        const selected = elements.typeSelect.value;
+        if (selected !== 'auto') return selected;
+        if (/(bug|BUG|报错|崩溃|错误|无法|失败|丢失|修复)/.test(text)) return '问题修复';
+        if (/(优化|改进|调整|更好|体验|性能|变慢|不方便)/.test(text)) return '功能改进';
+        return '新功能';
+      }
+
+      function inferPriority(text) {
+        const selected = elements.prioritySelect.value;
+        if (selected !== 'auto') return selected;
+        if (/(紧急|严重|安全|数据丢失|无法使用|崩溃|必须|P0)/i.test(text)) return '高';
+        if (/(以后|有空|可以考虑|锦上添花|长期|P2)/i.test(text)) return '低';
+        return '中';
+      }
+
+      function inferTitle(text) {
+        const first = text
+          .split(/\n+/)
+          .map(normalizeLine)
+          .find(Boolean) || '未命名需求';
+        const sentence = (first.split(/[。！？!?]/)[0].replace(/^(我想|我希望|希望|请|需要)将?/, '').trim() || first)
+          .replace(/[#*_`\[\]<>]/g, '')
+          .trim();
+        return sentence.length > 34 ? `${sentence.slice(0, 34)}…` : sentence;
+      }
+
+      function nextRequirementId(content) {
+        let max = 0;
+        const matches = content.matchAll(/\bKF-(\d{3,})\b/g);
+        for (const match of matches) max = Math.max(max, Number(match[1]));
+        return `KF-${String(max + 1).padStart(3, '0')}`;
+      }
+
+      function quoteOriginal(text) {
+        return text
+          .trim()
+          .split('\n')
+          .map((line) => `  > ${line || ' '}`)
+          .join('\n');
+      }
+
+      function imageExtension(file) {
+        const extensions = {
+          'image/png': 'png',
+          'image/jpeg': 'jpg',
+          'image/webp': 'webp',
+          'image/gif': 'gif'
+        };
+        return extensions[file.type] || '';
+      }
+
+      function plannedImages(id) {
+        return pendingImages.map((entry, index) => ({
+          file: entry.file,
+          name: `${id}-${String(index + 1).padStart(2, '0')}.${imageExtension(entry.file)}`
+        }));
+      }
+
+      function renderAttachments() {
+        elements.attachmentList.textContent = '';
+        if (!pendingImages.length) {
+          const empty = document.createElement('span');
+          empty.className = 'attachment-empty';
+          empty.textContent = '支持 PNG、JPG、WebP 和 GIF，最多 6 张。';
+          elements.attachmentList.appendChild(empty);
+          return;
+        }
+
+        pendingImages.forEach((entry, index) => {
+          const card = document.createElement('div');
+          card.className = 'attachment-card';
+
+          const image = document.createElement('img');
+          image.src = entry.url;
+          image.alt = `待提交截图 ${index + 1}`;
+
+          const remove = document.createElement('button');
+          remove.className = 'attachment-remove';
+          remove.type = 'button';
+          remove.textContent = '×';
+          remove.setAttribute('aria-label', `移除截图 ${index + 1}`);
+          remove.addEventListener('click', () => {
+            URL.revokeObjectURL(entry.url);
+            pendingImages.splice(index, 1);
+            renderAttachments();
+            renderPreview();
+          });
+
+          card.append(image, remove);
+          elements.attachmentList.appendChild(card);
+        });
+      }
+
+      function addImages(files) {
+        const supported = Array.from(files).filter((file) => imageExtension(file));
+        const rejected = Array.from(files).length - supported.length;
+        const remaining = Math.max(0, 6 - pendingImages.length);
+        const accepted = supported.slice(0, remaining);
+
+        for (const file of accepted) {
+          if (file.size > 12 * 1024 * 1024) {
+            showToast(`截图 ${file.name || ''} 超过 12 MB，已跳过。`, true);
+            continue;
+          }
+          pendingImages.push({ file, url: URL.createObjectURL(file) });
+        }
+
+        if (rejected) showToast('部分文件不是受支持的图片格式，已跳过。', true);
+        if (supported.length > remaining) showToast('每条需求最多保留 6 张截图。', true);
+        renderAttachments();
+        renderPreview();
+      }
+
+      function buildRequirementBlock() {
+        const original = elements.input.value.trim();
+        if (!original) return '';
+
+        const id = nextRequirementId(poolContent);
+        const type = inferType(original);
+        const priority = inferPriority(original);
+        const title = inferTitle(original);
+        const today = new Intl.DateTimeFormat('en-CA', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).format(new Date());
+
+        const lines = [
+          `### ${id} ${title}`,
+          '',
+          '- [ ] 状态：待确认',
+          `- 类型：${type}`,
+          `- 优先级：${priority}`,
+          `- 记录日期：${today}`,
+          '- 用户原话：',
+          quoteOriginal(original)
+        ];
+
+        const images = plannedImages(id);
+        if (images.length) {
+          lines.push('- 截图：');
+          images.forEach((image, index) => {
+            lines.push(`  ![需求截图 ${index + 1}](需求附件/${image.name})`);
+          });
+        }
+        lines.push('- 验收标准：待确认');
+        return lines.join('\n');
+      }
+
+      function renderPreview() {
+        const text = elements.input.value;
+        const block = buildRequirementBlock();
+        const type = inferType(text);
+        const priority = inferPriority(text);
+
+        elements.preview.textContent = block || emptyPreview;
+        elements.typeTag.textContent = type;
+        elements.priorityTag.textContent = `${priority}优先级`;
+        elements.charCount.textContent = `${text.length} 字`;
+        elements.copyButton.disabled = !block;
+        elements.appendButton.disabled = !block || !poolContent;
+
+        try {
+          window.localStorage.setItem(STORAGE_KEY, text);
+        } catch (_) {
+          // 草稿保存失败不影响正式文件。
+        }
+      }
+
+      function validatePool(content) {
+        if (!content.includes(REQUIRED_SECTION)) {
+          throw new Error('这个文件中没有“需求收件箱”，为避免写错文件，已停止加载。');
+        }
+      }
+
+      function loadPool(content, name, handle = null, directoryHandle = null) {
+        validatePool(content);
+        poolContent = content;
+        fileName = name || '需求池.md';
+        fileHandle = handle;
+        projectDirectoryHandle = directoryHandle;
+        isDirty = false;
+        elements.saveButton.disabled = !fileHandle;
+        elements.downloadButton.disabled = false;
+        setFileState(`${fileName} · 已加载`, 'ready');
+        renderPreview();
+        showToast(`已加载 ${fileName}`);
+      }
+
+      async function openProjectDirectory() {
+        if (!('showDirectoryPicker' in window)) {
+          showToast('请使用桌面版 Chrome 或 Edge 选择项目目录。', true);
+          return;
+        }
+        try {
+          const directory = await window.showDirectoryPicker({ mode: 'readwrite' });
+          const handle = await directory.getFileHandle('需求池.md');
+          const file = await handle.getFile();
+          loadPool(await file.text(), file.name, handle, directory);
+          setFileState(`${directory.name}/需求池.md · 已加载`, 'ready');
+          showToast('项目目录已就绪，截图将保存到“需求附件”。');
+        } catch (error) {
+          if (error && error.name === 'AbortError') return;
+          showToast(error.message || '无法打开项目目录。', true);
+        }
+      }
+
+      async function openPool() {
+        if ('showOpenFilePicker' in window) {
+          try {
+            const [handle] = await window.showOpenFilePicker({
+              multiple: false,
+              types: [{
+                description: 'Markdown 需求池',
+                accept: { 'text/markdown': ['.md'], 'text/plain': ['.md'] }
+              }]
+            });
+            const file = await handle.getFile();
+            loadPool(await file.text(), file.name, handle, null);
+            return;
+          } catch (error) {
+            if (error && error.name === 'AbortError') return;
+            showToast(error.message || '无法打开文件，正在使用兼容模式。', true);
+          }
+        }
+        elements.fallbackFileInput.click();
+      }
+
+      function appendToInbox(content, block) {
+        validatePool(content);
+        const sectionStart = content.indexOf(REQUIRED_SECTION);
+        const bodyStart = content.indexOf('\n', sectionStart) + 1;
+        const nextHeading = content.indexOf('\n## ', bodyStart);
+        const insertAt = nextHeading === -1 ? content.length : nextHeading;
+        let before = content.slice(0, insertAt).trimEnd();
+        const after = content.slice(insertAt);
+
+        before = before.replace(/\n-\s*\[\s*\]\s*$/, '');
+        return `${before.trimEnd()}\n\n${block}\n${after.startsWith('\n') ? after : `\n${after}`}`;
+      }
+
+      function appendRequirement() {
+        const block = buildRequirementBlock();
+        if (!block || !poolContent) return;
+        if (pendingImages.length && !projectDirectoryHandle) {
+          showToast('要保存截图，请先点击“选择项目目录”。', true);
+          return;
+        }
+        const id = nextRequirementId(poolContent);
+        queuedImages.push(...plannedImages(id));
+        poolContent = appendToInbox(poolContent, block);
+        isDirty = true;
+        elements.downloadButton.disabled = false;
+        elements.saveButton.disabled = !fileHandle;
+        setFileState(`${fileName} · 有未保存修改`, 'dirty');
+        elements.input.value = '';
+        pendingImages.forEach((entry) => URL.revokeObjectURL(entry.url));
+        pendingImages = [];
+        renderAttachments();
+        try { window.localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+        renderPreview();
+        showToast('已加入需求池，请继续点击“保存回原文件”。');
+      }
+
+      async function savePool() {
+        if (!fileHandle || !poolContent) return;
+        try {
+          if (queuedImages.length) {
+            if (!projectDirectoryHandle) throw new Error('截图需要保存到项目目录，请重新选择项目目录。');
+            const attachmentDirectory = await projectDirectoryHandle.getDirectoryHandle('需求附件', { create: true });
+            for (const image of queuedImages) {
+              const imageHandle = await attachmentDirectory.getFileHandle(image.name, { create: true });
+              const imageWritable = await imageHandle.createWritable();
+              await imageWritable.write(image.file);
+              await imageWritable.close();
+            }
+          }
+          const writable = await fileHandle.createWritable();
+          await writable.write(poolContent);
+          await writable.close();
+          queuedImages = [];
+          isDirty = false;
+          setFileState(`${fileName} · 已保存`, 'ready');
+          showToast('已保存回本地需求池。');
+        } catch (error) {
+          setFileState(`${fileName} · 保存失败`, 'error');
+          showToast(error.message || '保存失败，可先下载备份。', true);
+        }
+      }
+
+      function downloadPool() {
+        if (!poolContent) return;
+        if (queuedImages.length) {
+          showToast('需求中包含截图，请使用“保存回原文件”同时写入附件。', true);
+          return;
+        }
+        const blob = new Blob([poolContent], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName || '需求池.md';
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        showToast('已下载 Markdown 备份。');
+      }
+
+      async function copyPreview() {
+        const block = buildRequirementBlock();
+        if (!block) return;
+        try {
+          await navigator.clipboard.writeText(block);
+          showToast('已复制规范 Markdown。');
+        } catch (_) {
+          showToast('浏览器未允许复制，可直接选中右侧文本。', true);
+        }
+      }
+
+      async function tryAutoLoad() {
+        if (window.location.protocol === 'file:') return;
+        try {
+          const response = await fetch('./需求池.md', { cache: 'no-store' });
+          if (!response.ok) return;
+          loadPool(await response.text(), '需求池.md');
+          setFileState('需求池.md · 已预览（保存时请下载）', 'ready');
+        } catch (_) {
+          // 自动读取不可用时，仍可手动打开。
+        }
+      }
+
+      elements.projectButton.addEventListener('click', openProjectDirectory);
+      elements.openButton.addEventListener('click', openPool);
+      elements.saveButton.addEventListener('click', savePool);
+      elements.downloadButton.addEventListener('click', downloadPool);
+      elements.appendButton.addEventListener('click', appendRequirement);
+      elements.copyButton.addEventListener('click', copyPreview);
+      elements.input.addEventListener('input', renderPreview);
+      elements.typeSelect.addEventListener('change', renderPreview);
+      elements.prioritySelect.addEventListener('change', renderPreview);
+      elements.imageButton.addEventListener('click', () => elements.imageInput.click());
+      elements.imageInput.addEventListener('change', (event) => {
+        addImages(event.target.files || []);
+        event.target.value = '';
+      });
+
+      elements.input.addEventListener('paste', (event) => {
+        const images = Array.from(event.clipboardData?.files || []).filter((file) => file.type.startsWith('image/'));
+        if (images.length) {
+          event.preventDefault();
+          addImages(images);
+        }
+      });
+
+      elements.attachmentBar.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        elements.attachmentBar.classList.add('dragging');
+      });
+      elements.attachmentBar.addEventListener('dragleave', () => elements.attachmentBar.classList.remove('dragging'));
+      elements.attachmentBar.addEventListener('drop', (event) => {
+        event.preventDefault();
+        elements.attachmentBar.classList.remove('dragging');
+        addImages(event.dataTransfer?.files || []);
+      });
+
+      elements.fallbackFileInput.addEventListener('change', async (event) => {
+        const [file] = event.target.files || [];
+        if (!file) return;
+        try {
+          loadPool(await file.text(), file.name, null, null);
+          setFileState(`${file.name} · 已加载（保存时请下载）`, 'ready');
+        } catch (error) {
+          setFileState('需求池加载失败', 'error');
+          showToast(error.message, true);
+        } finally {
+          event.target.value = '';
+        }
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+          event.preventDefault();
+          appendRequirement();
+        }
+      });
+
+      window.addEventListener('beforeunload', (event) => {
+        if (!isDirty && !pendingImages.length && !queuedImages.length) return;
+        event.preventDefault();
+        event.returnValue = '';
+      });
+
+      try {
+        const draft = window.localStorage.getItem(STORAGE_KEY);
+        if (draft) elements.input.value = draft;
+      } catch (_) {}
+
+      renderPreview();
+      renderAttachments();
+      tryAutoLoad();
+    })();
+  </script>
+</body>
+</html>

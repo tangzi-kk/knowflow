@@ -33,6 +33,7 @@ data.json
 
 # Legacy build artifacts
 packages/dist/
+ui-prototype/react-vite/dist/
 
 # Workspace memory
 .workbuddy/
