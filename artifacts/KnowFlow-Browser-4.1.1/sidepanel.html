@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KnowFlow · 知流</title>
+  <link rel="stylesheet" href="tokens.css" />
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="mascot mascot-idle mascot-sm">
+        <svg class="mascot-svg" width="28" height="28" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="28" fill="#07C160"/>
+          <ellipse cx="32" cy="54" rx="18" ry="5" fill="#058040" opacity="0.2"/>
+          <ellipse cx="24" cy="29" rx="7" ry="8" fill="#FFFFFF"/>
+          <ellipse cx="40" cy="29" rx="7" ry="8" fill="#FFFFFF"/>
+          <circle cx="25" cy="30" r="3.5" fill="#1A3A28"/>
+          <circle cx="41" cy="30" r="3.5" fill="#1A3A28"/>
+          <circle cx="24" cy="28.5" r="1.2" fill="#FFFFFF"/>
+          <circle cx="40" cy="28.5" r="1.2" fill="#FFFFFF"/>
+          <path d="M26 41Q32 47 38 41" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" fill="none"/>
+        </svg>
+      </div>
+      <div>
+        <div class="eyebrow">KnowFlow · Feishu Sync</div>
+        <h1 id="page-title">同步前预览</h1>
+      </div>
+      <button id="refresh-btn" class="icon-btn" type="button" style="display:none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>刷新</button>
+    </header>
+
+    <!-- Tab 导航 -->
+    <nav class="panel-tabs">
+      <button class="panel-tab panel-tab-active" data-panel="sync">📥 同步</button>
+      <button class="panel-tab" data-panel="ai">🤖 AI 对话</button>
+    </nav>
+
+    <!-- 同步面板 -->
+    <div id="panel-sync" class="panel-content">
+      <div class="steps">
+        <div class="step step-done"><span class="step-dot">1</span><span class="step-label">确认文档</span></div>
+        <div class="step-line"></div>
+        <div class="step step-active"><span class="step-dot">2</span><span class="step-label">选择目录</span></div>
+        <div class="step-line"></div>
+        <div class="step"><span class="step-dot">3</span><span class="step-label">确认属性</span></div>
+        <div class="step-line"></div>
+        <div class="step"><span class="step-dot">4</span><span class="step-label">同步</span></div>
+      </div>
+
+      <!-- 文档摘要卡片 -->
+      <div id="doc-summary" class="doc-card">
+        <div class="skeleton title"></div>
+        <div class="skeleton line"></div>
+      </div>
+
+      <!-- 可滚动内容区 -->
+      <div class="sp-scrollable">
+        <div class="sp-section">
+          <div class="sp-section-head">
+            <span class="sp-section-title">📁 目标目录</span>
+          </div>
+          <div id="directory-control"></div>
+        </div>
+
+        <div class="sp-section">
+          <div class="sp-section-head">
+            <span class="sp-section-title">🏷️ YAML 属性</span>
+            <button id="suggest-btn" class="ghost-btn" type="button">✨ AI 建议</button>
+          </div>
+          <div id="meta-form" class="meta-form"></div>
+        </div>
+
+        <div id="interpreter-note" class="interpreter"></div>
+        <div id="status" class="status status-info">正在读取当前飞书文档...</div>
+      </div>
+
+      <footer class="footer">
+        <div class="footer-caption">
+          <span class="caption" id="footer-target"></span>
+          <span class="caption" id="footer-meta"></span>
+        </div>
+        <button id="sync-btn" class="primary" type="button" disabled>同步到 Obsidian</button>
+      </footer>
+    </div>
+
+    <!-- AI 面板 -->
+    <div id="panel-ai" class="panel-content" style="display:none">
+      <div class="ai-header">
+        <span class="ai-header-label">Provider:</span>
+        <span id="ai-provider-badge" class="ai-provider-badge ai-provider-gemini-nano">Gemini Nano (内置)</span>
+        <button id="ai-clear" class="ai-clear-btn" type="button" title="清空对话">清空</button>
+      </div>
+      <div id="ai-messages" class="ai-messages">
+        <div class="ai-empty">在下方输入问题，AI 助手将为你解答</div>
+      </div>
+      <footer class="ai-footer">
+        <textarea id="ai-input" class="ai-input" placeholder="问问 Gemini…" rows="2"></textarea>
+        <div id="ai-attachments" class="ai-attachments" aria-live="polite"></div>
+        <div class="ai-tools" aria-label="AI 工具">
+          <label class="ai-tool-icon" title="添加本地图片"><input id="ai-file" type="file" accept="image/*" multiple hidden>📎</label>
+          <button class="ai-tool" data-ai-tool="browser-control" type="button">⌁ 浏览器控制</button>
+          <button class="ai-tool" data-ai-tool="page" type="button">▣ 网页</button>
+          <button class="ai-tool" data-ai-tool="quote" type="button">❞ 引用</button>
+          <button class="ai-tool" data-ai-tool="ocr" type="button">⌗ OCR</button>
+          <button class="ai-tool" data-ai-tool="screenshot-translate" type="button">文 截图翻译</button>
+          <button class="ai-tool" data-ai-tool="screen-shot" type="button">▱ 屏幕截图</button>
+          <button id="ai-send" class="ai-send" type="button" aria-label="发送">➤</button>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

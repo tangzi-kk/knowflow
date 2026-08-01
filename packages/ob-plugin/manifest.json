@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.1.0：统一整理预览、事务回滚与可信同步",
+  "description": "KnowFlow 4.1.1：需求入口与 Obsidian 设置改进",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

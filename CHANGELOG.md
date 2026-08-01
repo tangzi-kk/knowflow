@@ -2,7 +2,7 @@
 
 All notable changes to KnowFlow · 知流 (飞书 ↔ Obsidian 同步插件) will be documented in this file.
 
-## [Unreleased]
+## [4.1.1] - 2026-08-01
 
 ### 本地需求与 Obsidian 入口收口
 
