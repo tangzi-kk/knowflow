@@ -6,8 +6,8 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `4.5.0` | `artifacts/fs-TB-Obsidian-4.5.0.zip` | 已完成构建门禁与真实 Vault 结构验收，等待 GitHub Release |
-| 浏览器 `KnowFlow` | `4.5.0` | `artifacts/KnowFlow-Browser-4.5.0/`、同名 ZIP | 已完成构建门禁，等待 GitHub Release |
+| Obsidian `fs-TB` | `4.5.0` | `artifacts/fs-TB-Obsidian-4.5.0.zip` | 已完成构建门禁、真实 Vault 结构验收并发布 |
+| 浏览器 `KnowFlow` | `4.5.0` | `artifacts/KnowFlow-Browser-4.5.0/`、同名 ZIP | 已完成构建门禁并发布 |
 
 4.1.1 仍作为上一版可回滚稳定包保留在 GitHub Release 与 `artifacts/` 历史文件中。
 
@@ -21,7 +21,7 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 上一稳定版 4.3.0 已发布到 [GitHub Release v4.3.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.3.0)；4.5.0 已完成门禁，发布地址将在推送后补入。
+- 上一稳定版 4.3.0 已发布到 [GitHub Release v4.3.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.3.0)；当前版本已发布到 [GitHub Release v4.5.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.0)。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`
