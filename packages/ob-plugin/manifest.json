@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.3.0",
+  "version": "4.5.0",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.3.0：本地自动编码与右键纠错",
+  "description": "KnowFlow 4.5.0：文件夹自动编码与白名单",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

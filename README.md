@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-4.3.0-blue" alt="release version">
+  <img src="https://img.shields.io/badge/release-4.5.0-blue" alt="release version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前稳定版 | `fs-TB` + `KnowFlow` | `4.3.0` | `artifacts/` | 本地自动识别、自动编码与右键纠错；真机与通信门禁已通过后发布 |
+| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.0` | `artifacts/` | 文件夹自动编码、白名单、标签归类与递归整理；待发布门禁收口 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -31,8 +31,8 @@
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.3.0.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.3.0/` 或 `artifacts/KnowFlow-Browser-4.3.0.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.5.0.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.0/` 或 `artifacts/KnowFlow-Browser-4.5.0.zip`
 
 阅读入口：
 
@@ -145,7 +145,7 @@
 | 🎨 **Callout 保留** | 飞书高亮块颜色/emoji → OB callout，回写时反向还原 |
 | 🏷️ **元数据绑定** | 飞书头部「文档信息」callout ↔ OB YAML frontmatter 自动互转 |
 | 📸 **图片处理** | 飞书图片 → `feishu://FILE_TOKEN` 永久引用，预览时实时下载 |
-| 🔢 **自动识别与编码** | 新建/修改后自动按标题、正文和关键词识别标签、分配完整编码并改名为短编码前缀；错误项从右键纠错 |
+| 🔢 **自动识别与编码** | 新建/修改后自动按标题、正文和关键词识别标签、分配完整编码并改名为短编码前缀；需要重新归类时从右键修改标签，文件夹还可直接剪藏到当前目录 |
 | 📋 **Clipper 兼容** | 监听飞书官方 Clipper 占位文件，自动替换为真实同步内容 |
 | 🛡️ **Token 鉴权** | 本地通信 `X-Sync-Token` 保护，防止同网段未授权访问 |
 | 📂 **目录树选择** | 同步时可选择 OB vault 中的落地目录 |
@@ -296,7 +296,13 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 <details>
 <summary><b>Q: 文档很多，如何自动编码？</b></summary>
 
-默认打开“自动识别并编码文档”后，新建、修改或改名 Markdown 会自动识别、分配完整编码并写入；文件名和界面默认显示短编码（如 `S01.a1`），低置信度文档回退为 `S`。受保护目录、损坏 YAML 和冲突项会跳过并提示，你可以在文件树右键“纠正此文档”。需要全库补齐时，运行 Ribbon 或命令面板中的“自动识别并整理全库文档”。
+默认打开“自动识别并编码文档”后，新建、修改或改名 Markdown 会自动识别、分配完整编码并写入；文件名和界面默认显示短编码（如 `S01.a1`），低置信度文档回退为 `S`。受保护目录、损坏 YAML 和冲突项会跳过并提示；需要把目录内文档从 `Q`、`Z` 等任一合法标签统一改为另一合法标签时，在文件树右键“修改标签”，目录默认递归处理子目录。文件夹右键的“剪藏到此文件夹…”负责把飞书内容采集到当前目录。需要全库补齐时，运行 Ribbon 或命令面板中的“自动识别并整理全库文档”。
+</details>
+
+<details>
+<summary><b>Q: 文件夹会自动编码吗？</b></summary>
+
+会，但目录层级是固定的：根入口目录永远不编码；`🪧导引/` 和 `3️⃣附件文件/` 整棵目录树永远保护；`0️⃣输入/` 与 `1️⃣🗃知识池/` 的二级语义入口也不编码，从三级文件夹开始才自动编码；`2️⃣输出/` 的二级目录可以编码。可编码目录会得到类似 `Z01 · 剪藏` 的短编码并提示，长编码保存在 `.feishu-sync/目录编码索引.json`，不写入 YAML。设置页可填写相对 Vault 路径白名单，白名单及隐藏目录、`.feishu-sync` 始终跳过。右键只有可编码目录才显示“调整此文件夹结构编码…”，目录内 Markdown 的标签整理使用“修改此目录标签（含子目录）…”。
 </details>
 
 ---

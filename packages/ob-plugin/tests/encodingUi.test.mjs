@@ -16,10 +16,15 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.equal((uiSource.match(/workspace\.on\(\s*['"]files-menu['"]/g) ?? []).length, 1);
   assert.match(uiSource, /source !== FILE_EXPLORER_SOURCE/);
   assert.match(uiSource, /file-explorer-context-menu/);
-  assert.match(uiSource, /KnowFlow：纠正此文档…/);
-  assert.match(uiSource, /KnowFlow：检查并纠正此目录…/);
-  assert.match(uiSource, /KnowFlow：检查并纠正所选内容/);
-  assert.match(uiSource, /openCorrectionPanel/);
+  assert.match(uiSource, /KnowFlow：修改此文档标签…/);
+  assert.match(uiSource, /KnowFlow：修改此目录标签（含子目录）…/);
+  assert.match(uiSource, /KnowFlow：调整此文件夹结构编码…/);
+  assert.match(uiSource, /KnowFlow：剪藏到此文件夹…/);
+  assert.match(uiSource, /openFolderEncodingPanel/);
+  assert.match(uiSource, /KnowFlow：修改所选内容标签/);
+  assert.match(uiSource, /openTagAssignmentPanel/);
+  assert.match(uiSource, /tagOverride/);
+  assert.match(uiSource, /TagAssignmentModal/);
   assert.match(uiSource, /WeakSet<FeishuSyncPlugin>/);
 });
 
@@ -27,6 +32,8 @@ test('protected roots are hidden and blocked before transaction preview', () => 
   assert.match(uiSource, /PROTECTED_PATH_RE/);
   assert.match(uiSource, /AGENTS/);
   assert.match(uiSource, /🪧导引/);
+  assert.match(uiSource, /3️⃣附件文件/);
+  assert.match(uiSource, /isProtectedDocumentPath/);
   assert.match(uiSource, /filter\(\(target\) => !isProtectedPath\(target\.path\)\)/);
   assert.match(uiSource, /safePaths\.some\(isProtectedPath\)/);
 });
@@ -51,7 +58,7 @@ test('the plugin registers one KnowFlow ribbon and no persistent view', () => {
   assert.equal((entrySource.match(/addRibbonIcon\(/g) ?? []).length, 1);
   assert.match(entrySource, /'KnowFlow：整理与同步'/);
   assert.match(entrySource, /new Menu\(\)/);
-  assert.match(entrySource, /纠正当前打开文档…/);
+  assert.match(entrySource, /修改当前文档标签并整理…/);
   assert.match(entrySource, /待确认同步任务/);
   assert.match(entrySource, /getPendingKnowledgePlans/);
   assert.match(entrySource, /同步状态与最近记录/);
@@ -76,6 +83,14 @@ test('whole-vault recognition automatically commits safe items and isolates exce
   assert.match(mainSource, /commitAutomaticKnowledgePlan/);
   assert.match(mainSource, /automaticRecognitionIgnore/);
   assert.doesNotMatch(mainSource, /automatic-recognition-proposal/);
+});
+
+test('folder create and rename events use the automatic folder encoding path', () => {
+  assert.match(mainSource, /file instanceof TFolder/);
+  assert.match(mainSource, /queueAutomaticFolderEncoding/);
+  assert.match(mainSource, /folderAutoEncodingWhitelist/);
+  assert.match(mainSource, /automatic-folder-encoding/);
+  assert.match(mainSource, /文件夹已自动编码/);
 });
 
 test('correction UI defaults to short code and keeps full code behind details', () => {

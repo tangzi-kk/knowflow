@@ -6,8 +6,8 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `4.3.0` | `artifacts/fs-TB-Obsidian-4.3.0.zip` | 当前稳定版；已安装真实 Vault，短编码文件名与纠错面板已验收 |
-| 浏览器 `KnowFlow` | `4.3.0` | `artifacts/KnowFlow-Browser-4.3.0/`、同名 ZIP | 当前稳定版；构建、版本一致性和通信协议门禁通过 |
+| Obsidian `fs-TB` | `4.5.0` | `artifacts/fs-TB-Obsidian-4.5.0.zip` | 已完成构建门禁与真实 Vault 结构验收，等待 GitHub Release |
+| 浏览器 `KnowFlow` | `4.5.0` | `artifacts/KnowFlow-Browser-4.5.0/`、同名 ZIP | 已完成构建门禁，等待 GitHub Release |
 
 4.1.1 仍作为上一版可回滚稳定包保留在 GitHub Release 与 `artifacts/` 历史文件中。
 
@@ -21,36 +21,36 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 当前 4.3.0 稳定产物写入仓库 `artifacts/`，并已发布到 [GitHub Release v4.3.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.3.0)。
+- 上一稳定版 4.3.0 已发布到 [GitHub Release v4.3.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.3.0)；4.5.0 已完成门禁，发布地址将在推送后补入。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`
 
 ## 安装入口
 
-### Obsidian 插件 4.3.0
+### Obsidian 插件 4.5.0
 
 解压以下安装包，将其中 `fs-TB/` 放入目标 vault 的 `.obsidian/plugins/`，升级时保留用户自己的 `data.json`；文件名和界面默认显示短编码，完整编码仍在 YAML 与事件中保存：
 
 ```text
-artifacts/fs-TB-Obsidian-4.3.0.zip
+artifacts/fs-TB-Obsidian-4.5.0.zip
 ```
 
-### 浏览器插件 4.3.0
+### 浏览器插件 4.5.0
 
 Chrome/Edge 开发者模式加载目录：
 
 ```text
-artifacts/KnowFlow-Browser-4.3.0/
+artifacts/KnowFlow-Browser-4.5.0/
 ```
 
-也可以先解压 `artifacts/KnowFlow-Browser-4.3.0.zip`。浏览器应选择解压后的目录，不能直接选择 ZIP。
+也可以先解压 `artifacts/KnowFlow-Browser-4.5.0.zip`。浏览器应选择解压后的目录，不能直接选择 ZIP。
 
 ## 校验
 
 当前发布提供构建文件和安装包两级校验：
 
 ```bash
-shasum -a 256 -c artifacts/KnowFlow-4.3.0-SHA256SUMS
-(cd artifacts && shasum -a 256 -c KnowFlow-4.3.0-PACKAGES-SHA256SUMS)
+shasum -a 256 -c artifacts/KnowFlow-4.5.0-SHA256SUMS
+(cd artifacts && shasum -a 256 -c KnowFlow-4.5.0-PACKAGES-SHA256SUMS)
 ```

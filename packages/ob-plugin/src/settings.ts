@@ -23,6 +23,8 @@ export interface FeishuSyncSettings {
   createProposalsAfterCapture: boolean;
   /** 新建或修改 Markdown 后是否自动识别并编码；异常项仍需手动修正。 */
   automaticRecognition: boolean;
+  /** 新建或重命名文件夹时跳过的相对 Vault 路径；子目录一并跳过。 */
+  folderAutoEncodingWhitelist: string[];
   /** 图片缓存清理周期。 */
   cacheCleanup: 'daily' | 'weekly' | 'monthly' | 'never';
   /** 飞书知识库 space_id（目录映射用）。 */
@@ -51,6 +53,7 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   hideSystemProperties: true,
   recentActivity: [],
   automaticRecognition: true,
+  folderAutoEncodingWhitelist: [],
 };
 
 /** 插件运行时状态（不持久化）。 */

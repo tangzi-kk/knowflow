@@ -24,6 +24,8 @@ test('the Obsidian settings page uses one user-oriented flow', () => {
   assert.doesNotMatch(settingsSource, /fstb-tab/);
   assert.doesNotMatch(settingsSource, /activeTab/);
   assert.match(settingsSource, /这里只管理长期配置/);
+  assert.match(settingsSource, /文件夹编码白名单/);
+  assert.match(settingsSource, /folderAutoEncodingWhitelist/);
 });
 
 test('technical compatibility stays advanced and dead switches stay hidden', () => {

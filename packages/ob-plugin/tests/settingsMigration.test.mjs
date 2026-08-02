@@ -33,7 +33,7 @@ const { generateSyncToken, migrateSettings } = await import(
   pathToFileURL(path.join(compiledDirectory, 'settingsMigration.js')).href
 );
 
-test('manifest and package retain the fs-TB identity at 4.3.0', async () => {
+test('manifest and package retain the fs-TB identity at 4.5.0', async () => {
   const manifest = JSON.parse(await readFile(
     path.resolve(testDirectory, '../manifest.json'),
     'utf8',
@@ -44,8 +44,15 @@ test('manifest and package retain the fs-TB identity at 4.3.0', async () => {
   ));
 
   assert.equal(manifest.id, 'fs-TB');
-  assert.equal(manifest.version, '4.3.0');
+  assert.equal(manifest.version, '4.5.0');
   assert.equal(packageJson.version, manifest.version);
+});
+
+test('folder whitelist accepts comma/newline input and keeps relative paths', () => {
+  const result = migrateSettings({
+    folderAutoEncodingWhitelist: ' 模板, 归档\\原始资料\n模板 ',
+  });
+  assert.deepEqual(result.settings.folderAutoEncodingWhitelist, ['模板', '归档/原始资料']);
 });
 
 test('fresh installs receive only the current defaults', () => {
@@ -61,6 +68,7 @@ test('fresh installs receive only the current defaults', () => {
     autoRename: false,
     cacheCleanup: 'weekly',
     automaticRecognition: true,
+    folderAutoEncodingWhitelist: [],
     spaceId: '',
     defaultNoteFolder: '3️⃣附件文件/Lark',
     hideSystemProperties: true,

@@ -8,6 +8,7 @@ import {
   type Menu,
   type TAbstractFile,
 } from 'obsidian';
+import { TAG_NAMES } from '@sync/shared';
 import type { FeishuSyncPlugin } from './main.js';
 import type {
   KnowledgeChangePlan,
@@ -15,12 +16,17 @@ import type {
   KnowledgeWorkflow,
 } from './encodingWorkflow.js';
 import {
+  ALLOWED_TAGS,
   FILE_PREFIX_RE,
   FULL_ENCODING_RE,
   SHORT_ENCODING_RE,
   SHORT_FILE_PREFIX_RE,
   deriveShortEncoding,
 } from './knowledgeContract.js';
+import { openFolderEncodingPanel } from './folderEncodingUi.js';
+import { isFolderEncodingExcluded } from './folderEncoding.js';
+import { isProtectedDocumentPath } from './vaultStructure.js';
+import { openFetchToDirectory } from './fetchEntrypoints.js';
 
 export type OrganizationKind = OrganizationScope['kind'];
 export type OrganizationMode = NonNullable<OrganizationScope['mode']>;
@@ -30,11 +36,11 @@ interface PluginWithKnowledgeWorkflow {
 }
 
 const FILE_EXPLORER_SOURCE = 'file-explorer-context-menu';
-const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS(?:\.md)?$|🪧导引(?:\/|$)|3️⃣附件文件(?:\/|$)|\.[^/]+(?:\/|$))/;
 const registeredPlugins = new WeakSet<FeishuSyncPlugin>();
 
 /**
- * 只注册一套文件树手动纠错菜单。
+ * 只注册一套文件树标签整理菜单。
  *
  * 单个目标使用 `file-menu`，多选使用 Obsidian 官方 `files-menu`；两者都严格
  * 限定 File Explorer 来源，不向编辑器、链接或其他菜单注入入口。
@@ -50,10 +56,18 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
         if (isProtectedPath(target.path)) return;
 
         const kind: OrganizationKind = target instanceof TFolder ? 'directory' : 'file';
+        if (target instanceof TFolder) {
+          addClipMenuItem(menu, plugin, target.path);
+          menu.addSeparator();
+        }
+        if (target instanceof TFolder
+          && !isFolderEncodingExcluded(target.path, plugin.settings.folderAutoEncodingWhitelist)) {
+          addFolderEncodingMenuItem(menu, plugin, target.path);
+        }
         const title = kind === 'directory'
-          ? 'KnowFlow：检查并纠正此目录…'
-          : 'KnowFlow：纠正此文档…';
-        addOrganizationMenuItem(menu, plugin, [target.path], kind, title);
+          ? 'KnowFlow：修改此目录标签（含子目录）…'
+          : 'KnowFlow：修改此文档标签…';
+        addTagAssignmentMenuItem(menu, plugin, [target.path], kind, title);
       },
     ));
 
@@ -66,14 +80,14 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
           .filter((target) => !isProtectedPath(target.path));
         if (supportedTargets.length === 0) return;
         const ignoredCount = targets.length - supportedTargets.length;
-        addOrganizationMenuItem(
+        addTagAssignmentMenuItem(
           menu,
           plugin,
           supportedTargets.map((target) => target.path),
           'selection',
           ignoredCount
-            ? `KnowFlow：检查并纠正所选内容（${supportedTargets.length}，已忽略 ${ignoredCount} 项）…`
-            : 'KnowFlow：检查并纠正所选内容…',
+            ? `KnowFlow：修改所选内容标签（${supportedTargets.length}，已忽略 ${ignoredCount} 项）…`
+            : 'KnowFlow：修改所选内容标签…',
         );
       },
     ));
@@ -146,7 +160,7 @@ export async function openAutoRecognitionPreview(plugin: FeishuSyncPlugin): Prom
   }
 }
 
-function addOrganizationMenuItem(
+function addTagAssignmentMenuItem(
   menu: Menu,
   plugin: FeishuSyncPlugin,
   paths: string[],
@@ -155,15 +169,59 @@ function addOrganizationMenuItem(
 ): void {
   menu.addItem((item) => item
     .setTitle(title)
-    .setIcon('list-checks')
+    .setIcon('tag')
     .onClick(() => {
-      void openCorrectionPanel(plugin, paths, kind);
+      void openTagAssignmentPanel(plugin, paths, kind);
+    }));
+}
+
+function addClipMenuItem(menu: Menu, plugin: FeishuSyncPlugin, directory: string): void {
+  menu.addItem((item) => item
+    .setTitle('KnowFlow：剪藏到此文件夹…')
+    .setIcon('download')
+    .onClick(() => openFetchToDirectory(plugin, directory)));
+}
+
+function addFolderEncodingMenuItem(menu: Menu, plugin: FeishuSyncPlugin, path: string): void {
+  menu.addItem((item) => item
+    .setTitle('KnowFlow：调整此文件夹结构编码…')
+    .setIcon('folder-cog')
+    .onClick(() => {
+      void openFolderEncodingPanel(plugin, path);
     }));
 }
 
 /**
- * 文件树右键的唯一入口：先给出当前对象的异常与短编码建议，再由用户明确应用纠错。
- * 自动编码不会经过这里；右键只处理自动流程跳过或用户认为识别不准的对象。
+ * 文件树右键的第一性原理入口：用户明确选择“这个范围应该属于哪个标签”。
+ * 目录只定义递归范围，标签事实仍写入范围内 Markdown 的 YAML；目录名称本身不伪装成标签。
+ */
+export async function openTagAssignmentPanel(
+  plugin: FeishuSyncPlugin,
+  paths: string[],
+  kind: OrganizationKind,
+  depth: OrganizationScope['depth'] = kind === 'file' ? 'direct' : 'recursive',
+): Promise<void> {
+  const safePaths = uniquePaths(paths);
+  if (safePaths.length === 0) {
+    new Notice('⚠️ 没有可修改标签的 Markdown 文档或目录');
+    return;
+  }
+  if (safePaths.some(isProtectedPath)) {
+    new Notice('⛔ 受保护目录不能修改标签');
+    return;
+  }
+  try {
+    const workflow = knowledgeWorkflow(plugin);
+    const scope: OrganizationScope = { kind, depth, mode: 'auto' };
+    const plan = await workflow.previewTargets(safePaths, scope);
+    new TagAssignmentModal(plugin.app, workflow, plan, safePaths, scope).open();
+  } catch (error) {
+    new Notice(`❌ 无法打开标签修改面板：${messageOf(error)}`);
+  }
+}
+
+/**
+ * 自动编码不会经过这里；右键只处理用户明确的标签归类与编码同步。
  */
 export async function openCorrectionPanel(
   plugin: FeishuSyncPlugin,
@@ -187,6 +245,141 @@ export async function openCorrectionPanel(
     new CorrectionModal(plugin.app, workflow, plan, safePaths, scope).open();
   } catch (error) {
     new Notice(`❌ 无法打开纠错面板：${messageOf(error)}`);
+  }
+}
+
+export class TagAssignmentModal extends Modal {
+  private selectedTag: string;
+  private previewPlan?: KnowledgeChangePlan;
+  private previewArea?: HTMLElement;
+  private applyButton?: HTMLButtonElement;
+  private working = false;
+
+  constructor(
+    app: App,
+    private readonly workflow: KnowledgeWorkflow,
+    initialPlan: KnowledgeChangePlan,
+    private readonly targets: string[],
+    private readonly organizationScope: OrganizationScope,
+  ) {
+    super(app);
+    this.selectedTag = inferCommonTag(initialPlan) ?? 'S';
+  }
+
+  onOpen(): void {
+    this.titleEl.setText('KnowFlow 修改标签');
+    this.contentEl.empty();
+    this.contentEl.createEl('p', {
+      text: this.organizationScope.kind === 'directory'
+        ? '选择新的协议标签，更新此目录及子目录中的 Markdown。目录名称只作为范围，不会被改名。'
+        : '选择新的协议标签，插件会同步更新标签、完整编码、短编码、文件名和索引。',
+      cls: 'setting-item-description',
+    });
+
+    const field = this.contentEl.createDiv({ cls: 'fstb-advanced-row' });
+    field.createEl('label', { text: '修改为标签' });
+    const select = field.createEl('select', { attr: { 'aria-label': '修改为标签' } });
+    for (const tag of ALLOWED_TAGS) {
+      select.createEl('option', {
+        value: tag,
+        text: `${tag} · ${tagName(tag)}`,
+      });
+    }
+    select.value = this.selectedTag;
+    select.addEventListener('change', () => {
+      this.selectedTag = select.value;
+      void this.refreshPreview();
+    });
+
+    this.previewArea = this.contentEl.createDiv({ cls: 'fstb-tag-preview' });
+    const actions = this.contentEl.createDiv({ cls: 'modal-button-container' });
+    actions.createEl('button', { text: '取消' }).onclick = () => this.close();
+    this.applyButton = actions.createEl('button', {
+      text: '应用标签修改',
+      cls: 'mod-cta',
+    });
+    this.applyButton.disabled = true;
+    this.applyButton.onclick = () => {
+      void this.commit();
+    };
+
+    void this.refreshPreview();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+
+  private async refreshPreview(): Promise<void> {
+    if (!this.previewArea) return;
+    this.applyButton && (this.applyButton.disabled = true);
+    this.previewArea.empty();
+    this.previewArea.createEl('p', {
+      text: `正在预览：${this.selectedTag} · ${tagName(this.selectedTag)}`,
+      cls: 'setting-item-description',
+    });
+    try {
+      this.previewPlan = await this.workflow.previewTargets(this.targets, {
+        ...this.organizationScope,
+        mode: 'auto',
+        tagOverride: this.selectedTag,
+      });
+      this.renderPreview(this.previewPlan);
+      if (this.applyButton) {
+        this.applyButton.disabled = this.previewPlan.items.length === 0;
+      }
+    } catch (error) {
+      this.previewArea.createEl('p', {
+        text: `预览失败：${messageOf(error)}`,
+        cls: 'fstb-plan-blockers',
+      });
+    }
+  }
+
+  private renderPreview(plan: KnowledgeChangePlan): void {
+    if (!this.previewArea) return;
+    this.previewArea.empty();
+    this.previewArea.createEl('p', {
+      text: `范围 ${this.targets.length} · 扫描 ${plan.scannedCount} 篇 · 可应用 ${plan.items.length} · 跳过 ${plan.skipped}`,
+      cls: 'setting-item-description',
+    });
+    renderMessages(this.previewArea, '需要处理', plan.blockedReasons, 'fstb-plan-blockers');
+    renderMessages(this.previewArea, '路径冲突', plan.conflicts, 'fstb-plan-conflicts');
+    renderMessages(this.previewArea, '提示', plan.warnings, 'fstb-plan-warnings');
+    const list = this.previewArea.createDiv({ cls: 'fstb-encoding-preview-list' });
+    for (const item of plan.items) {
+      const row = list.createDiv({ cls: 'fstb-encoding-preview-row' });
+      row.createEl('div', { text: displayPath(item.originalPath, item.shortCode) });
+      row.createEl('div', {
+        text: item.newPath === item.originalPath
+          ? `→ ${item.shortCode || '分配短编码'}`
+          : `→ ${displayPath(item.newPath, item.shortCode)}`,
+        cls: 'setting-item-description',
+      });
+      row.createEl('code', { text: item.shortCode || '无编码' });
+      renderCodeDetails(row, item);
+    }
+  }
+
+  private async commit(): Promise<void> {
+    if (this.working || !this.previewPlan || this.previewPlan.items.length === 0) return;
+    this.working = true;
+    if (this.applyButton) this.applyButton.disabled = true;
+    try {
+      const result = await this.workflow.commitPlan(this.previewPlan.operationId);
+      if (result.status !== 'committed') throw new Error('事务已回滚，文件未保持半完成状态');
+      const skipped = this.previewPlan.blockedReasons.length;
+      new Notice(
+        `✅ 标签已修改为 ${this.selectedTag} · ${tagName(this.selectedTag)}：${result.changedPaths.length} 项`
+        + (skipped ? `；${skipped} 项保留待处理` : ''),
+      );
+      this.close();
+    } catch (error) {
+      new Notice(`❌ 标签修改失败：${messageOf(error)}`);
+      if (this.applyButton && this.contentEl.isConnected) this.applyButton.disabled = false;
+    } finally {
+      this.working = false;
+    }
   }
 }
 
@@ -558,7 +751,7 @@ function isSupportedSelectionTarget(target: TAbstractFile): target is TFile | TF
 }
 
 export function isProtectedPath(path: string): boolean {
-  return PROTECTED_PATH_RE.test(path.replace(/^\/+/, ''));
+  return PROTECTED_PATH_RE.test(path.replace(/^\/+/, '')) || isProtectedDocumentPath(path);
 }
 
 function uniquePaths(paths: string[]): string[] {
@@ -623,6 +816,18 @@ function displayMessage(message: string): string {
 
 function isManualCodeInput(value: string): boolean {
   return SHORT_ENCODING_RE.test(value) || FULL_ENCODING_RE.test(value);
+}
+
+function inferCommonTag(plan: KnowledgeChangePlan): string | undefined {
+  const tags = plan.items
+    .map((item) => item.code.match(/^\d{2}_\d{4}_([SXLZQJ])_/)?.[1] ?? item.recognition?.tag)
+    .filter((tag): tag is string => Boolean(tag));
+  const unique = [...new Set(tags)];
+  return unique.length === 1 ? unique[0] : undefined;
+}
+
+function tagName(tag: string): string {
+  return TAG_NAMES[tag as keyof typeof TAG_NAMES] ?? tag;
 }
 
 function scopeLabel(kind: OrganizationKind): string {

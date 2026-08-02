@@ -7,7 +7,7 @@ import { Menu, Modal, Notice, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import {
   openAutoRecognitionPreview,
-  openCorrectionPanel,
+  openTagAssignmentPanel,
   PreviewModal,
 } from './encodingUi.js';
 import { exportActivityLog, rebuildEncodingIndex } from './encodingIndex.js';
@@ -24,11 +24,11 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
     const targets = currentFileTreeTargets(plugin.app);
 
     menu.addItem((item) => item
-      .setTitle('纠正当前打开文档…')
+      .setTitle('修改当前文档标签并整理…')
       .setIcon('list-checks')
       .setDisabled(targets.length === 0)
       .onClick(() => {
-        void openCorrectionPanel(plugin, targets, targets.length > 1 ? 'selection' : targetKind(targets[0]));
+        void openTagAssignmentPanel(plugin, targets, targets.length > 1 ? 'selection' : targetKind(targets[0]));
       }));
 
     const pending = plugin.getPendingKnowledgePlans();

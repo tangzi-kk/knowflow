@@ -8,7 +8,7 @@
  * 4. 注册命令、设置页、图片渲染、删除监听和自动编码监听
  * 5. 卸载时停止 server
  */
-import { Plugin, Notice, TFile, type TAbstractFile } from 'obsidian';
+import { Plugin, Notice, TFile, TFolder, type TAbstractFile } from 'obsidian';
 import { PROTOCOL_VERSION } from '@sync/shared';
 import {
   type FeishuSyncSettings,
@@ -48,9 +48,16 @@ import {
   type KnowledgeWorkflow,
 } from './encodingWorkflow.js';
 import { rebuildEncodingIndex } from './encodingIndex.js';
+import {
+  commitFolderEncoding,
+  isFolderEncodingExcluded,
+  normalizeFolderPath,
+  previewFolderEncoding,
+} from './folderEncoding.js';
+import { isProtectedDocumentPath } from './vaultStructure.js';
 
 const DEFAULT_CAPTURE_PROPOSALS = true;
-const PROTECTED_RECOGNITION_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_RECOGNITION_PATH_RE = /^(?:(?:.*\/)?AGENTS(?:\.md)?$|🪧导引(?:\/|$)|3️⃣附件文件(?:\/|$)|\.[^/]+(?:\/|$))/;
 
 export class FeishuSyncPlugin extends Plugin {
   settings!: FeishuSyncSettings;
@@ -65,6 +72,11 @@ export class FeishuSyncPlugin extends Plugin {
   private automaticRecognitionPaths = new Set<string>();
   private automaticRecognitionTail: Promise<void> = Promise.resolve();
   private automaticRecognitionIgnore = new Map<string, number>();
+  private automaticRecognitionReady = false;
+  private automaticFolderEncodingTimer?: ReturnType<typeof setTimeout>;
+  private automaticFolderEncodingPaths = new Set<string>();
+  private automaticFolderEncodingTail: Promise<void> = Promise.resolve();
+  private automaticFolderEncodingIgnore = new Map<string, number>();
 
   async onload(): Promise<void> {
     enableCli();
@@ -127,6 +139,7 @@ export class FeishuSyncPlugin extends Plugin {
 
     // 启动时清理一次过期缓存
     this.app.workspace.onLayoutReady(() => {
+      this.automaticRecognitionReady = true;
       cleanupImageCache(this, this.settings.cacheCleanup).catch(() => {});
     });
 
@@ -148,9 +161,17 @@ export class FeishuSyncPlugin extends Plugin {
       clearTimeout(this.automaticRecognitionTimer);
       this.automaticRecognitionTimer = undefined;
     }
+    if (this.automaticFolderEncodingTimer) {
+      clearTimeout(this.automaticFolderEncodingTimer);
+      this.automaticFolderEncodingTimer = undefined;
+    }
     this.automaticRecognitionPaths.clear();
     this.automaticRecognitionIgnore.clear();
+    this.automaticRecognitionReady = false;
+    this.automaticFolderEncodingPaths.clear();
+    this.automaticFolderEncodingIgnore.clear();
     await this.automaticRecognitionTail;
+    await this.automaticFolderEncodingTail;
     await this.activitySaveTail;
     this.systemPropertyObserver?.disconnect();
     this.systemPropertyObserver = undefined;
@@ -193,18 +214,96 @@ export class FeishuSyncPlugin extends Plugin {
 
   private registerAutomaticRecognition(): void {
     this.registerEvent(this.app.vault.on('create', (file) => {
-      this.queueAutomaticRecognition(file);
+      if (file instanceof TFolder) this.queueAutomaticFolderEncoding(file);
+      else this.queueAutomaticRecognition(file);
     }));
     this.registerEvent(this.app.vault.on('modify', (file) => {
-      this.queueAutomaticRecognition(file);
+      if (!(file instanceof TFolder)) this.queueAutomaticRecognition(file);
     }));
-    this.registerEvent(this.app.vault.on('rename', (file) => {
-      this.queueAutomaticRecognition(file);
+    this.registerEvent(this.app.vault.on('rename', (file, oldPath) => {
+      if (file instanceof TFolder) this.queueAutomaticFolderEncoding(file, oldPath);
+      else this.queueAutomaticRecognition(file);
     }));
   }
 
+  private queueAutomaticFolderEncoding(folder: TFolder, previousPath?: string): void {
+    if (!this.settings.automaticRecognition || !this.automaticRecognitionReady) return;
+    const path = normalizeFolderPath(folder.path);
+    if (!path || isFolderEncodingExcluded(path, this.settings.folderAutoEncodingWhitelist)) return;
+    const oldPath = previousPath ? normalizeFolderPath(previousPath) : '';
+    if (oldPath && oldPath !== path) {
+      for (const pendingPath of [...this.automaticFolderEncodingPaths]) {
+        if (pendingPath === oldPath || pendingPath.startsWith(`${oldPath}/`)) {
+          this.automaticFolderEncodingPaths.delete(pendingPath);
+          this.automaticFolderEncodingPaths.add(`${path}${pendingPath.slice(oldPath.length)}`);
+        }
+      }
+      this.automaticFolderEncodingIgnore.set(oldPath, Date.now() + 5000);
+    }
+    const ignoredUntil = this.automaticFolderEncodingIgnore.get(path);
+    if (ignoredUntil) {
+      if (ignoredUntil > Date.now()) return;
+      this.automaticFolderEncodingIgnore.delete(path);
+    }
+    this.automaticFolderEncodingPaths.add(path);
+    if (this.automaticFolderEncodingTimer) clearTimeout(this.automaticFolderEncodingTimer);
+    this.automaticFolderEncodingTimer = setTimeout(() => {
+      this.automaticFolderEncodingTimer = undefined;
+      void this.flushAutomaticFolderEncoding();
+    }, 800);
+  }
+
+  private async flushAutomaticFolderEncoding(): Promise<void> {
+    const paths = [...this.automaticFolderEncodingPaths];
+    this.automaticFolderEncodingPaths.clear();
+    if (paths.length === 0) return;
+    this.automaticFolderEncodingTail = this.automaticFolderEncodingTail
+      .catch(() => {})
+      .then(() => this.processAutomaticFolderEncoding(paths));
+    await this.automaticFolderEncodingTail;
+  }
+
+  private async processAutomaticFolderEncoding(paths: string[]): Promise<void> {
+    for (const path of paths) {
+      try {
+        const preview = await previewFolderEncoding(this.app, path, {
+          whitelist: this.settings.folderAutoEncodingWhitelist,
+        });
+        if (preview.blockedReason || !preview.changed) continue;
+        const expiresAt = Date.now() + 5000;
+        this.automaticFolderEncodingIgnore.set(path, expiresAt);
+        this.automaticFolderEncodingIgnore.set(preview.newPath, expiresAt);
+        const result = await commitFolderEncoding(this.app, preview);
+        this.recordActivity({
+          time: new Date().toISOString(),
+          kind: 'system',
+          status: 'succeeded',
+          action: 'automatic-folder-encoding',
+          path: result.preview.newPath,
+        });
+        new Notice(
+          `📁 文件夹已自动编码：${result.preview.newName}`
+          + (result.preview.warning ? `（${result.preview.warning}）` : ''),
+        );
+      } catch (error) {
+        // 目标占用通常会伴随一次 rename 事件；短窗口抑制同一路径，避免重复刷屏。
+        this.automaticFolderEncodingIgnore.set(path, Date.now() + 30000);
+        this.recordActivity({
+          time: new Date().toISOString(),
+          kind: 'system',
+          status: 'failed',
+          action: 'automatic-folder-encoding',
+          path,
+          errorCode: 'FOLDER_ENCODING_FAILED',
+        });
+        new Notice(`⚠️ 文件夹自动编码失败：${messageOf(error)}；可右键手动设置`);
+        console.warn('[fs-TB] automatic folder encoding failed:', error);
+      }
+    }
+  }
+
   private queueAutomaticRecognition(file: TAbstractFile): void {
-    if (!this.settings.automaticRecognition) return;
+    if (!this.settings.automaticRecognition || !this.automaticRecognitionReady) return;
     const path = file.path.replace(/^\/+/, '');
     const ignoredUntil = this.automaticRecognitionIgnore.get(path);
     if (ignoredUntil) {
@@ -267,6 +366,8 @@ export class FeishuSyncPlugin extends Plugin {
         + (skipped ? `；${skipped} 项跳过，请右键手动修正` : ''),
       );
     } catch (error) {
+      const expiresAt = Date.now() + 30000;
+      for (const path of paths) this.automaticRecognitionIgnore.set(path, expiresAt);
       this.recordActivity({
         time: new Date().toISOString(),
         kind: 'system',
@@ -506,7 +607,8 @@ export class FeishuSyncPlugin extends Plugin {
 export default FeishuSyncPlugin;
 
 function isProtectedRecognitionPath(path: string): boolean {
-  return PROTECTED_RECOGNITION_PATH_RE.test(path.replace(/^\/+/, ''));
+  return PROTECTED_RECOGNITION_PATH_RE.test(path.replace(/^\/+/, ''))
+    || isProtectedDocumentPath(path);
 }
 
 function messageOf(error: unknown): string {

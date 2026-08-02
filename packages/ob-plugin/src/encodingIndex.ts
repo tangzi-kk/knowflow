@@ -6,10 +6,11 @@ import type { App } from 'obsidian';
 import { inspectFrontmatter, TAG_NAMES, type Tag } from '@sync/shared';
 import { FILE_PREFIX_RE, FULL_ENCODING_RE, SHORT_FILE_PREFIX_RE } from './knowledgeContract.js';
 import type { RecentSync } from './settings.js';
+import { isProtectedDocumentPath } from './vaultStructure.js';
 
 const INDEX_PATH = '.feishu-sync/编码索引.md';
 const RUNTIME_DIR = '.feishu-sync';
-const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS(?:\.md)?$|🪧导引(?:\/|$)|3️⃣附件文件(?:\/|$)|\.[^/]+(?:\/|$))/;
 
 interface IndexRow {
   code: string;
@@ -30,7 +31,7 @@ export async function rebuildEncodingIndex(app: App): Promise<{ count: number; p
   for (const raw of app.vault.getMarkdownFiles()) {
     const node = raw as unknown as VaultNodeLike;
     if (node.extension !== 'md' || typeof node.basename !== 'string') continue;
-    if (PROTECTED_PATH_RE.test(node.path)) continue;
+    if (PROTECTED_PATH_RE.test(node.path) || isProtectedDocumentPath(node.path)) continue;
 
     let code = node.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
     try {

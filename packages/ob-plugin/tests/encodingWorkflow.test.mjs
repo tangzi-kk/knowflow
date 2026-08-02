@@ -316,6 +316,92 @@ test('manual correction accepts short code and expands it using the document dat
   assert.equal(plan.items[0].newPath, '0️⃣输入/J02.a1 测试.md');
 });
 
+test('explicit tag override updates the full code short code filename and YAML tag', async () => {
+  const content = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: Q
+编码: 26_0726_Q_21_a1
+短编码: Q21.a1
+日期: 2026-07-26
+状态: 收集
+---
+剪藏内容`;
+  const fixture = createApp([content]);
+  const file = fixture.notes[0];
+  fixture.entries.delete(file.path);
+  file.path = '0️⃣输入/Q21.a1 剪藏内容.md';
+  file.name = 'Q21.a1 剪藏内容.md';
+  file.basename = 'Q21.a1 剪藏内容';
+  fixture.entries.set(file.path, file);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [file.path], {
+    kind: 'file',
+    depth: 'direct',
+    mode: 'auto',
+    tagOverride: 'Z',
+  });
+
+  assert.equal(plan.blockedReasons.length, 0);
+  assert.equal(plan.items[0].code, '26_0726_Z_21_a1');
+  assert.equal(plan.items[0].shortCode, 'Z21.a1');
+  assert.equal(plan.items[0].newPath, '0️⃣输入/Z21.a1 剪藏内容.md');
+  assert.match(plan.items[0].newContent, /标签: Z/);
+
+  const result = await commitKnowledgePlan(fixture.app, plan);
+  assert.equal(result.status, 'committed');
+  assert.equal(file.path, '0️⃣输入/Z21.a1 剪藏内容.md');
+  assert.match(file.content, /编码: 26_0726_Z_21_a1/);
+});
+
+test('directory tag override applies recursively to child directories', async () => {
+  const fixture = createApp([validContent('Q')]);
+  const childDirectory = {
+    path: '0️⃣输入/S02 · 剪藏',
+    name: 'S02 · 剪藏',
+    children: [],
+  };
+  const child = note(
+    '0️⃣输入/S02 · 剪藏/Q02.a1 剪藏记录.md',
+    validContent('Q', '# 子目录剪藏\n'),
+    childDirectory,
+  );
+  childDirectory.children.push(child);
+  fixture.directory.children.push(childDirectory);
+  fixture.entries.set(childDirectory.path, childDirectory);
+  fixture.entries.set(child.path, child);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+    tagOverride: 'Z',
+  });
+
+  assert.equal(plan.blockedReasons.length, 0);
+  assert.equal(plan.scannedCount, 2);
+  assert.equal(plan.items.length, 2);
+  assert.deepEqual(
+    plan.items.map((item) => item.code).sort(),
+    ['26_0726_Z_01_a1', '26_0726_Z_02_a1'],
+  );
+  assert.ok(plan.items.some((item) => item.originalPath.includes('S02 · 剪藏')));
+  assert.ok(plan.items.every((item) => item.newContent.includes('标签: Z')));
+});
+
+test('tag override rejects labels outside the contract enum', async () => {
+  const fixture = createApp([validContent('Q')]);
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+    tagOverride: 'P',
+  });
+
+  assert.equal(plan.items.length, 0);
+  assert.match(plan.blockedReasons.join('\n'), /目标标签不在协议枚举中/);
+});
+
 test('short rename does not duplicate a short code already present in the title', async () => {
   const content = `---
 协议版本: 1

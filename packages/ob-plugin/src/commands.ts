@@ -14,7 +14,7 @@ import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
 import {
   openAutoRecognitionPreview,
-  openCorrectionPanel,
+  openTagAssignmentPanel,
   registerEncodingContextMenu,
 } from './encodingUi.js';
 
@@ -106,10 +106,10 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
     },
   });
 
-  // 保留旧 command id 供快捷键迁移；目录纠错统一进入轻量纠错面板。
+  // 保留旧 command id 供快捷键迁移；目录标签变更统一进入事务面板。
   plugin.addCommand({
     id: 'assign-encoding-dir',
-    name: '检查并纠正当前目录…',
+    name: '修改当前目录标签并整理…',
     callback: async () => {
       const file = app.workspace.getActiveFile();
       if (!file) {
@@ -120,9 +120,9 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       if (!dir) return;
 
       try {
-        await openCorrectionPanel(plugin, [dir], 'directory');
+        await openTagAssignmentPanel(plugin, [dir], 'directory');
       } catch (error) {
-        new Notice(`❌ 纠错面板失败：${error instanceof Error ? error.message : String(error)}`);
+        new Notice(`❌ 标签修改面板失败：${error instanceof Error ? error.message : String(error)}`);
       }
     },
   });

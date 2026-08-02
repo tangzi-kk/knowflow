@@ -21,6 +21,7 @@ import {
   SHORT_ENCODING_RE,
   SHORT_FILE_PREFIX_RE,
 } from './knowledgeContract.js';
+import { isProtectedDocumentPath } from './vaultStructure.js';
 
 const ARRAY_FIELDS = [
   '日期索引',
@@ -31,7 +32,7 @@ const ARRAY_FIELDS = [
   '关联文档',
   '关联人物',
 ] as const;
-const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS(?:\.md)?$|🪧导引(?:\/|$)|3️⃣附件文件(?:\/|$)|\.[^/]+(?:\/|$))/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -53,6 +54,8 @@ export interface KnowledgeChangeScope {
   depth: 'direct' | 'recursive';
   mode?: 'organize' | 'auto' | 'manual' | 'clear';
   manualCode?: string;
+  /** 显式把范围内文档统一改为某个协议标签；只能使用合约封闭枚举。 */
+  tagOverride?: string;
 }
 
 export interface KnowledgePlanItem {
@@ -73,6 +76,8 @@ export interface KnowledgeChangePlan {
   operationId: string;
   scope: KnowledgeChangeScope;
   targetPaths: string[];
+  /** 范围展开后实际发现的 Markdown 数量，包含阻断和未变化文档。 */
+  scannedCount: number;
   items: KnowledgePlanItem[];
   skipped: number;
   warnings: string[];
@@ -202,7 +207,7 @@ export async function previewKnowledgeTargets(
   let skipped = expansion.skipped;
 
   for (const file of files) {
-    if (PROTECTED_PATH_RE.test(file.path)) {
+    if (isProtectedKnowledgePath(file.path)) {
       blockedReasons.push(`${file.path}：受保护路径不允许整理`);
       continue;
     }
@@ -248,6 +253,7 @@ export async function previewKnowledgeTargets(
     operationId,
     scope,
     targetPaths,
+    scannedCount: files.length,
     items,
     skipped,
     warnings,
@@ -539,7 +545,25 @@ async function buildPlanItem(
   }
 
   let code = '';
-  if (mode === 'clear') {
+  const overrideTag = stringValue(scope.tagOverride).toUpperCase();
+  if (overrideTag && !ALLOWED_TAGS.includes(overrideTag)) {
+    blocked.push(`目标标签不在协议枚举中：${overrideTag}`);
+  } else if (overrideTag) {
+    next.标签 = overrideTag;
+    if (currentCode) {
+      const currentTag = encodingTag(currentCode);
+      const parts = currentCode.split('_');
+      code = currentTag === overrideTag
+        ? currentCode
+        : `${parts[0]}_${parts[1]}_${overrideTag}_${parts[3]}_${parts.slice(4).join('_')}`;
+      if (currentTag !== overrideTag) {
+        warnings.push(`标签已由 ${currentTag} 更新为 ${overrideTag}，编码标签段同步更新`);
+      }
+    } else {
+      code = allocateEncoding(before, overrideTag, occupied, reservedCodes);
+      warnings.push(`为无编码文档设置标签 ${overrideTag} 并分配新编码`);
+    }
+  } else if (mode === 'clear') {
     code = '';
   } else if (mode === 'manual') {
     const manualCode = scope.manualCode?.trim() ?? '';
@@ -722,7 +746,7 @@ async function collectOccupiedEncodings(app: App): Promise<Map<string, string[]>
     ? app.vault.getMarkdownFiles()
     : [];
   for (const file of files) {
-    if (!isMarkdownFile(file) || PROTECTED_PATH_RE.test(file.path)) continue;
+    if (!isMarkdownFile(file) || isProtectedKnowledgePath(file.path)) continue;
     let code = file.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
     try {
       const inspected = inspectFrontmatter(await app.vault.read(file as never));
@@ -1026,6 +1050,10 @@ function isMarkdownFile(value: unknown): value is VaultFileLike {
 
 function isFolder(value: unknown): value is VaultFolderLike {
   return Boolean(value && typeof value === 'object' && Array.isArray((value as VaultFolderLike).children));
+}
+
+function isProtectedKnowledgePath(path: string): boolean {
+  return PROTECTED_PATH_RE.test(path.replace(/^\/+/, '')) || isProtectedDocumentPath(path);
 }
 
 function staleError(path: string, reason: string): Error & { code: string } {

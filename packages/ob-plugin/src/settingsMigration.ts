@@ -6,6 +6,17 @@ import {
 } from './settings.js';
 import { normalizeActivity } from './activity.js';
 
+/** 将设置页的逗号/换行输入收敛为相对 Vault 的唯一目录列表。 */
+export function normalizeFolderAutoEncodingWhitelist(value: unknown): string[] {
+  const values = Array.isArray(value)
+    ? value
+    : typeof value === 'string' ? [value] : [];
+  return [...new Set(values
+    .flatMap((item) => String(item).split(/[\n,，]/))
+    .map((item) => item.replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/').trim())
+    .filter(Boolean))];
+}
+
 export interface SettingsMigrationResult {
   settings: FeishuSyncSettings;
   changed: boolean;
@@ -71,6 +82,13 @@ export function migrateSettings(input: unknown): SettingsMigrationResult {
     source?.automaticRecognition,
     feishuSync?.automaticRecognition,
   ) ?? DEFAULT_SETTINGS.automaticRecognition;
+  const whitelistValue = source?.folderAutoEncodingWhitelist
+    ?? feishuSync?.folderAutoEncodingWhitelist;
+  const normalizedWhitelist = normalizeFolderAutoEncodingWhitelist(whitelistValue);
+  migrated.folderAutoEncodingWhitelist = Array.isArray(whitelistValue)
+    && sameJsonData(whitelistValue, normalizedWhitelist)
+    ? whitelistValue
+    : normalizedWhitelist;
   // 这两个旧开关从未接入运行链路。升级时删除扁平副本，避免继续制造“已启用”的假预期。
   delete migrated.autoDeleteRegistry;
   delete migrated.keepDecorativeImages;

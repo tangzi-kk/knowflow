@@ -4,7 +4,10 @@ import type { FeishuSyncPlugin } from './main.js';
 import type { FeishuSyncSettings } from './settings.js';
 import { resolveCli } from './lark/cli.js';
 import { refreshMapping } from './mapping.js';
-import { generateSyncToken } from './settingsMigration.js';
+import {
+  generateSyncToken,
+  normalizeFolderAutoEncodingWhitelist,
+} from './settingsMigration.js';
 
 export class FeishuSyncSettingTab extends PluginSettingTab {
   plugin: FeishuSyncPlugin;
@@ -188,6 +191,21 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
             await this.save();
           }),
       );
+
+    new Setting(el)
+      .setName('文件夹编码白名单')
+      .setDesc('相对 Vault 根目录填写，逗号或换行分隔；新建、重命名和手动编码都会跳过这些目录及其子目录')
+      .addTextArea((text) => {
+        text
+          .setPlaceholder('例如：模板, 归档/原始资料')
+          .setValue(this.plugin.settings.folderAutoEncodingWhitelist.join('\n'))
+          .onChange(async (value) => {
+            this.plugin.settings.folderAutoEncodingWhitelist = normalizeFolderAutoEncodingWhitelist(value);
+            await this.save();
+          });
+        text.inputEl.rows = 3;
+        text.inputEl.setAttribute('aria-label', '文件夹编码白名单');
+      });
 
     new Setting(el)
       .setName('图片缓存清理周期')

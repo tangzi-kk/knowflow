@@ -39,15 +39,7 @@ export function registerFetchEntrypoints(plugin: FeishuSyncPlugin): void {
   plugin.addCommand({
     id: 'fetch-feishu-doc',
     name: '拉取飞书文档',
-    callback: () => {
-      new FeishuInputModal(plugin.app, async (value) => {
-        const parsed = parseUserInput(value);
-        await triggerFetch(plugin, {
-          ...parsed,
-          source: 'command',
-        });
-      }).open();
-    },
+    callback: () => openFetchToDirectory(plugin, plugin.settings.defaultDir),
   });
 
   plugin.registerEvent(
@@ -58,6 +50,18 @@ export function registerFetchEntrypoints(plugin: FeishuSyncPlugin): void {
       }, 250);
     }),
   );
+}
+
+/** 文件树右键的“剪藏到此文件夹”入口；只负责采集，不改变标签或结构编码。 */
+export function openFetchToDirectory(plugin: FeishuSyncPlugin, directory: string): void {
+  new FeishuInputModal(plugin.app, async (value) => {
+    const parsed = parseUserInput(value);
+    await triggerFetch(plugin, {
+      ...parsed,
+      dir: directory,
+      source: 'command',
+    });
+  }, '剪藏到此文件夹').open();
 }
 
 async function triggerFetch(plugin: FeishuSyncPlugin, input: TriggerInput): Promise<void> {
@@ -191,12 +195,16 @@ function extractClipperUrl(content: string): string | null {
 class FeishuInputModal extends Modal {
   private inputEl!: HTMLInputElement;
 
-  constructor(app: App, private onSubmit: (value: string) => Promise<void>) {
+  constructor(
+    app: App,
+    private onSubmit: (value: string) => Promise<void>,
+    private readonly title = '拉取飞书文档',
+  ) {
     super(app);
   }
 
   onOpen(): void {
-    this.titleEl.setText('拉取飞书文档');
+    this.titleEl.setText(this.title);
     this.inputEl = this.contentEl.createEl('input', {
       type: 'text',
       placeholder: '粘贴飞书链接、token 或 obsidian://lark-doc 地址',
