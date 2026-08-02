@@ -7,7 +7,7 @@
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
 | Obsidian `fs-TB` | `4.5.3` | `artifacts/fs-TB-Obsidian-4.5.3.zip` | 日志导出、编码目标冲突保护，已完成本机真实验收 |
-| 浏览器 `KnowFlow` | `4.5.3` | `artifacts/KnowFlow-Browser-4.5.3/`、同名 ZIP | 双端门禁通过，待 GitHub Release |
+| 浏览器 `KnowFlow` | `4.5.3` | `artifacts/KnowFlow-Browser-4.5.3/`、同名 ZIP | 双端门禁与 GitHub Release 已完成 |
 
 4.5.2 仍作为上一版可回滚稳定包保留在 GitHub Release 与 `artifacts/` 历史文件中。
 
@@ -21,7 +21,7 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 历史版本 4.3.0、文件夹编码基线 4.5.0、4.5.1、4.5.2 均已发布；4.5.3 完成本机验收后待补充 GitHub Release 地址。
+- 历史版本 4.3.0、文件夹编码基线 4.5.0、4.5.1、4.5.2 均已发布；4.5.3：[GitHub Release v4.5.3](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.3)。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`
