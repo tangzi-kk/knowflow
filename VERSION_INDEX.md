@@ -6,7 +6,7 @@
 
 | 组件 | 版本 | 源码/产物 | 状态 |
 |---|---:|---|---|
-| Obsidian `fs-TB` | `4.3.0` | `artifacts/fs-TB-Obsidian-4.3.0.zip` | 当前候选稳定版；已安装真实 Vault，短编码文件名与纠错面板已打包 |
+| Obsidian `fs-TB` | `4.3.0` | `artifacts/fs-TB-Obsidian-4.3.0.zip` | 当前稳定版；已安装真实 Vault，短编码文件名与纠错面板已验收 |
 | 浏览器 `KnowFlow` | `4.3.0` | `artifacts/KnowFlow-Browser-4.3.0/`、同名 ZIP | 当前稳定版；构建、版本一致性和通信协议门禁通过 |
 
 4.1.1 仍作为上一版可回滚稳定包保留在 GitHub Release 与 `artifacts/` 历史文件中。
@@ -21,7 +21,7 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 当前 4.3.0 稳定产物写入仓库 `artifacts/`，待最终提交后随 GitHub Release v4.3.0 发布。
+- 当前 4.3.0 稳定产物写入仓库 `artifacts/`，并已发布到 [GitHub Release v4.3.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.3.0)。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`
