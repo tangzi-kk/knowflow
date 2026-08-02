@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/content/ds-token.ts"],
+  "sourcesContent": ["export {};\n\nconst BRIDGE_SOURCE = 'knowflow-deepseek-main';\n\nwindow.addEventListener('message', (event: MessageEvent) => {\n  if (event.source !== window || event.origin !== window.location.origin) return;\n  const data = event.data as { source?: unknown; type?: unknown; token?: unknown } | null;\n  if (\n    !data\n    || data.source !== BRIDGE_SOURCE\n    || data.type !== 'token'\n    || typeof data.token !== 'string'\n    || data.token.length <= 20\n    || data.token.length >= 2000\n  ) return;\n\n  chrome.runtime.sendMessage({\n    type: 'set-deepseek-token',\n    payload: { token: data.token },\n  }).catch(() => undefined);\n});\n"],
+  "mappings": ";;;AAEA,MAAM,gBAAgB;AAEtB,SAAO,iBAAiB,WAAW,CAAC,UAAwB;AAC1D,QAAI,MAAM,WAAW,UAAU,MAAM,WAAW,OAAO,SAAS,OAAQ;AACxE,UAAM,OAAO,MAAM;AACnB,QACE,CAAC,QACE,KAAK,WAAW,iBAChB,KAAK,SAAS,WACd,OAAO,KAAK,UAAU,YACtB,KAAK,MAAM,UAAU,MACrB,KAAK,MAAM,UAAU,IACxB;AAEF,WAAO,QAAQ,YAAY;AAAA,MACzB,MAAM;AAAA,MACN,SAAS,EAAE,OAAO,KAAK,MAAM;AAAA,IAC/B,CAAC,EAAE,MAAM,MAAM,MAAS;AAAA,EAC1B,CAAC;",
+  "names": []
+}

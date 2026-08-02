@@ -19,13 +19,27 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.match(uiSource, /KnowFlow：修改此文档标签…/);
   assert.match(uiSource, /KnowFlow：修改此目录标签（含子目录）…/);
   assert.match(uiSource, /KnowFlow：调整此文件夹结构编码…/);
-  assert.match(uiSource, /KnowFlow：剪藏到此文件夹…/);
+  assert.match(uiSource, /KnowFlow：剪藏到这里…/);
   assert.match(uiSource, /openFolderEncodingPanel/);
   assert.match(uiSource, /KnowFlow：修改所选内容标签/);
   assert.match(uiSource, /openTagAssignmentPanel/);
   assert.match(uiSource, /tagOverride/);
   assert.match(uiSource, /TagAssignmentModal/);
   assert.match(uiSource, /WeakSet<FeishuSyncPlugin>/);
+});
+
+test('tag assignment panel only shows the tag choice and a human-readable path preview', () => {
+  const start = uiSource.indexOf('export class TagAssignmentModal');
+  const end = uiSource.indexOf('export class CorrectionModal');
+  assert.ok(start >= 0 && end > start);
+  const panelSource = uiSource.slice(start, end);
+  assert.match(panelSource, /修改为标签/);
+  assert.match(panelSource, /修改为 \$\{this\.selectedTag\}/);
+  assert.match(panelSource, /文件名不变，仅修改标签/);
+  assert.doesNotMatch(panelSource, /renderMessages/);
+  assert.doesNotMatch(panelSource, /renderCodeDetails/);
+  assert.doesNotMatch(panelSource, /完整编码（后端）/);
+  assert.doesNotMatch(panelSource, /需要处理|路径冲突|提示/);
 });
 
 test('protected roots are hidden and blocked before transaction preview', () => {

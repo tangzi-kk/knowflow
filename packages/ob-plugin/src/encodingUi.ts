@@ -177,7 +177,7 @@ function addTagAssignmentMenuItem(
 
 function addClipMenuItem(menu: Menu, plugin: FeishuSyncPlugin, directory: string): void {
   menu.addItem((item) => item
-    .setTitle('KnowFlow：剪藏到此文件夹…')
+    .setTitle('KnowFlow：剪藏到这里…')
     .setIcon('download')
     .onClick(() => openFetchToDirectory(plugin, directory)));
 }
@@ -271,8 +271,8 @@ export class TagAssignmentModal extends Modal {
     this.contentEl.empty();
     this.contentEl.createEl('p', {
       text: this.organizationScope.kind === 'directory'
-        ? '选择新的协议标签，更新此目录及子目录中的 Markdown。目录名称只作为范围，不会被改名。'
-        : '选择新的协议标签，插件会同步更新标签、完整编码、短编码、文件名和索引。',
+        ? '选择一个标签，下面预览此目录及子目录中文档的修改结果。'
+        : '选择一个标签，下面预览文档的修改结果。',
       cls: 'setting-item-description',
     });
 
@@ -340,24 +340,28 @@ export class TagAssignmentModal extends Modal {
     if (!this.previewArea) return;
     this.previewArea.empty();
     this.previewArea.createEl('p', {
-      text: `范围 ${this.targets.length} · 扫描 ${plan.scannedCount} 篇 · 可应用 ${plan.items.length} · 跳过 ${plan.skipped}`,
+      text: plan.items.length
+        ? `修改为 ${this.selectedTag} · ${tagName(this.selectedTag)}，共 ${plan.items.length} 篇文档`
+        : '当前没有可修改的文档',
       cls: 'setting-item-description',
     });
-    renderMessages(this.previewArea, '需要处理', plan.blockedReasons, 'fstb-plan-blockers');
-    renderMessages(this.previewArea, '路径冲突', plan.conflicts, 'fstb-plan-conflicts');
-    renderMessages(this.previewArea, '提示', plan.warnings, 'fstb-plan-warnings');
+    if (plan.items.length === 0) {
+      this.previewArea.createEl('p', {
+        text: plan.scannedCount === 0 ? '此范围没有可修改的 Markdown 文档。' : '请先选择其他标签，或关闭面板。',
+        cls: 'setting-item-description',
+      });
+      return;
+    }
     const list = this.previewArea.createDiv({ cls: 'fstb-encoding-preview-list' });
     for (const item of plan.items) {
       const row = list.createDiv({ cls: 'fstb-encoding-preview-row' });
       row.createEl('div', { text: displayPath(item.originalPath, item.shortCode) });
       row.createEl('div', {
         text: item.newPath === item.originalPath
-          ? `→ ${item.shortCode || '分配短编码'}`
+          ? '→ 文件名不变，仅修改标签'
           : `→ ${displayPath(item.newPath, item.shortCode)}`,
         cls: 'setting-item-description',
       });
-      row.createEl('code', { text: item.shortCode || '无编码' });
-      renderCodeDetails(row, item);
     }
   }
 

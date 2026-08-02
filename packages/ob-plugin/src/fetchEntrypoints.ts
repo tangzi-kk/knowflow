@@ -52,7 +52,7 @@ export function registerFetchEntrypoints(plugin: FeishuSyncPlugin): void {
   );
 }
 
-/** 文件树右键的“剪藏到此文件夹”入口；只负责采集，不改变标签或结构编码。 */
+/** 文件树右键的“KnowFlow：剪藏到这里”入口；只负责采集，不改变标签或结构编码。 */
 export function openFetchToDirectory(plugin: FeishuSyncPlugin, directory: string): void {
   new FeishuInputModal(plugin.app, async (value) => {
     const parsed = parseUserInput(value);
@@ -61,7 +61,7 @@ export function openFetchToDirectory(plugin: FeishuSyncPlugin, directory: string
       dir: directory,
       source: 'command',
     });
-  }, '剪藏到此文件夹').open();
+  }, 'KnowFlow：剪藏到这里').open();
 }
 
 async function triggerFetch(plugin: FeishuSyncPlugin, input: TriggerInput): Promise<void> {
