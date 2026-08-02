@@ -99,7 +99,10 @@ export async function refreshMapping(app: App, spaceId: string): Promise<number>
     for (const obSub of child.children) {
       if (!obSub.name || obSub.name.startsWith('.')) continue;
       // 模糊匹配（去掉编码前缀后比较）
-      const cleanObName = obSub.name.replace(/^\d{2}_\d{4}_[SXZLQJ]\d+\s*/, '');
+      const cleanObName = obSub.name.replace(
+        /^(?:\d{2}_\d{4}_[SXZLQJ]_?\d+(?:_[a-z]\d+)?|[SXZLQJ]\d{2}\.[a-z]\d+(?:[a-z]\d+)*)\s*/,
+        '',
+      );
       const matched = feishuChildren.find(
         n => n.title.includes(cleanObName) || cleanObName.includes(n.title),
       );

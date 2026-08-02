@@ -233,7 +233,7 @@ test('auto mode can commit safe items while leaving blocked items out of the tra
   assert.equal(result.status, 'committed');
   assert.equal(plan.items.length, 1);
   assert.equal(protectedFile.content, protectedOriginal);
-  assert.match(fixture.notes[0].path, /^0️⃣输入\/26_0726_X_01_a1 /);
+  assert.match(fixture.notes[0].path, /^0️⃣输入\/X01\.a1 /);
 });
 
 test('invalid YAML is blocked and never wrapped in a second frontmatter', async () => {
@@ -271,7 +271,73 @@ test('a human tag change proposes the matching encoding segment and keeps docume
   assert.equal(plan.items[0].code, '26_0726_X_01_a1');
   assert.equal(plan.items[0].shortCode, 'X01.a1');
   assert.equal(plan.items[0].documentId, '550e8400-e29b-41d4-a716-446655440000');
+  assert.equal(plan.items[0].newPath, '0️⃣输入/X01.a1 测试.md');
   assert.match(plan.warnings.join('\n'), /编码标签段将由 S 更新为 X/);
+});
+
+test('short filenames stay human-readable while the protocol keeps full encoding', async () => {
+  const content = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: X
+编码: 26_0726_S_01_a1
+短编码: S01.a1
+日期: 2026-07-26
+状态: 收集
+---
+正文`;
+  const fixture = createApp([content]);
+  const file = fixture.notes[0];
+  fixture.entries.delete(file.path);
+  file.path = '0️⃣输入/S01.a1 测试.md';
+  file.name = 'S01.a1 测试.md';
+  file.basename = 'S01.a1 测试';
+  fixture.entries.set(file.path, file);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.equal(plan.items[0].code, '26_0726_X_01_a1');
+  assert.equal(plan.items[0].shortCode, 'X01.a1');
+  assert.equal(plan.items[0].newPath, '0️⃣输入/X01.a1 测试.md');
+  assert.doesNotMatch(plan.items[0].newPath, /S01\.a1 S01\.a1/);
+});
+
+test('manual correction accepts short code and expands it using the document date', async () => {
+  const fixture = createApp([validContent()]);
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.notes[0].path], {
+    kind: 'file',
+    depth: 'direct',
+    mode: 'manual',
+    manualCode: 'J02.a1',
+  });
+
+  assert.equal(plan.items[0].code, '26_0726_J_02_a1');
+  assert.equal(plan.items[0].shortCode, 'J02.a1');
+  assert.equal(plan.items[0].newPath, '0️⃣输入/J02.a1 测试.md');
+});
+
+test('short rename does not duplicate a short code already present in the title', async () => {
+  const content = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: Q
+编码: 26_0727_Q_21_a1
+短编码: Q21.a1
+日期: 2026-07-27
+状态: 收集
+---
+正文`;
+  const fixture = createApp([content]);
+  const file = fixture.notes[0];
+  fixture.entries.delete(file.path);
+  file.path = '0️⃣输入/26_0727_Q_21_a1 Q21.a1 · 1.视频制作流程.md';
+  file.name = '26_0727_Q_21_a1 Q21.a1 · 1.视频制作流程.md';
+  file.basename = '26_0727_Q_21_a1 Q21.a1 · 1.视频制作流程';
+  fixture.entries.set(file.path, file);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
+
+  assert.equal(plan.items[0].newPath, '0️⃣输入/Q21.a1 · 1.视频制作流程.md');
 });
 
 test('root directory scope is direct-only and selection skips unsupported files', async () => {
@@ -359,16 +425,16 @@ test('two-path encoding swap commits and explicitly rolls back through temporary
 ---
 第二篇`;
   const fixture = createApp([first, second]);
-  const paths = [
+  const originalPaths = [
     '0️⃣输入/26_0726_S_01_a1 同名.md',
     '0️⃣输入/26_0726_X_01_a1 同名.md',
   ];
   fixture.notes.forEach((file, index) => {
     fixture.entries.delete(file.path);
-    file.path = paths[index];
-    file.name = paths[index].split('/').pop();
+    file.path = originalPaths[index];
+    file.name = originalPaths[index].split('/').pop();
     file.basename = file.name.replace(/\.md$/, '');
-    fixture.entries.set(file.path, file);
+    fixture.entries.set(originalPaths[index], file);
   });
   const coordinator = { run: async (_key, _requestId, task) => task() };
   const workflow = createKnowledgeWorkflow(fixture.app, coordinator);
@@ -377,9 +443,13 @@ test('two-path encoding swap commits and explicitly rolls back through temporary
   assert.equal(plan.conflicts.length, 0);
   const result = await workflow.commitPlan(plan.operationId);
   assert.equal(result.status, 'committed');
+  const targetPaths = [
+    '0️⃣输入/X01.a1 同名.md',
+    '0️⃣输入/S01.a1 同名.md',
+  ];
   assert.deepEqual(
     new Set(fixture.notes.map((file) => file.path)),
-    new Set(paths),
+    new Set(targetPaths),
   );
   assert.equal(
     fixture.events.filter((event) => event.kind === 'rename')
@@ -390,7 +460,7 @@ test('two-path encoding swap commits and explicitly rolls back through temporary
   assert.equal(rolledBack.status, 'rolled_back');
   assert.deepEqual(
     fixture.notes.map((file) => file.path),
-    paths,
+    originalPaths,
   );
   assert.equal(fixture.notes[0].content, first);
   assert.equal(fixture.notes[1].content, second);
@@ -516,6 +586,43 @@ test('duplicate YAML encoding is a blocking conflict', async () => {
   const plan = await previewKnowledgeTargets(fixture.app, [fixture.directory.path], directoryScope);
 
   assert.match(plan.blockedReasons.join('\n'), /编码重复/);
+});
+
+test('auto mode commits safe documents while isolating a conflicting target path', async () => {
+  const changedTag = '---\n协议版本: 1\n文档ID: 550e8400-e29b-41d4-a716-446655440000\n标签: X\n编码: 26_0726_S_01_a1\n短编码: S01.a1\n日期: 2026-07-26\n状态: 收集\n---\n项目需求';
+  const fixture = createApp([changedTag, '---\n日期: 2026-07-26\n状态: 收集\n---\n没有分类词的记录']);
+  const changed = fixture.notes[0];
+  fixture.entries.delete(changed.path);
+  changed.path = '0️⃣输入/26_0726_S_01_a1 变更标签.md';
+  changed.name = changed.path.split('/').pop();
+  changed.basename = changed.name.replace(/\.md$/, '');
+  fixture.entries.set(changed.path, changed);
+
+  const occupant = {
+    path: '0️⃣输入/X01.a1 变更标签.md',
+    name: 'X01.a1 变更标签.md',
+    basename: 'X01.a1 变更标签',
+    extension: 'png',
+    parent: fixture.directory,
+  };
+  fixture.entries.set(occupant.path, occupant);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [''], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+  });
+
+  assert.equal(plan.items.length, 1);
+  assert.equal(plan.items[0].originalPath, fixture.notes[1].path);
+  assert.equal(plan.conflicts.length, 1);
+  assert.match(plan.blockedReasons.join('\n'), /目标路径已被占用/);
+
+  const result = await commitKnowledgePlan(fixture.app, plan);
+  assert.equal(result.status, 'committed');
+  assert.equal(changed.path, '0️⃣输入/26_0726_S_01_a1 变更标签.md');
+  assert.equal(occupant.path, '0️⃣输入/X01.a1 变更标签.md');
+  assert.match(fixture.notes[1].path, /^0️⃣输入\/S02\.a1 /);
 });
 
 test('stateful workflow exposes only preview, commit and rollback paths', async () => {

@@ -5,7 +5,7 @@
  * 1. 加载设置（首次自动生成启动令牌）
  * 2. 探测 lark-cli
  * 3. 启动本地 HTTP server，注册路由
- * 4. 注册命令、设置页、图片渲染、删除监听
+ * 4. 注册命令、设置页、图片渲染、删除监听和自动编码监听
  * 5. 卸载时停止 server
  */
 import { Plugin, Notice, TFile, type TAbstractFile } from 'obsidian';
@@ -63,6 +63,8 @@ export class FeishuSyncPlugin extends Plugin {
   private pendingKnowledgePlans: KnowledgeChangePlan[] = [];
   private automaticRecognitionTimer?: ReturnType<typeof setTimeout>;
   private automaticRecognitionPaths = new Set<string>();
+  private automaticRecognitionTail: Promise<void> = Promise.resolve();
+  private automaticRecognitionIgnore = new Map<string, number>();
 
   async onload(): Promise<void> {
     enableCli();
@@ -147,6 +149,8 @@ export class FeishuSyncPlugin extends Plugin {
       this.automaticRecognitionTimer = undefined;
     }
     this.automaticRecognitionPaths.clear();
+    this.automaticRecognitionIgnore.clear();
+    await this.automaticRecognitionTail;
     await this.activitySaveTail;
     this.systemPropertyObserver?.disconnect();
     this.systemPropertyObserver = undefined;
@@ -170,7 +174,8 @@ export class FeishuSyncPlugin extends Plugin {
     let changed = migration.changed;
 
     // 4.1 将旧 autoRename 迁移为“采集后生成待确认建议”。
-    // 无论旧值为何，写通道使用的 autoRename 都关闭，避免 fetch/clip 静默编码。
+    // 无论旧值为何，fetch/clip 写通道使用的 autoRename 都关闭；本地文档自动编码由
+    // automaticRecognition 单独控制。
     if (this.settings.createProposalsAfterCapture !== DEFAULT_CAPTURE_PROPOSALS) {
       this.settings.createProposalsAfterCapture = DEFAULT_CAPTURE_PROPOSALS;
       changed = true;
@@ -200,8 +205,14 @@ export class FeishuSyncPlugin extends Plugin {
 
   private queueAutomaticRecognition(file: TAbstractFile): void {
     if (!this.settings.automaticRecognition) return;
-    if (!file.path.toLowerCase().endsWith('.md') || isProtectedRecognitionPath(file.path)) return;
-    this.automaticRecognitionPaths.add(file.path);
+    const path = file.path.replace(/^\/+/, '');
+    const ignoredUntil = this.automaticRecognitionIgnore.get(path);
+    if (ignoredUntil) {
+      if (ignoredUntil > Date.now()) return;
+      this.automaticRecognitionIgnore.delete(path);
+    }
+    if (!path.toLowerCase().endsWith('.md') || isProtectedRecognitionPath(path)) return;
+    this.automaticRecognitionPaths.add(path);
     if (this.automaticRecognitionTimer) clearTimeout(this.automaticRecognitionTimer);
     this.automaticRecognitionTimer = setTimeout(() => {
       this.automaticRecognitionTimer = undefined;
@@ -213,33 +224,70 @@ export class FeishuSyncPlugin extends Plugin {
     const paths = [...this.automaticRecognitionPaths];
     this.automaticRecognitionPaths.clear();
     if (paths.length === 0 || !this.knowledgeWorkflow) return;
+    this.automaticRecognitionTail = this.automaticRecognitionTail
+      .catch(() => {})
+      .then(() => this.processAutomaticRecognition(paths));
+    await this.automaticRecognitionTail;
+  }
+
+  private async processAutomaticRecognition(paths: string[]): Promise<void> {
     try {
       const plan = await this.knowledgeWorkflow.previewTargets(paths, {
         kind: paths.length > 1 ? 'selection' : 'file',
         depth: 'direct',
         mode: 'auto',
       });
-      if (plan.items.length === 0 && plan.blockedReasons.length === 0) return;
-      this.pendingKnowledgePlans = [
-        plan,
-        ...this.pendingKnowledgePlans.filter((item) => item.operationId !== plan.operationId),
-      ].slice(0, 20);
+      // 自动模式会把每个冲突同时记录为 blocker 和 conflict；以 blocker 计数，避免同一篇重复提示。
+      const skipped = plan.blockedReasons.length;
+      if (plan.items.length === 0) {
+        if (skipped > 0) {
+          this.recordActivity({
+            time: new Date().toISOString(),
+            kind: 'system',
+            status: 'failed',
+            action: 'automatic-recognition',
+            path: paths[0],
+            errorCode: 'KNOWLEDGE_PLAN_BLOCKED',
+          });
+          new Notice(`⚠️ 自动编码跳过 ${skipped} 项：请右键手动修正`);
+        }
+        return;
+      }
+
+      const result = await this.commitAutomaticKnowledgePlan(plan);
       this.recordActivity({
         time: new Date().toISOString(),
         kind: 'system',
-        status: plan.blockedReasons.length ? 'failed' : 'succeeded',
-        action: 'automatic-recognition-proposal',
+        status: 'succeeded',
+        action: 'automatic-recognition',
         path: paths[0],
-        errorCode: plan.blockedReasons.length ? 'KNOWLEDGE_PLAN_BLOCKED' : undefined,
       });
       new Notice(
-        plan.blockedReasons.length
-          ? `⚠️ 自动识别发现 ${plan.items.length} 项，另有 ${plan.blockedReasons.length} 项需处理`
-          : `📝 自动识别已生成 ${plan.items.length} 项待确认整理`,
+        `✅ 自动编码完成：${result.changedPaths.length} 篇`
+        + (skipped ? `；${skipped} 项跳过，请右键手动修正` : ''),
       );
     } catch (error) {
+      this.recordActivity({
+        time: new Date().toISOString(),
+        kind: 'system',
+        status: 'failed',
+        action: 'automatic-recognition',
+        path: paths[0],
+        errorCode: 'KNOWLEDGE_AUTO_COMMIT_FAILED',
+      });
+      new Notice(`⚠️ 自动编码失败：${messageOf(error)}；请右键手动修正`);
       console.warn('[fs-TB] automatic recognition failed:', error);
     }
+  }
+
+  /** 自动编码唯一写入口；右键纠错仍走显式预览。 */
+  async commitAutomaticKnowledgePlan(plan: KnowledgeChangePlan): Promise<KnowledgeTransactionResult> {
+    const expiresAt = Date.now() + 5000;
+    for (const item of plan.items) {
+      this.automaticRecognitionIgnore.set(item.originalPath, expiresAt);
+      this.automaticRecognitionIgnore.set(item.newPath, expiresAt);
+    }
+    return this.knowledgeWorkflow.commitPlan(plan.operationId);
   }
 
   async documentCoordinationKey(nodeToken?: string, path?: string): Promise<string> {
@@ -459,4 +507,8 @@ export default FeishuSyncPlugin;
 
 function isProtectedRecognitionPath(path: string): boolean {
   return PROTECTED_RECOGNITION_PATH_RE.test(path.replace(/^\/+/, ''));
+}
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

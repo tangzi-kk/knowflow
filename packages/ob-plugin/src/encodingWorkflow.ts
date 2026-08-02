@@ -10,12 +10,16 @@ import {
 import {
   ALLOWED_STATUSES,
   ALLOWED_TAGS,
+  datePrefixFromDate,
   deriveShortEncoding,
+  expandShortEncoding,
   encodingTag,
   FILE_PREFIX_RE,
   FULL_ENCODING_RE,
   LEGACY_FILE_PREFIX_RE,
   PROTOCOL_VERSION,
+  SHORT_ENCODING_RE,
+  SHORT_FILE_PREFIX_RE,
 } from './knowledgeContract.js';
 
 const ARRAY_FIELDS = [
@@ -226,11 +230,15 @@ export async function previewKnowledgeTargets(
     const occupiedByMovingPlanItem = existing
       && targetFilePaths.has(existing.path)
       && existing.path !== item.originalPath;
-    if (
+    const hasConflict = (
       (existing && item.newPath !== item.originalPath && !occupiedByMovingPlanItem)
       || reservedPaths.has(item.newPath)
-    ) {
+    );
+    if (hasConflict) {
       conflicts.push(`${item.originalPath} → ${item.newPath}`);
+      blockedReasons.push(`${item.originalPath}：目标路径已被占用，自动编码跳过`);
+      // 自动模式继续提交同一批次的安全项；手动模式保留冲突项并整体停在预览中。
+      if (scope.mode === 'auto') continue;
     }
     reservedPaths.add(item.newPath);
     items.push(item);
@@ -256,7 +264,7 @@ export async function commitKnowledgePlan(
   if (plan.blockedReasons.length && plan.scope.mode !== 'auto') {
     throw codedError('KNOWLEDGE_PLAN_BLOCKED', `整理计划被阻止：${plan.blockedReasons.join('；')}`);
   }
-  if (plan.conflicts.length) {
+  if (plan.conflicts.length && plan.scope.mode !== 'auto') {
     throw codedError('KNOWLEDGE_PLAN_CONFLICT', `整理计划存在冲突：${plan.conflicts.join('；')}`);
   }
 
@@ -499,9 +507,14 @@ async function buildPlanItem(
   const next = cloneRecord(before);
   const warnings: string[] = [];
   const blocked: string[] = [];
-  const filenameCode = file.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
+  const filenameFullCode = file.basename.match(FILE_PREFIX_RE)?.[1] ?? '';
+  const filenameShortCode = file.basename.match(SHORT_FILE_PREFIX_RE)?.[1] ?? '';
   const legacyFilenameCode = file.basename.match(LEGACY_FILE_PREFIX_RE)?.[1] ?? '';
   const yamlCode = stringValue(before.编码);
+  const datePrefix = datePrefixFromDate(stringValue(before.日期));
+  const filenameCode = filenameFullCode || (filenameShortCode
+    ? expandShortEncoding(filenameShortCode, datePrefix)
+    : '');
   const currentCode = FULL_ENCODING_RE.test(yamlCode)
     ? yamlCode
     : FULL_ENCODING_RE.test(filenameCode) ? filenameCode : '';
@@ -529,8 +542,15 @@ async function buildPlanItem(
   if (mode === 'clear') {
     code = '';
   } else if (mode === 'manual') {
-    code = scope.manualCode?.trim() ?? '';
-    if (!FULL_ENCODING_RE.test(code)) blocked.push(`手动编码格式不合法：${code || '空'}`);
+    const manualCode = scope.manualCode?.trim() ?? '';
+    if (FULL_ENCODING_RE.test(manualCode)) {
+      code = manualCode;
+    } else if (SHORT_ENCODING_RE.test(manualCode)) {
+      const existingDatePrefix = currentCode.match(/^(\d{2}_\d{4})_/)?.[1] ?? datePrefix;
+      code = expandShortEncoding(manualCode, existingDatePrefix);
+    } else {
+      blocked.push(`手动编码格式不合法：${manualCode || '空'}`);
+    }
   } else if (currentCode) {
     const selectedTag = stringValue(before.标签);
     if (ALLOWED_TAGS.includes(selectedTag) && encodingTag(currentCode) !== selectedTag) {
@@ -563,7 +583,12 @@ async function buildPlanItem(
     const tag = encodingTag(code);
     const existingTag = stringValue(next.标签);
     if (existingTag && existingTag !== tag) {
-      blocked.push(`标签与编码字母冲突（${existingTag} / ${tag}）`);
+      if (mode === 'manual') {
+        next.标签 = tag;
+        warnings.push(`手动短编码同步标签：${existingTag} → ${tag}`);
+      } else {
+        blocked.push(`标签与编码字母冲突（${existingTag} / ${tag}）`);
+      }
     } else if (!existingTag && (mode === 'manual' || mode === 'auto')) {
       next.标签 = tag;
     }
@@ -587,9 +612,16 @@ async function buildPlanItem(
 
   const unprefixedName = file.basename
     .replace(FILE_PREFIX_RE, '')
-    .replace(LEGACY_FILE_PREFIX_RE, '');
+    .replace(LEGACY_FILE_PREFIX_RE, '')
+    .replace(SHORT_FILE_PREFIX_RE, '');
   const directory = normalizePath(file.parent?.path ?? '');
-  const newName = code ? `${code} ${unprefixedName}.${file.extension}` : `${unprefixedName}.${file.extension}`;
+  const visibleCode = code ? deriveShortEncoding(code) : '';
+  const titleWithoutVisibleCode = visibleCode
+    ? stripVisibleCodePrefix(unprefixedName, visibleCode)
+    : unprefixedName;
+  const newName = visibleCode
+    ? `${visibleCode} ${titleWithoutVisibleCode}.${file.extension}`
+    : `${titleWithoutVisibleCode}.${file.extension}`;
   const newPath = joinPath(directory, newName);
   const newContent = assembleFile(next, inspected.body, {
     hasBom: inspected.hasBom,
@@ -696,6 +728,12 @@ async function collectOccupiedEncodings(app: App): Promise<Map<string, string[]>
       const inspected = inspectFrontmatter(await app.vault.read(file as never));
       const yamlCode = stringValue(inspected.frontmatter?.编码);
       if (FULL_ENCODING_RE.test(yamlCode)) code = yamlCode;
+      if (!code) {
+        const shortCode = file.basename.match(SHORT_FILE_PREFIX_RE)?.[1] ?? '';
+        if (SHORT_ENCODING_RE.test(shortCode)) {
+          code = expandShortEncoding(shortCode, datePrefixFromDate(stringValue(inspected.frontmatter?.日期)));
+        }
+      }
     } catch {
       // 损坏文档会在自己的预览中阻断，不参与猜测。
     }
@@ -947,6 +985,11 @@ function normalizePath(path: string): string {
 
 function joinPath(directory: string, name: string): string {
   return directory ? `${directory}/${name}` : name;
+}
+
+function stripVisibleCodePrefix(name: string, visibleCode: string): string {
+  const prefix = `${visibleCode} `;
+  return name.startsWith(prefix) ? name.slice(prefix.length) : name;
 }
 
 function transactionTemporaryPath(

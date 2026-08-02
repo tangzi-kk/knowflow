@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.2.0",
+  "version": "4.3.0",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.2.0：全库自动识别与批量编码",
+  "description": "KnowFlow 4.3.0：本地自动编码与右键纠错",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

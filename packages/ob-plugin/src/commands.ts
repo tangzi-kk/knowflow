@@ -14,7 +14,7 @@ import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
 import {
   openAutoRecognitionPreview,
-  openOrganizationPreview,
+  openCorrectionPanel,
   registerEncodingContextMenu,
 } from './encodingUi.js';
 
@@ -106,10 +106,10 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
     },
   });
 
-  // 保留旧 command id 供快捷键迁移，但统一进入 4.1 整理预览。
+  // 保留旧 command id 供快捷键迁移；目录纠错统一进入轻量纠错面板。
   plugin.addCommand({
     id: 'assign-encoding-dir',
-    name: '整理当前目录…',
+    name: '检查并纠正当前目录…',
     callback: async () => {
       const file = app.workspace.getActiveFile();
       if (!file) {
@@ -120,16 +120,16 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       if (!dir) return;
 
       try {
-        await openOrganizationPreview(plugin, [dir], 'directory');
+        await openCorrectionPanel(plugin, [dir], 'directory');
       } catch (error) {
-        new Notice(`❌ 整理预览失败：${error instanceof Error ? error.message : String(error)}`);
+        new Notice(`❌ 纠错面板失败：${error instanceof Error ? error.message : String(error)}`);
       }
     },
   });
 
   plugin.addCommand({
     id: 'scan-and-organize-vault',
-    name: '自动识别并整理全库文档…',
+    name: '自动识别并整理全库文档',
     callback: () => {
       void openAutoRecognitionPreview(plugin);
     },

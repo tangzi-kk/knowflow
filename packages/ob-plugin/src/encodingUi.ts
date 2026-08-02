@@ -14,6 +14,13 @@ import type {
   KnowledgeChangeScope as OrganizationScope,
   KnowledgeWorkflow,
 } from './encodingWorkflow.js';
+import {
+  FILE_PREFIX_RE,
+  FULL_ENCODING_RE,
+  SHORT_ENCODING_RE,
+  SHORT_FILE_PREFIX_RE,
+  deriveShortEncoding,
+} from './knowledgeContract.js';
 
 export type OrganizationKind = OrganizationScope['kind'];
 export type OrganizationMode = NonNullable<OrganizationScope['mode']>;
@@ -27,7 +34,7 @@ const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?
 const registeredPlugins = new WeakSet<FeishuSyncPlugin>();
 
 /**
- * 只注册一套文件树整理菜单。
+ * 只注册一套文件树手动纠错菜单。
  *
  * 单个目标使用 `file-menu`，多选使用 Obsidian 官方 `files-menu`；两者都严格
  * 限定 File Explorer 来源，不向编辑器、链接或其他菜单注入入口。
@@ -43,7 +50,9 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
         if (isProtectedPath(target.path)) return;
 
         const kind: OrganizationKind = target instanceof TFolder ? 'directory' : 'file';
-        const title = kind === 'directory' ? 'KnowFlow：整理此目录…' : 'KnowFlow：整理此文档…';
+        const title = kind === 'directory'
+          ? 'KnowFlow：检查并纠正此目录…'
+          : 'KnowFlow：纠正此文档…';
         addOrganizationMenuItem(menu, plugin, [target.path], kind, title);
       },
     ));
@@ -52,16 +61,19 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
       'files-menu',
       (menu, targets, source) => {
         if (source !== FILE_EXPLORER_SOURCE || targets.length < 2) return;
-        if (targets.some((target) => isProtectedPath(target.path))) return;
-
-        const supportedTargets = targets.filter(isSupportedSelectionTarget);
+        const supportedTargets = targets
+          .filter(isSupportedSelectionTarget)
+          .filter((target) => !isProtectedPath(target.path));
         if (supportedTargets.length === 0) return;
+        const ignoredCount = targets.length - supportedTargets.length;
         addOrganizationMenuItem(
           menu,
           plugin,
-          targets.map((target) => target.path),
+          supportedTargets.map((target) => target.path),
           'selection',
-          'KnowFlow：整理所选内容…',
+          ignoredCount
+            ? `KnowFlow：检查并纠正所选内容（${supportedTargets.length}，已忽略 ${ignoredCount} 项）…`
+            : 'KnowFlow：检查并纠正所选内容…',
         );
       },
     ));
@@ -78,6 +90,7 @@ export async function openOrganizationPreview(
   paths: string[],
   kind: OrganizationKind,
   mode: OrganizationMode = 'organize',
+  depth: OrganizationScope['depth'] = kind === 'file' ? 'direct' : 'recursive',
   manualCode?: string,
 ): Promise<void> {
   const safePaths = uniquePaths(paths);
@@ -94,7 +107,7 @@ export async function openOrganizationPreview(
     const workflow = knowledgeWorkflow(plugin);
     const scope: OrganizationScope = {
       kind,
-      depth: 'direct',
+      depth,
       mode,
       ...(manualCode ? { manualCode } : {}),
     };
@@ -106,17 +119,31 @@ export async function openOrganizationPreview(
 }
 
 /**
- * 全库入口：一次扫描所有可整理 Markdown，自动识别标签并生成一个批量预览。
- * 空路径代表 Vault 根目录；真正写入仍由 PreviewModal 的一次确认触发。
+ * 全库入口：一次扫描所有可整理 Markdown，自动识别标签并直接执行安全项。
+ * 空路径代表 Vault 根目录；异常项会跳过并提示用户使用右键手动修正。
  */
 export async function openAutoRecognitionPreview(plugin: FeishuSyncPlugin): Promise<void> {
-  new Notice('🔎 正在扫描可整理 Markdown，请稍候…');
-  await openPreviewWithWorkflow(
-    plugin.app,
-    knowledgeWorkflow(plugin),
-    [''],
-    { kind: 'directory', depth: 'recursive', mode: 'auto' },
-  );
+  new Notice('🤖 正在自动识别并编码全库 Markdown，请稍候…');
+  try {
+    const plan = await knowledgeWorkflow(plugin).previewTargets([''], {
+      kind: 'directory',
+      depth: 'recursive',
+      mode: 'auto',
+    });
+    // 自动模式会把每个冲突同时记录为 blocker 和 conflict；以 blocker 计数，避免同一篇重复提示。
+    const skipped = plan.blockedReasons.length;
+    if (plan.items.length === 0) {
+      new Notice(skipped ? `⚠️ 自动编码跳过 ${skipped} 项，请右键手动修正` : '✅ 全库已完成编码，无需处理');
+      return;
+    }
+    const result = await plugin.commitAutomaticKnowledgePlan(plan);
+    new Notice(
+      `✅ 全库自动编码完成：${result.changedPaths.length} 篇`
+      + (skipped ? `；${skipped} 项跳过，请右键手动修正` : ''),
+    );
+  } catch (error) {
+    new Notice(`⚠️ 全库自动编码失败：${messageOf(error)}；可右键手动修正`);
+  }
 }
 
 function addOrganizationMenuItem(
@@ -130,8 +157,196 @@ function addOrganizationMenuItem(
     .setTitle(title)
     .setIcon('list-checks')
     .onClick(() => {
-      void openOrganizationPreview(plugin, paths, kind);
+      void openCorrectionPanel(plugin, paths, kind);
     }));
+}
+
+/**
+ * 文件树右键的唯一入口：先给出当前对象的异常与短编码建议，再由用户明确应用纠错。
+ * 自动编码不会经过这里；右键只处理自动流程跳过或用户认为识别不准的对象。
+ */
+export async function openCorrectionPanel(
+  plugin: FeishuSyncPlugin,
+  paths: string[],
+  kind: OrganizationKind,
+  depth: OrganizationScope['depth'] = kind === 'file' ? 'direct' : 'recursive',
+): Promise<void> {
+  const safePaths = uniquePaths(paths);
+  if (safePaths.length === 0) {
+    new Notice('⚠️ 没有可纠正的 Markdown 文档或目录');
+    return;
+  }
+  if (safePaths.some(isProtectedPath)) {
+    new Notice('⛔ 受保护目录不能进入纠错面板');
+    return;
+  }
+  try {
+    const workflow = knowledgeWorkflow(plugin);
+    const scope: OrganizationScope = { kind, depth, mode: 'auto' };
+    const plan = await workflow.previewTargets(safePaths, scope);
+    new CorrectionModal(plugin.app, workflow, plan, safePaths, scope).open();
+  } catch (error) {
+    new Notice(`❌ 无法打开纠错面板：${messageOf(error)}`);
+  }
+}
+
+export class CorrectionModal extends Modal {
+  private committing = false;
+  private shortInput?: HTMLInputElement;
+  private applyButton?: HTMLButtonElement;
+
+  constructor(
+    app: App,
+    private readonly workflow: KnowledgeWorkflow,
+    private readonly plan: KnowledgeChangePlan,
+    private readonly targets: string[],
+    private readonly organizationScope: OrganizationScope,
+  ) {
+    super(app);
+  }
+
+  onOpen(): void {
+    this.titleEl.setText('KnowFlow 编码纠错');
+    this.render();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+
+  private render(): void {
+    this.contentEl.empty();
+    const isSingleFile = this.organizationScope.kind === 'file' && this.targets.length === 1;
+    this.contentEl.createEl('p', {
+      text: isSingleFile
+        ? '这里处理自动编码跳过或识别不准的文档。日常编码无需打开此面板。'
+        : `检查${scopeLabel(this.organizationScope.kind)}：安全项可一次应用，异常项请继续右键单篇纠正。`,
+      cls: 'setting-item-description',
+    });
+
+    const current = this.plan.items[0];
+    if (isSingleFile) {
+      const currentShortCode = shortCodeFromPath(this.targets[0]) || current?.shortCode || '';
+      const currentRow = this.contentEl.createDiv({ cls: 'fstb-correction-current' });
+      currentRow.createEl('strong', { text: '当前短编码：' });
+      currentRow.createEl('code', { text: currentShortCode || '未编码' });
+
+      const field = this.contentEl.createDiv({ cls: 'fstb-advanced-row' });
+      field.createEl('label', { text: '修正为短编码' });
+      this.shortInput = field.createEl('input', {
+        type: 'text',
+        placeholder: '例如 S01.a1',
+      });
+      this.shortInput.value = current?.shortCode || currentShortCode;
+      this.shortInput.setAttribute('aria-label', '修正为短编码');
+      this.shortInput.addEventListener('input', () => {
+        if (this.applyButton) {
+          this.applyButton.disabled = !isManualCodeInput(this.shortInput?.value.trim() ?? '');
+        }
+      });
+      field.createEl('span', {
+        text: '保存后会自动按文档日期展开为完整编码。',
+        cls: 'setting-item-description',
+      });
+    }
+
+    renderMessages(this.contentEl, '需要处理', this.plan.blockedReasons, 'fstb-plan-blockers');
+    renderMessages(this.contentEl, '路径冲突', this.plan.conflicts, 'fstb-plan-conflicts');
+    renderMessages(this.contentEl, '提示', this.plan.warnings, 'fstb-plan-warnings');
+
+    const list = this.contentEl.createDiv({ cls: 'fstb-encoding-preview-list' });
+    for (const item of this.plan.items) {
+      const row = list.createDiv({ cls: 'fstb-encoding-preview-row' });
+      row.createEl('div', { text: displayPath(item.originalPath, item.shortCode) });
+      row.createEl('div', {
+        text: item.newPath === item.originalPath
+          ? '→ 更新属性/索引'
+          : `→ ${displayPath(item.newPath, item.shortCode)}`,
+        cls: 'setting-item-description',
+      });
+      row.createEl('code', { text: item.shortCode || '无编码' });
+      renderCodeDetails(row, item);
+      if (item.recognition) {
+        row.createEl('span', {
+          text: `识别：${item.recognition.tag} · ${confidenceLabel(item.recognition.confidence)}`,
+          cls: 'setting-item-description',
+        });
+      }
+    }
+
+    const actions = this.contentEl.createDiv({ cls: 'modal-button-container' });
+    actions.createEl('button', { text: '取消' }).onclick = () => this.close();
+    if (isSingleFile) {
+      const clear = actions.createEl('button', { text: '清除编码…', cls: 'mod-warning' });
+      clear.onclick = () => {
+        new ClearCodeConfirmModal(this.app, async () => {
+          this.close();
+          await openPreviewWithWorkflow(
+            this.app,
+            this.workflow,
+            this.targets,
+            { ...this.organizationScope, mode: 'clear', manualCode: undefined },
+          );
+        }).open();
+      };
+    }
+    this.applyButton = actions.createEl('button', {
+      text: isSingleFile ? '应用纠错' : '应用安全项',
+      cls: 'mod-cta',
+    });
+    this.applyButton.disabled = isSingleFile
+      ? !isManualCodeInput(this.shortInput?.value.trim() ?? '')
+      : this.plan.items.length === 0;
+    this.applyButton.onclick = () => {
+      if (this.applyButton) void this.commit(this.applyButton, isSingleFile);
+    };
+  }
+
+  private async commit(button: HTMLButtonElement, isSingleFile: boolean): Promise<void> {
+    if (this.committing) return;
+    this.committing = true;
+    button.disabled = true;
+    try {
+      let operationId = this.plan.operationId;
+      if (isSingleFile) {
+        const shortCode = this.shortInput?.value.trim() ?? '';
+        if (!isManualCodeInput(shortCode)) {
+          new Notice('⚠️ 请输入合法短编码，例如 S01.a1');
+          return;
+        }
+        const normalizedShortCode = FULL_ENCODING_RE.test(shortCode)
+          ? deriveShortEncoding(shortCode)
+          : shortCode;
+        if (this.shortInput && normalizedShortCode !== shortCode) this.shortInput.value = normalizedShortCode;
+        const manualPlan = await this.workflow.previewTargets(this.targets, {
+          ...this.organizationScope,
+          mode: 'manual',
+          manualCode: normalizedShortCode,
+        });
+        if (manualPlan.blockedReasons.length || manualPlan.conflicts.length || manualPlan.items.length === 0) {
+          renderMessages(this.contentEl, '无法应用', manualPlan.blockedReasons, 'fstb-plan-blockers');
+          renderMessages(this.contentEl, '路径冲突', manualPlan.conflicts, 'fstb-plan-conflicts');
+          new Notice('⚠️ 这组短编码无法应用，请根据原因修改');
+          return;
+        }
+        operationId = manualPlan.operationId;
+      }
+
+      const result = await this.workflow.commitPlan(operationId);
+      if (result.status !== 'committed') throw new Error('事务已回滚，文件未保持半完成状态');
+      new Notice(`✅ 编码纠正完成：${result.changedPaths.length} 项`);
+      this.close();
+    } catch (error) {
+      new Notice(`❌ 编码纠正失败：${messageOf(error)}`);
+    } finally {
+      this.committing = false;
+      if (this.applyButton && this.contentEl.isConnected) {
+        this.applyButton.disabled = isSingleFile
+          ? !isManualCodeInput(this.shortInput?.value.trim() ?? '')
+          : this.plan.items.length === 0;
+      }
+    }
+  }
 }
 
 export class PreviewModal extends Modal {
@@ -174,17 +389,16 @@ export class PreviewModal extends Modal {
 
     const list = this.contentEl.createEl('div', { cls: 'fstb-encoding-preview-list' });
     for (const item of this.plan.items) {
-      const currentPath = item.originalPath;
-      const targetPath = item.newPath;
       const row = list.createEl('div', { cls: 'fstb-encoding-preview-row' });
-      row.createEl('div', { text: currentPath });
+      row.createEl('div', { text: displayPath(item.originalPath, item.shortCode) });
       row.createEl('div', {
-        text: targetPath === currentPath ? '→ 更新属性/索引' : `→ ${targetPath}`,
+        text: item.newPath === item.originalPath
+          ? '→ 更新属性/索引'
+          : `→ ${displayPath(item.newPath, item.shortCode)}`,
         cls: 'setting-item-description',
       });
-      if (item.code) {
-        row.createEl('code', { text: item.code });
-      }
+      row.createEl('code', { text: item.shortCode || '无编码' });
+      renderCodeDetails(row, item);
       if (item.recognition) {
         row.createEl('span', {
           text: `识别：${item.recognition.tag} · ${confidenceLabel(item.recognition.confidence)}`,
@@ -210,7 +424,7 @@ export class PreviewModal extends Modal {
     });
     const blocked = this.plan.items.length === 0
       || (this.plan.blockedReasons.length > 0 && this.organizationScope.mode !== 'auto')
-      || this.plan.conflicts.length > 0;
+      || (this.plan.conflicts.length > 0 && this.organizationScope.mode !== 'auto');
     confirm.disabled = blocked;
     confirm.onclick = () => {
       void this.commit(confirm);
@@ -228,13 +442,13 @@ export class PreviewModal extends Modal {
     const manualRow = details.createDiv({ cls: 'fstb-advanced-row' });
     const input = manualRow.createEl('input', {
       type: 'text',
-      placeholder: '完整编码 YY_MMDD_TAG_TOPIC_LEVEL',
+      placeholder: '短编码 S01.a1（也可粘贴完整编码）',
     });
-    const manual = manualRow.createEl('button', { text: '手动指定编码…' });
+    const manual = manualRow.createEl('button', { text: '手动指定短编码…' });
     manual.onclick = () => {
       const code = input.value.trim();
       if (!code) {
-        new Notice('⚠️ 请先输入完整编码');
+        new Notice('⚠️ 请先输入短编码或完整编码');
         return;
       }
       this.close();
@@ -280,7 +494,8 @@ export class PreviewModal extends Modal {
       this.close();
     } catch (error) {
       new Notice(`❌ 整理事务失败：${messageOf(error)}`);
-      button.disabled = this.plan.blockedReasons.length > 0 || this.plan.conflicts.length > 0;
+      button.disabled = (this.plan.blockedReasons.length > 0 && this.organizationScope.mode !== 'auto')
+        || (this.plan.conflicts.length > 0 && this.organizationScope.mode !== 'auto');
     } finally {
       this.committing = false;
     }
@@ -334,7 +549,8 @@ function knowledgeWorkflow(plugin: FeishuSyncPlugin): KnowledgeWorkflow {
 }
 
 function isSupportedSingleTarget(target: TAbstractFile): target is TFile | TFolder {
-  return target instanceof TFolder || (target instanceof TFile && target.extension === 'md');
+  return target instanceof TFolder
+    || (target instanceof TFile && target.extension.toLowerCase() === 'md');
 }
 
 function isSupportedSelectionTarget(target: TAbstractFile): target is TFile | TFolder {
@@ -359,7 +575,54 @@ function renderMessages(
   if (messages.length === 0) return;
   const section = container.createDiv({ cls: className });
   section.createEl('strong', { text: `${label}（${messages.length}）：` });
-  section.createEl('span', { text: messages.join('；') });
+  section.createEl('span', { text: messages.map(displayMessage).join('；') });
+}
+
+function renderCodeDetails(container: HTMLElement, item: KnowledgeChangePlan['items'][number]): void {
+  if (!item.code) return;
+  const details = container.createEl('details', { cls: 'fstb-code-details' });
+  details.createEl('summary', { text: '查看完整编码' });
+  details.createEl('div', { text: `完整编码（后端）：${item.code}` });
+  details.createEl('div', { text: `YAML 编码：${item.code} · 短编码：${item.shortCode}` });
+  details.createEl('div', { text: `文件名显示：${item.newPath}` });
+}
+
+function displayPath(path: string, shortCode?: string): string {
+  const slash = path.lastIndexOf('/');
+  const directory = slash >= 0 ? path.slice(0, slash + 1) : '';
+  const basename = slash >= 0 ? path.slice(slash + 1) : path;
+  const fullCode = basename.match(FILE_PREFIX_RE)?.[1];
+  const visibleCode = fullCode
+    ? deriveShortEncoding(fullCode)
+    : basename.match(SHORT_FILE_PREFIX_RE)?.[1] ?? shortCode;
+  if (!visibleCode) return path;
+  return directory + basename
+    .replace(FILE_PREFIX_RE, `${visibleCode} `)
+    .replace(SHORT_FILE_PREFIX_RE, `${visibleCode} `);
+}
+
+function shortCodeFromPath(path: string): string {
+  const basename = path.split('/').pop() ?? path;
+  const fullCode = basename.match(FILE_PREFIX_RE)?.[1];
+  if (fullCode) return deriveShortEncoding(fullCode);
+  return basename.match(SHORT_FILE_PREFIX_RE)?.[1] ?? '';
+}
+
+function displayMessage(message: string): string {
+  return message.replace(
+    /\b\d{2}_\d{4}_[SXLZQJ]_\d{2}_[a-z]\d+(?:[a-z]\d+)*\b/g,
+    (fullCode) => {
+      try {
+        return deriveShortEncoding(fullCode);
+      } catch {
+        return fullCode;
+      }
+    },
+  );
+}
+
+function isManualCodeInput(value: string): boolean {
+  return SHORT_ENCODING_RE.test(value) || FULL_ENCODING_RE.test(value);
 }
 
 function scopeLabel(kind: OrganizationKind): string {

@@ -1,4 +1,7 @@
 const LEGACY_SYSTEM_PROPERTY_KEYS = new Set([
+  // Keep the full protocol code in frontmatter for indexing/sync, while the
+  // default Obsidian properties view exposes the short human code instead.
+  '编码',
   'feishu_id',
   'feishu_doc_id',
   'feishu_title',
@@ -23,11 +26,13 @@ body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-key="feishu_
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-key="feishu_title"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-key="sync_hash"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-key="sync_time"],
+body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-key="编码"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="feishu_id"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="feishu_doc_id"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="feishu_title"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="sync_hash"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="sync_time"],
+body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property[data-property-name="编码"],
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property:has(.metadata-property-key-input[value^="_sys_"]),
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property:has(.metadata-property-key-input[aria-label^="_sys_"]),
 body.${SYSTEM_PROPERTY_BODY_CLASS} .metadata-property:has(.metadata-property-key input[value^="_sys_"]),

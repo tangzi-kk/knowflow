@@ -4,7 +4,7 @@
  */
 import type { App } from 'obsidian';
 import { inspectFrontmatter, TAG_NAMES, type Tag } from '@sync/shared';
-import { FILE_PREFIX_RE, FULL_ENCODING_RE } from './knowledgeContract.js';
+import { FILE_PREFIX_RE, FULL_ENCODING_RE, SHORT_FILE_PREFIX_RE } from './knowledgeContract.js';
 import type { RecentSync } from './settings.js';
 
 const INDEX_PATH = '.feishu-sync/编码索引.md';
@@ -47,7 +47,10 @@ export async function rebuildEncodingIndex(app: App): Promise<{ count: number; p
       code,
       tag: code.split('_')[2] as Tag,
       path: node.path,
-      name: node.basename.replace(FILE_PREFIX_RE, '').trim() || node.name,
+      name: node.basename
+        .replace(FILE_PREFIX_RE, '')
+        .replace(SHORT_FILE_PREFIX_RE, '')
+        .trim() || node.name,
     });
   }
 

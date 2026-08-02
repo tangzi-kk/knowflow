@@ -21,7 +21,7 @@ export interface FeishuSyncSettings {
   autoRename: boolean;
   /** 4.1 安全迁移标记；运行时固定为 true，采集后必须生成待确认建议。 */
   createProposalsAfterCapture: boolean;
-  /** 新建或修改 Markdown 后是否自动放入待确认整理队列。 */
+  /** 新建或修改 Markdown 后是否自动识别并编码；异常项仍需手动修正。 */
   automaticRecognition: boolean;
   /** 图片缓存清理周期。 */
   cacheCleanup: 'daily' | 'weekly' | 'monthly' | 'never';

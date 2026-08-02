@@ -7,7 +7,7 @@ import { Menu, Modal, Notice, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import {
   openAutoRecognitionPreview,
-  openOrganizationPreview,
+  openCorrectionPanel,
   PreviewModal,
 } from './encodingUi.js';
 import { exportActivityLog, rebuildEncodingIndex } from './encodingIndex.js';
@@ -24,16 +24,16 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
     const targets = currentFileTreeTargets(plugin.app);
 
     menu.addItem((item) => item
-      .setTitle('整理当前文档…')
+      .setTitle('纠正当前打开文档…')
       .setIcon('list-checks')
       .setDisabled(targets.length === 0)
       .onClick(() => {
-        void openOrganizationPreview(plugin, targets, targets.length > 1 ? 'selection' : targetKind(targets[0]));
+        void openCorrectionPanel(plugin, targets, targets.length > 1 ? 'selection' : targetKind(targets[0]));
       }));
 
     const pending = plugin.getPendingKnowledgePlans();
     menu.addItem((item) => item
-      .setTitle(`待确认任务${pending.length ? `（${pending.length}）` : ''}`)
+      .setTitle(`待确认同步任务${pending.length ? `（${pending.length}）` : ''}`)
       .setIcon('inbox')
       .setDisabled(pending.length === 0)
       .onClick(() => {
@@ -50,7 +50,7 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
       }));
 
     menu.addItem((item) => item
-      .setTitle('自动识别全库文档…')
+      .setTitle('自动识别并整理全库文档')
       .setIcon('scan-search')
       .onClick(() => {
         void openAutoRecognitionPreview(plugin);

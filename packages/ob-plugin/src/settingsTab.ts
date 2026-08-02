@@ -21,7 +21,7 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
 
     containerEl.createEl('h2', { text: 'KnowFlow', cls: 'fstb-title' });
     containerEl.createEl('p', {
-      text: '这里只管理长期配置。整理、编码和同步操作请使用文件右键菜单或左侧 KnowFlow 入口。',
+      text: '这里只管理长期配置。自动编码会在文档变化后执行；识别不准时，用文件右键菜单手动修正。',
       cls: 'setting-item-description fstb-settings-intro',
     });
 
@@ -166,7 +166,7 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
 
     new Setting(el)
       .setName('隐藏系统属性')
-      .setDesc('隐藏 _sys_ 开头和旧版同步字段；字段仍保留给同步逻辑使用')
+      .setDesc('隐藏 _sys_、完整编码和旧版同步字段；字段仍保留给同步逻辑使用，界面优先显示短编码')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.hideSystemProperties)
@@ -178,8 +178,8 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(el)
-      .setName('自动发现待整理文档')
-      .setDesc('新建或修改 Markdown 后自动生成一条批量待确认任务；不会直接写入或改名')
+      .setName('自动识别并编码文档')
+      .setDesc('新建或修改 Markdown 后自动识别、分配编码并写入；异常项跳过后可右键手动修正')
       .addToggle((toggle) =>
         toggle
           .setValue(this.plugin.settings.automaticRecognition)

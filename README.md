@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-4.2.0-blue" alt="release version">
+  <img src="https://img.shields.io/badge/release-4.3.0-blue" alt="release version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前稳定版 | `fs-TB` + `KnowFlow` | `4.2.0` | `artifacts/` | 全库自动识别、批量编码预览与事务回滚；真机与通信门禁已通过后发布 |
+| 当前稳定版 | `fs-TB` + `KnowFlow` | `4.3.0` | `artifacts/` | 本地自动识别、自动编码与右键纠错；真机与通信门禁已通过后发布 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -31,8 +31,8 @@
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.2.0.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.2.0/` 或 `artifacts/KnowFlow-Browser-4.2.0.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.3.0.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.3.0/` 或 `artifacts/KnowFlow-Browser-4.3.0.zip`
 
 阅读入口：
 
@@ -145,7 +145,7 @@
 | 🎨 **Callout 保留** | 飞书高亮块颜色/emoji → OB callout，回写时反向还原 |
 | 🏷️ **元数据绑定** | 飞书头部「文档信息」callout ↔ OB YAML frontmatter 自动互转 |
 | 📸 **图片处理** | 飞书图片 → `feishu://FILE_TOKEN` 永久引用，预览时实时下载 |
-| 🔢 **自动识别与编码** | 扫描全库 Markdown，按标题/正文/关键词生成可解释标签建议；一次预览、一次确认，插件分配唯一编码并批量改名 |
+| 🔢 **自动识别与编码** | 新建/修改后自动按标题、正文和关键词识别标签、分配完整编码并改名为短编码前缀；错误项从右键纠错 |
 | 📋 **Clipper 兼容** | 监听飞书官方 Clipper 占位文件，自动替换为真实同步内容 |
 | 🛡️ **Token 鉴权** | 本地通信 `X-Sync-Token` 保护，防止同网段未授权访问 |
 | 📂 **目录树选择** | 同步时可选择 OB vault 中的落地目录 |
@@ -247,8 +247,9 @@ sync_time: 2026-06-15T10:30:00+08:00
 # ═══════════ 知识标签（封闭枚举：S/X/L/Z/Q/J）═══════════
 标签: S
 
-# ═══════════ 编码（预览确认后由插件分配）═══════════
+# ═══════════ 编码（后端完整值；界面和文件名显示短编码）═══════════
 编码: 25_1221_S_09_a1
+短编码: S09.a1
 
 # ═══════════ 元数据字段 ═══════════
 输入: "#0️⃣输入/💡碎片输入"
@@ -295,7 +296,7 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 <details>
 <summary><b>Q: 文档很多，如何自动编码？</b></summary>
 
-点击 KnowFlow Ribbon 的“自动识别全库文档…”或命令面板中的同名命令。插件会递归扫描可整理 Markdown，按标题、正文和关键词给出标签建议，展示完整改名/YAML 预览；确认一次后整批执行。低置信度文档会回退为 `S`，受保护目录、损坏 YAML 和冲突项会停在预览中，不会悄悄写入。
+默认打开“自动识别并编码文档”后，新建、修改或改名 Markdown 会自动识别、分配完整编码并写入；文件名和界面默认显示短编码（如 `S01.a1`），低置信度文档回退为 `S`。受保护目录、损坏 YAML 和冲突项会跳过并提示，你可以在文件树右键“纠正此文档”。需要全库补齐时，运行 Ribbon 或命令面板中的“自动识别并整理全库文档”。
 </details>
 
 ---

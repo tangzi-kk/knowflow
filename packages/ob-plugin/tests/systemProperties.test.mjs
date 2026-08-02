@@ -27,7 +27,7 @@ await writeFile(modulePath, compiled);
 const { isSystemPropertyKey, SYSTEM_PROPERTY_CSS } = await import(pathToFileURL(modulePath).href);
 
 test('recognizes current and legacy system-property keys', () => {
-  for (const key of ['_sys_source', 'feishu_id', 'feishu_doc_id', 'feishu_title', 'sync_hash', 'sync_time']) {
+  for (const key of ['_sys_source', '编码', 'feishu_id', 'feishu_doc_id', 'feishu_title', 'sync_hash', 'sync_time']) {
     assert.equal(isSystemPropertyKey(key), true, key);
   }
 });
@@ -41,5 +41,7 @@ test('does not hide user properties that only resemble system keys', () => {
 test('style contains both prefix and legacy fallbacks', () => {
   assert.match(SYSTEM_PROPERTY_CSS, /data-property-key\^="_sys_"/);
   assert.match(SYSTEM_PROPERTY_CSS, /data-property-key="feishu_id"/);
+  assert.match(SYSTEM_PROPERTY_CSS, /data-property-key="编码"/);
+  assert.match(SYSTEM_PROPERTY_CSS, /data-property-name="编码"/);
   assert.match(SYSTEM_PROPERTY_CSS, /fstb-system-property-hidden/);
 });
