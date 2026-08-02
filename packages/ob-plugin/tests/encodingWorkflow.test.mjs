@@ -761,6 +761,55 @@ test('auto mode commits safe documents while isolating a conflicting target path
   assert.match(fixture.notes[1].path, /^0️⃣输入\/S02\.a1 /);
 });
 
+test('auto mode blocks a target occupied by a non-moving document in the same scan', async () => {
+  const firstContent = validContent('X', '# 第一篇\n');
+  const secondContent = `---
+协议版本: 1
+文档ID: 650e8400-e29b-41d4-a716-446655440000
+标签: X
+编码: 26_0726_X_01_a1
+短编码: X01.a1
+日期: 2026-07-26
+日期索引: []
+关键词: legacy
+评分: ""
+评分_显示: ""
+状态: 收集
+索引_知识库: []
+索引_颜色: []
+索引_操作&反馈: []
+索引_块: []
+索引_风险: []
+关联项目: []
+关联文档: []
+关联人物: []
+---
+# 第二篇
+`;
+  const fixture = createApp([firstContent, secondContent]);
+  fixture.notes.forEach((file, index) => {
+    const next = index === 0
+      ? '0️⃣输入/S01.a1 目标文档.md'
+      : '0️⃣输入/X01.a1 目标文档.md';
+    fixture.entries.delete(file.path);
+    file.path = next;
+    file.name = next.split('/').pop();
+    file.basename = file.name.replace(/\.md$/, '');
+    fixture.entries.set(next, file);
+  });
+
+  const plan = await previewKnowledgeTargets(fixture.app, [''], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+  });
+
+  assert.equal(plan.items.length, 0);
+  assert.equal(plan.conflicts.length, 1);
+  assert.match(plan.blockedReasons.join('\n'), /目标路径已被占用/);
+  assert.deepEqual(fixture.events, []);
+});
+
 test('stateful workflow exposes only preview, commit and rollback paths', async () => {
   const fixture = createApp();
   const keys = [];

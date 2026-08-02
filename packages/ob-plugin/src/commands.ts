@@ -17,6 +17,7 @@ import {
   openTagAssignmentPanel,
   registerEncodingContextMenu,
 } from './encodingUi.js';
+import { exportActivityLog } from './encodingIndex.js';
 
 export function registerCommands(plugin: FeishuSyncPlugin): void {
   const { app, settings } = plugin;
@@ -172,6 +173,23 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       const pre = modal.contentEl.createEl('pre');
       pre.setText(lines.join('\n'));
       modal.open();
+    },
+  });
+
+  plugin.addCommand({
+    id: 'export-sync-log',
+    name: '导出同步日志',
+    callback: async () => {
+      try {
+        const result = await exportActivityLog(
+          app,
+          plugin.state.recentSyncs,
+          app.vault.getName(),
+        );
+        new Notice(`✅ 已导出同步日志：${result.path}（${result.count} 条）`);
+      } catch (error) {
+        new Notice(`❌ 导出同步日志失败：${error instanceof Error ? error.message : String(error)}`);
+      }
     },
   });
 }

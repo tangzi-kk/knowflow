@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.5.2",
+  "version": "4.5.3",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.5.2：修复标签切换与精简中文菜单",
+  "description": "KnowFlow 4.5.3：恢复日志导出并阻断编码冲突",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

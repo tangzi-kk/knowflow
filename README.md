@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-4.5.2-blue" alt="release version">
+  <img src="https://img.shields.io/badge/release-4.5.3-blue" alt="release version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.2` | `artifacts/` | 标签切换冲突自动重分配、纯中文右键菜单 |
+| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.3` | `artifacts/` | 日志导出、编码目标冲突保护、纯中文右键菜单 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -31,8 +31,8 @@
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.5.2.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.2/` 或 `artifacts/KnowFlow-Browser-4.5.2.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.5.3.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.3/` 或 `artifacts/KnowFlow-Browser-4.5.3.zip`
 
 阅读入口：
 
@@ -181,6 +181,8 @@ npm run build
 | `npm run typecheck:ext` | 严格检查浏览器源码 |
 | `npm run dev` | watch 模式开发 |
 | `npm run test:protocol` | 协议 URI 解析测试 |
+
+Obsidian 命令面板常用入口：`自动识别并整理全库文档`、`显示最近同步记录`、`导出同步日志`。日志导出文件写入当前 Vault 的 `.feishu-sync/同步日志-<时间>.md`。
 
 ---
 

@@ -288,6 +288,23 @@ export class FeishuSyncPlugin extends Plugin {
       } catch (error) {
         // 目标占用通常会伴随一次 rename 事件；短窗口抑制同一路径，避免重复刷屏。
         this.automaticFolderEncodingIgnore.set(path, Date.now() + 30000);
+        const errorCode = (error as { code?: unknown })?.code;
+        const errorMessage = messageOf(error);
+        // 某些 Obsidian 版本在 rename 竞态下只返回英文错误文本，不带自定义 code。
+        // 这类错误本质是目标已被占用，自动流程必须跳过并等待用户右键处理，不能反复弹失败通知。
+        const targetOccupied = errorCode === 'FOLDER_ENCODING_TARGET_OCCUPIED'
+          || /Destination file already exists|目标文件夹已存在/.test(errorMessage);
+        if (targetOccupied) {
+          this.recordActivity({
+            time: new Date().toISOString(),
+            kind: 'system',
+            status: 'skipped',
+            action: 'automatic-folder-encoding',
+            path,
+            errorCode: 'FOLDER_ENCODING_TARGET_OCCUPIED',
+          });
+          continue;
+        }
         this.recordActivity({
           time: new Date().toISOString(),
           kind: 'system',

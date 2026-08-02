@@ -204,6 +204,7 @@ export async function previewKnowledgeTargets(
   const reservedCodes = new Set<string>();
   const reservedPaths = new Set<string>();
   const items: KnowledgePlanItem[] = [];
+  const candidates: KnowledgePlanItem[] = [];
   let skipped = expansion.skipped;
 
   for (const file of files) {
@@ -231,9 +232,21 @@ export async function previewKnowledgeTargets(
     }
     const { item } = itemResult;
     warnings.push(...itemResult.warnings.map((warning) => `${file.path}：${warning}`));
+    candidates.push(item);
+  }
+
+  // 先完整生成候选，再判断路径冲突。这样可以区分“目标文件会在同一
+  // 批次中移动”的安全换名，和“目标文件虽然在扫描范围内但本次不会移动”
+  // 的真实占用；后者必须阻断，不能等到最终 rename 才报错。
+  const movingOriginalPaths = new Set(
+    candidates
+      .filter((item) => item.newPath !== item.originalPath)
+      .map((item) => item.originalPath),
+  );
+  for (const item of candidates) {
     const existing = app.vault.getAbstractFileByPath(item.newPath);
     const occupiedByMovingPlanItem = existing
-      && targetFilePaths.has(existing.path)
+      && movingOriginalPaths.has(existing.path)
       && existing.path !== item.originalPath;
     const hasConflict = (
       (existing && item.newPath !== item.originalPath && !occupiedByMovingPlanItem)
@@ -827,6 +840,12 @@ function collectMarkdownFiles(folder: VaultFolderLike): VaultFileLike[] {
 
 async function verifyPlanFresh(app: App, plan: KnowledgeChangePlan): Promise<void> {
   const originalPaths = new Set(plan.items.map((item) => item.originalPath));
+  const movingOriginalPaths = new Set(
+    plan.items
+      .filter((item) => item.newPath !== item.originalPath)
+      .map((item) => item.originalPath),
+  );
+  const plannedTargets = new Map<string, string>();
   const occupied = await collectOccupiedEncodings(app);
   for (const item of plan.items) {
     const file = app.vault.getAbstractFileByPath(item.originalPath);
@@ -837,9 +856,17 @@ async function verifyPlanFresh(app: App, plan: KnowledgeChangePlan): Promise<voi
     }
     if (item.newPath !== item.originalPath) {
       const target = app.vault.getAbstractFileByPath(item.newPath);
-      if (target && target !== file && !originalPaths.has(target.path)) {
+      if (target && target !== file && !movingOriginalPaths.has(target.path)) {
         throw staleError(item.originalPath, `目标路径已被占用：${item.newPath}`);
       }
+      const previousOwner = plannedTargets.get(item.newPath);
+      if (previousOwner && previousOwner !== item.originalPath) {
+        throw staleError(
+          item.originalPath,
+          `计划内目标路径重复：${item.newPath}（${previousOwner}）`,
+        );
+      }
+      plannedTargets.set(item.newPath, item.originalPath);
     }
     if (item.code) {
       const owners = occupied.get(item.code) ?? [];

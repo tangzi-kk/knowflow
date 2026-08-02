@@ -182,6 +182,19 @@ test('manual tag change blocks when the target tag and sequence are already occu
   assert.equal(preview.changed, false);
 });
 
+test('commit rechecks a target folder occupied after preview', async () => {
+  const app = appWithFolders(['2️⃣输出/观点']);
+  const preview = await previewFolderEncoding(app, '2️⃣输出/观点');
+  app.vault.ensureFolder(preview.newPath);
+
+  await assert.rejects(
+    commitFolderEncoding(app, preview),
+    /目标文件夹已存在/,
+  );
+  assert.ok(app.vault.getAbstractFileByPath('2️⃣输出/观点'));
+  assert.equal(app.vault.getAbstractFileByPath(preview.newPath).name, preview.newName);
+});
+
 test('renaming a parent re-bases child index paths', async () => {
   const app = appWithFolders(['0️⃣输入/📦项目note_技能/项目', '0️⃣输入/📦项目note_技能/项目/子目录']);
   const parent = await ensureFolderEncoding(app, '0️⃣输入/📦项目note_技能/项目');

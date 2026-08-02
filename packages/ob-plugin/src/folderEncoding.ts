@@ -160,6 +160,16 @@ export async function commitFolderEncoding(
   if (preview.blockedReason) throw new Error(preview.blockedReason);
   const folder = getFolder(app, preview.folderPath);
   if (!folder) throw new Error(`文件夹不存在：${preview.folderPath || '/'}`);
+  if (preview.newPath !== preview.folderPath) {
+    const occupied = app.vault.getAbstractFileByPath(preview.newPath);
+    if (occupied && occupied.path !== preview.folderPath) {
+      const error = new Error(`目标文件夹已存在：${preview.newPath}`) as Error & {
+        code?: string;
+      };
+      error.code = 'FOLDER_ENCODING_TARGET_OCCUPIED';
+      throw error;
+    }
+  }
   const before = await readFolderIndex(app);
   let renamed = false;
   try {
