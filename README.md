@@ -23,11 +23,15 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.3` | `artifacts/` | 日志导出、编码目标冲突保护、纯中文右键菜单 |
+| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.3` | [`GitHub Release v4.5.3`](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.3) | 日志导出、编码目标冲突保护、纯中文右键菜单 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
-仓库地址：`https://github.com/tangzi-kk/knowflow`
+仓库地址：[github.com/tangzi-kk/knowflow](https://github.com/tangzi-kk/knowflow)
+
+当前正式发布：[KnowFlow v4.5.3](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.3)
+
+4.5.3 已完成双端自动门禁和真实 Obsidian 验收：插件状态接口返回 `4.5.3`，提示词目录恢复后保持 17 篇 Markdown，Vault 内没有残留 `.knowflow-tmp.md`。详细记录见 [`4.5.3 验收记录`](docs/validation/4.5.3-acceptance.md)。
 
 当前安装包：
 
@@ -115,10 +119,12 @@
 | `styles.css` | 样式表 |
 
 **安装步骤**：
-1. 下载 `obsidian-fs-TB-X.X.X.zip` 并解压
+1. 下载 [`fs-TB-Obsidian-4.5.3.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.3/fs-TB-Obsidian-4.5.3.zip) 并解压
 2. 放入 vault 的 `.obsidian/plugins/fs-TB/` 目录
 3. Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 启用「飞书同步 (fs-TB)」
 4. 在插件设置页确认 lark-cli 路径，复制启动令牌
+
+升级时只替换 `main.js`、`manifest.json`、`styles.css`，保留已有的 `data.json`；不要把其他 Vault 私有文件复制进插件目录。
 
 > 前置依赖：`lark-cli ≥ 1.0.52`，并已登录飞书（`lark-cli login`）
 
@@ -129,7 +135,7 @@
 **[⬇️ 下载最新版浏览器扩展](https://github.com/tangzi-kk/knowflow/releases/latest)**
 
 **安装步骤**：
-1. 下载 `KnowFlow-Browser-X.X.X.zip` 并解压
+1. 下载 [`KnowFlow-Browser-4.5.3.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.3/KnowFlow-Browser-4.5.3.zip) 并解压
 2. Chrome → `chrome://extensions` → 打开「开发者模式」
 3. 点击「加载已解压的扩展程序」→ 选择解压后的文件夹
 4. 点击扩展图标 → 设置页填入 OB 插件地址 `127.0.0.1:4567` 和启动令牌
@@ -149,6 +155,8 @@
 | 📋 **Clipper 兼容** | 监听飞书官方 Clipper 占位文件，自动替换为真实同步内容 |
 | 🛡️ **Token 鉴权** | 本地通信 `X-Sync-Token` 保护，防止同网段未授权访问 |
 | 📂 **目录树选择** | 同步时可选择 OB vault 中的落地目录 |
+| 🧾 **同步日志导出** | 命令面板执行“导出同步日志”，写入当前 Vault 的 `.feishu-sync/同步日志-<时间>.md` |
+| 🧱 **冲突安全保护** | 自动编码遇到目标占用或重复编码时只跳过冲突项，不覆盖已有文档，也不反复弹出失败通知 |
 
 ---
 
@@ -183,6 +191,13 @@ npm run build
 | `npm run test:protocol` | 协议 URI 解析测试 |
 
 Obsidian 命令面板常用入口：`自动识别并整理全库文档`、`显示最近同步记录`、`导出同步日志`。日志导出文件写入当前 Vault 的 `.feishu-sync/同步日志-<时间>.md`。
+
+发布包校验：
+
+```bash
+shasum -a 256 -c artifacts/KnowFlow-4.5.3-SHA256SUMS
+(cd artifacts && shasum -a 256 -c KnowFlow-4.5.3-PACKAGES-SHA256SUMS)
+```
 
 ---
 
