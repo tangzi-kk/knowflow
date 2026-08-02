@@ -8,7 +8,7 @@
  * 4. 注册命令、设置页、图片渲染、删除监听
  * 5. 卸载时停止 server
  */
-import { Plugin, Notice, TFile } from 'obsidian';
+import { Plugin, Notice, TFile, type TAbstractFile } from 'obsidian';
 import { PROTOCOL_VERSION } from '@sync/shared';
 import {
   type FeishuSyncSettings,
@@ -50,6 +50,7 @@ import {
 import { rebuildEncodingIndex } from './encodingIndex.js';
 
 const DEFAULT_CAPTURE_PROPOSALS = true;
+const PROTECTED_RECOGNITION_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
 
 export class FeishuSyncPlugin extends Plugin {
   settings!: FeishuSyncSettings;
@@ -60,6 +61,8 @@ export class FeishuSyncPlugin extends Plugin {
   readonly syncCoordinator = new SyncCoordinator();
   knowledgeWorkflow!: KnowledgeWorkflow;
   private pendingKnowledgePlans: KnowledgeChangePlan[] = [];
+  private automaticRecognitionTimer?: ReturnType<typeof setTimeout>;
+  private automaticRecognitionPaths = new Set<string>();
 
   async onload(): Promise<void> {
     enableCli();
@@ -95,6 +98,7 @@ export class FeishuSyncPlugin extends Plugin {
         }
       },
     });
+    this.registerAutomaticRecognition();
 
     // 探测 lark-cli
     const larkInfo = resolveCli(this.settings.larkCliPath || undefined);
@@ -138,6 +142,11 @@ export class FeishuSyncPlugin extends Plugin {
 
   async onunload(): Promise<void> {
     disableCli();
+    if (this.automaticRecognitionTimer) {
+      clearTimeout(this.automaticRecognitionTimer);
+      this.automaticRecognitionTimer = undefined;
+    }
+    this.automaticRecognitionPaths.clear();
     await this.activitySaveTail;
     this.systemPropertyObserver?.disconnect();
     this.systemPropertyObserver = undefined;
@@ -175,6 +184,62 @@ export class FeishuSyncPlugin extends Plugin {
 
   async saveSettings(): Promise<void> {
     await this.saveData(this.settings);
+  }
+
+  private registerAutomaticRecognition(): void {
+    this.registerEvent(this.app.vault.on('create', (file) => {
+      this.queueAutomaticRecognition(file);
+    }));
+    this.registerEvent(this.app.vault.on('modify', (file) => {
+      this.queueAutomaticRecognition(file);
+    }));
+    this.registerEvent(this.app.vault.on('rename', (file) => {
+      this.queueAutomaticRecognition(file);
+    }));
+  }
+
+  private queueAutomaticRecognition(file: TAbstractFile): void {
+    if (!this.settings.automaticRecognition) return;
+    if (!file.path.toLowerCase().endsWith('.md') || isProtectedRecognitionPath(file.path)) return;
+    this.automaticRecognitionPaths.add(file.path);
+    if (this.automaticRecognitionTimer) clearTimeout(this.automaticRecognitionTimer);
+    this.automaticRecognitionTimer = setTimeout(() => {
+      this.automaticRecognitionTimer = undefined;
+      void this.flushAutomaticRecognition();
+    }, 800);
+  }
+
+  private async flushAutomaticRecognition(): Promise<void> {
+    const paths = [...this.automaticRecognitionPaths];
+    this.automaticRecognitionPaths.clear();
+    if (paths.length === 0 || !this.knowledgeWorkflow) return;
+    try {
+      const plan = await this.knowledgeWorkflow.previewTargets(paths, {
+        kind: paths.length > 1 ? 'selection' : 'file',
+        depth: 'direct',
+        mode: 'auto',
+      });
+      if (plan.items.length === 0 && plan.blockedReasons.length === 0) return;
+      this.pendingKnowledgePlans = [
+        plan,
+        ...this.pendingKnowledgePlans.filter((item) => item.operationId !== plan.operationId),
+      ].slice(0, 20);
+      this.recordActivity({
+        time: new Date().toISOString(),
+        kind: 'system',
+        status: plan.blockedReasons.length ? 'failed' : 'succeeded',
+        action: 'automatic-recognition-proposal',
+        path: paths[0],
+        errorCode: plan.blockedReasons.length ? 'KNOWLEDGE_PLAN_BLOCKED' : undefined,
+      });
+      new Notice(
+        plan.blockedReasons.length
+          ? `⚠️ 自动识别发现 ${plan.items.length} 项，另有 ${plan.blockedReasons.length} 项需处理`
+          : `📝 自动识别已生成 ${plan.items.length} 项待确认整理`,
+      );
+    } catch (error) {
+      console.warn('[fs-TB] automatic recognition failed:', error);
+    }
   }
 
   async documentCoordinationKey(nodeToken?: string, path?: string): Promise<string> {
@@ -391,3 +456,7 @@ export class FeishuSyncPlugin extends Plugin {
 
 // Obsidian 插件入口：必须默认导出 Plugin 子类
 export default FeishuSyncPlugin;
+
+function isProtectedRecognitionPath(path: string): boolean {
+  return PROTECTED_RECOGNITION_PATH_RE.test(path.replace(/^\/+/, ''));
+}

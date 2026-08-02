@@ -33,7 +33,7 @@ const { generateSyncToken, migrateSettings } = await import(
   pathToFileURL(path.join(compiledDirectory, 'settingsMigration.js')).href
 );
 
-test('manifest and package retain the fs-TB identity at 4.1.1', async () => {
+test('manifest and package retain the fs-TB identity at 4.2.0', async () => {
   const manifest = JSON.parse(await readFile(
     path.resolve(testDirectory, '../manifest.json'),
     'utf8',
@@ -44,7 +44,7 @@ test('manifest and package retain the fs-TB identity at 4.1.1', async () => {
   ));
 
   assert.equal(manifest.id, 'fs-TB');
-  assert.equal(manifest.version, '4.1.1');
+  assert.equal(manifest.version, '4.2.0');
   assert.equal(packageJson.version, manifest.version);
 });
 
@@ -60,7 +60,8 @@ test('fresh installs receive only the current defaults', () => {
     defaultDir: '0️⃣输入',
     autoRename: false,
     cacheCleanup: 'weekly',
-    spaceId: '7651314150060067803',
+    automaticRecognition: true,
+    spaceId: '',
     defaultNoteFolder: '3️⃣附件文件/Lark',
     hideSystemProperties: true,
     recentActivity: [],

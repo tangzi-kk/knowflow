@@ -178,6 +178,18 @@ export class FeishuSyncSettingTab extends PluginSettingTab {
       );
 
     new Setting(el)
+      .setName('自动发现待整理文档')
+      .setDesc('新建或修改 Markdown 后自动生成一条批量待确认任务；不会直接写入或改名')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.automaticRecognition)
+          .onChange(async (value) => {
+            this.plugin.settings.automaticRecognition = value;
+            await this.save();
+          }),
+      );
+
+    new Setting(el)
       .setName('图片缓存清理周期')
       .setDesc('feishu://token 预览图片的本地缓存保留时长')
       .addDropdown((dropdown) =>

@@ -67,6 +67,10 @@ export function migrateSettings(input: unknown): SettingsMigrationResult {
     source?.cacheCleanup,
     feishuSync?.cacheCleanup,
   ) ?? DEFAULT_SETTINGS.cacheCleanup;
+  migrated.automaticRecognition = firstBoolean(
+    source?.automaticRecognition,
+    feishuSync?.automaticRecognition,
+  ) ?? DEFAULT_SETTINGS.automaticRecognition;
   // 这两个旧开关从未接入运行链路。升级时删除扁平副本，避免继续制造“已启用”的假预期。
   delete migrated.autoDeleteRegistry;
   delete migrated.keepDecorativeImages;

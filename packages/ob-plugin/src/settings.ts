@@ -21,6 +21,8 @@ export interface FeishuSyncSettings {
   autoRename: boolean;
   /** 4.1 安全迁移标记；运行时固定为 true，采集后必须生成待确认建议。 */
   createProposalsAfterCapture: boolean;
+  /** 新建或修改 Markdown 后是否自动放入待确认整理队列。 */
+  automaticRecognition: boolean;
   /** 图片缓存清理周期。 */
   cacheCleanup: 'daily' | 'weekly' | 'monthly' | 'never';
   /** 飞书知识库 space_id（目录映射用）。 */
@@ -44,10 +46,11 @@ export const DEFAULT_SETTINGS: FeishuSyncSettings = {
   autoRename: false,
   createProposalsAfterCapture: true,
   cacheCleanup: 'weekly',
-  spaceId: '7651314150060067803',
+  spaceId: '',
   defaultNoteFolder: '3️⃣附件文件/Lark',
   hideSystemProperties: true,
   recentActivity: [],
+  automaticRecognition: true,
 };
 
 /** 插件运行时状态（不持久化）。 */

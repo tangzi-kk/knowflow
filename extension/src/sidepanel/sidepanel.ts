@@ -617,7 +617,7 @@ async function suggestMetaWithAiAssistant(input: {
   const prompt = [
     '你是 Obsidian 知识库同步插件的 YAML 属性建议器。请根据用户预设尽量填好字段。',
     '若说明文档和插件预设冲突，以插件预设/可选项为准。',
-    '编码字段必须留空字符串，因为编码由 auto-rename 插件分配。',
+    '编码字段必须留空字符串，因为编码由 KnowFlow 在批量预览确认后统一分配。',
     '输入字段优先使用目标目录完整路径。',
     `日期字段用 ISO 格式 YYYY-MM-DD；无法从内容判断时使用今天：${today}。`,
     '关键词给 3-7 个，用顿号分隔。',

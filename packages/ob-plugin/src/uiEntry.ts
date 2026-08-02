@@ -6,6 +6,7 @@
 import { Menu, Modal, Notice, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import {
+  openAutoRecognitionPreview,
   openOrganizationPreview,
   PreviewModal,
 } from './encodingUi.js';
@@ -46,6 +47,13 @@ export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
           plan.scope,
           (operationId) => plugin.consumeKnowledgePlan(operationId),
         ).open();
+      }));
+
+    menu.addItem((item) => item
+      .setTitle('自动识别全库文档…')
+      .setIcon('scan-search')
+      .onClick(() => {
+        void openAutoRecognitionPreview(plugin);
       }));
 
     menu.addItem((item) => item

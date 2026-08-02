@@ -9,7 +9,7 @@ import type { RecentSync } from './settings.js';
 
 const INDEX_PATH = '.feishu-sync/编码索引.md';
 const RUNTIME_DIR = '.feishu-sync';
-const PROTECTED_PATH_RE = /^(?:AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
 
 interface IndexRow {
   code: string;

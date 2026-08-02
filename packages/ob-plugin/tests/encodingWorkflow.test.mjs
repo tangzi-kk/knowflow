@@ -169,6 +169,73 @@ test('missing label is blocked instead of inferred from directory', async () => 
   assert.match(plan.blockedReasons.join('\n'), /不能由目录猜测标签/);
 });
 
+test('auto mode recursively recognizes missing labels and allocates one batch plan', async () => {
+  const fixture = createApp(['---\n日期: 2026-07-26\n状态: 收集\n---\n项目里程碑与上线需求']);
+  const plan = await previewKnowledgeTargets(fixture.app, [''], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+  });
+
+  assert.equal(plan.blockedReasons.length, 0);
+  assert.equal(plan.items.length, 1);
+  assert.equal(plan.items[0].recognition.tag, 'X');
+  assert.match(plan.items[0].code, /^26_0726_X_01_a1$/);
+  assert.match(plan.warnings.join('\n'), /自动识别标签为 X/);
+});
+
+test('auto mode uses the safe S fallback and never enters protected roots', async () => {
+  const fixture = createApp(['---\n日期: 2026-07-26\n状态: 收集\n---\n没有分类词的记录']);
+  const protectedFolder = { path: '🪧导引', name: '🪧导引', children: [] };
+  const protectedFile = note(
+    '🪧导引/规范.md',
+    '---\n日期: 2026-07-26\n状态: 收集\n---\n项目需求',
+    protectedFolder,
+  );
+  protectedFolder.children.push(protectedFile);
+  fixture.root.children.push(protectedFolder);
+  fixture.entries.set(protectedFolder.path, protectedFolder);
+  fixture.entries.set(protectedFile.path, protectedFile);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [''], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+  });
+
+  assert.equal(plan.items.length, 1);
+  assert.equal(plan.items[0].recognition.tag, 'S');
+  assert.equal(plan.items[0].recognition.confidence, 'low');
+  assert.match(plan.blockedReasons.join('\n'), /🪧导引\/规范\.md/);
+});
+
+test('auto mode can commit safe items while leaving blocked items out of the transaction', async () => {
+  const fixture = createApp(['---\n日期: 2026-07-26\n状态: 收集\n---\n项目里程碑']);
+  const protectedFolder = { path: '🪧导引', name: '🪧导引', children: [] };
+  const protectedFile = note(
+    '🪧导引/规范.md',
+    '---\n日期: 2026-07-26\n状态: 收集\n---\n项目需求',
+    protectedFolder,
+  );
+  protectedFolder.children.push(protectedFile);
+  fixture.root.children.push(protectedFolder);
+  fixture.entries.set(protectedFolder.path, protectedFolder);
+  fixture.entries.set(protectedFile.path, protectedFile);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [''], {
+    kind: 'directory',
+    depth: 'recursive',
+    mode: 'auto',
+  });
+  const protectedOriginal = protectedFile.content;
+  const result = await commitKnowledgePlan(fixture.app, plan);
+
+  assert.equal(result.status, 'committed');
+  assert.equal(plan.items.length, 1);
+  assert.equal(protectedFile.content, protectedOriginal);
+  assert.match(fixture.notes[0].path, /^0️⃣输入\/26_0726_X_01_a1 /);
+});
+
 test('invalid YAML is blocked and never wrapped in a second frontmatter', async () => {
   const original = '---\n标签: [\n---\n正文';
   const fixture = createApp([original]);

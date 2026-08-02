@@ -4,6 +4,10 @@ import { assembleFile, inspectFrontmatter } from '@sync/shared';
 import { createRecoverySnapshot, rotateRecoverySnapshots } from './recovery.js';
 import type { SyncCoordinator } from './syncCoordinator.js';
 import {
+  recognizeDocument,
+  type DocumentRecognitionResult,
+} from './documentRecognition.js';
+import {
   ALLOWED_STATUSES,
   ALLOWED_TAGS,
   deriveShortEncoding,
@@ -23,7 +27,7 @@ const ARRAY_FIELDS = [
   '关联文档',
   '关联人物',
 ] as const;
-const PROTECTED_PATH_RE = /^(?:AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -42,8 +46,8 @@ interface VaultFolderLike {
 
 export interface KnowledgeChangeScope {
   kind: 'file' | 'directory' | 'selection';
-  depth: 'direct';
-  mode?: 'organize' | 'manual' | 'clear';
+  depth: 'direct' | 'recursive';
+  mode?: 'organize' | 'auto' | 'manual' | 'clear';
   manualCode?: string;
 }
 
@@ -58,6 +62,7 @@ export interface KnowledgePlanItem {
   documentId: string;
   changedFields: string[];
   warnings: string[];
+  recognition?: DocumentRecognitionResult;
 }
 
 export interface KnowledgeChangePlan {
@@ -248,7 +253,7 @@ export async function commitKnowledgePlan(
   plan: KnowledgeChangePlan,
   hooks: KnowledgeWorkflowHooks = {},
 ): Promise<KnowledgeTransactionResult> {
-  if (plan.blockedReasons.length) {
+  if (plan.blockedReasons.length && plan.scope.mode !== 'auto') {
     throw codedError('KNOWLEDGE_PLAN_BLOCKED', `整理计划被阻止：${plan.blockedReasons.join('；')}`);
   }
   if (plan.conflicts.length) {
@@ -500,6 +505,19 @@ async function buildPlanItem(
   const currentCode = FULL_ENCODING_RE.test(yamlCode)
     ? yamlCode
     : FULL_ENCODING_RE.test(filenameCode) ? filenameCode : '';
+  const mode = scope.mode ?? 'organize';
+  const recognition = mode === 'auto'
+    ? recognizeDocument({
+      path: file.path,
+      title: file.basename
+        .replace(FILE_PREFIX_RE, '')
+        .replace(LEGACY_FILE_PREFIX_RE, '')
+        .replace(/\.md$/i, '')
+        .trim(),
+      body: inspected.body,
+      frontmatter: before,
+    })
+    : undefined;
 
   if (yamlCode && !FULL_ENCODING_RE.test(yamlCode)) warnings.push(`旧版或非法 YAML 编码：${yamlCode}`);
   if (legacyFilenameCode && !filenameCode) warnings.push(`旧版文件名编码：${legacyFilenameCode}`);
@@ -507,7 +525,6 @@ async function buildPlanItem(
     blocked.push(`文件名编码与 YAML 编码冲突（${filenameCode} / ${yamlCode}）`);
   }
 
-  const mode = scope.mode ?? 'organize';
   let code = '';
   if (mode === 'clear') {
     code = '';
@@ -520,24 +537,34 @@ async function buildPlanItem(
       const parts = currentCode.split('_');
       code = `${parts[0]}_${parts[1]}_${selectedTag}_${parts[3]}_${parts.slice(4).join('_')}`;
       warnings.push(`标签已变化，编码标签段将由 ${encodingTag(currentCode)} 更新为 ${selectedTag}`);
+    } else if (mode === 'auto' && !ALLOWED_TAGS.includes(selectedTag)) {
+      next.标签 = encodingTag(currentCode);
+      code = currentCode;
+      warnings.push(`自动识别沿用现有编码标签：${next.标签}`);
     } else {
       code = currentCode;
     }
   } else {
     const tag = stringValue(before.标签);
-    if (!ALLOWED_TAGS.includes(tag)) {
+    const autoTag = mode === 'auto' ? recognition?.tag ?? 'S' : '';
+    const selectedTag = ALLOWED_TAGS.includes(tag) ? tag : autoTag;
+    if (!ALLOWED_TAGS.includes(selectedTag)) {
       blocked.push('缺少合法标签，不能由目录猜测标签');
     } else {
-      code = allocateEncoding(before, tag, occupied, reservedCodes);
+      if (mode === 'auto' && tag !== selectedTag) {
+        next.标签 = selectedTag;
+        warnings.push(`自动识别标签为 ${selectedTag}（${recognition?.confidence ?? 'low'}）：${recognition?.reason ?? ''}`);
+      }
+      code = allocateEncoding(before, selectedTag, occupied, reservedCodes);
     }
   }
 
   if (code) {
     const tag = encodingTag(code);
-    const existingTag = stringValue(before.标签);
+    const existingTag = stringValue(next.标签);
     if (existingTag && existingTag !== tag) {
       blocked.push(`标签与编码字母冲突（${existingTag} / ${tag}）`);
-    } else if (!existingTag && mode === 'manual') {
+    } else if (!existingTag && (mode === 'manual' || mode === 'auto')) {
       next.标签 = tag;
     }
     const owners = occupied.get(code) ?? [];
@@ -555,7 +582,7 @@ async function buildPlanItem(
     delete next.短编码;
   }
 
-  normalizeRequiredFields(next, before, blocked);
+  normalizeRequiredFields(next, before, blocked, warnings, mode);
   if (blocked.length) return { blocked, warnings };
 
   const unprefixedName = file.basename
@@ -585,6 +612,7 @@ async function buildPlanItem(
       documentId: String(next.文档ID),
       changedFields: [...new Set(changedFields)],
       warnings,
+      recognition,
     },
   };
 }
@@ -593,6 +621,8 @@ function normalizeRequiredFields(
   next: Record<string, unknown>,
   before: Record<string, unknown>,
   blocked: string[],
+  warnings: string[],
+  mode: KnowledgeChangeScope['mode'],
 ): void {
   next.协议版本 = PROTOCOL_VERSION;
   const documentId = stringValue(before.文档ID);
@@ -624,7 +654,12 @@ function normalizeRequiredFields(
     } else if (value === undefined || value === null || value === '') {
       next[field] = [];
     } else if (field === '关键词') {
-      blocked.push('关键词仍是旧字符串，必须在预览中人工确认拆分');
+      if (mode === 'auto') {
+        next[field] = [String(value)];
+        warnings.push('关键词已按单项列表标准化');
+      } else {
+        blocked.push('关键词仍是旧字符串，必须在预览中人工确认拆分');
+      }
     } else {
       next[field] = [String(value)];
     }
@@ -687,11 +722,11 @@ function expandTargets(
       continue;
     }
     if (isFolder(target)) {
-      if (scope.depth !== 'direct') {
-        blockedReasons.push(`${path || '/'}：只允许直属层整理`);
-        continue;
+      if (scope.depth === 'recursive') {
+        result.push(...collectMarkdownFiles(target));
+      } else {
+        result.push(...target.children.filter(isMarkdownFile));
       }
-      result.push(...target.children.filter(isMarkdownFile));
       continue;
     }
     if (scope.kind === 'selection') {
@@ -704,6 +739,18 @@ function expandTargets(
     files: [...new Map(result.map((file) => [file.path, file])).values()],
     skipped,
   };
+}
+
+function collectMarkdownFiles(folder: VaultFolderLike): VaultFileLike[] {
+  const files: VaultFileLike[] = [];
+  for (const child of folder.children) {
+    if (isMarkdownFile(child)) {
+      files.push(child);
+    } else if (isFolder(child)) {
+      files.push(...collectMarkdownFiles(child));
+    }
+  }
+  return files;
 }
 
 async function verifyPlanFresh(app: App, plan: KnowledgeChangePlan): Promise<void> {

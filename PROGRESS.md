@@ -1,11 +1,19 @@
-# KnowFlow 4.1 发布收口
+# KnowFlow 4.2 自动识别与全库整理
 
 ## 当前决策
 
 - 协议上游：`tangzi-kk/skr-knowledge` 1.2.1，协议主版本保持为 1。
-- 唯一实现：`tangzi-kk/knowflow` 4.1.1；`obsidian-auto-rename` 仅作为事务核心迁移来源。
-- 发布状态：源码、文档、双端安装包、SHA256 和真机门禁已完成，4.1.1 为当前稳定版。
-- 本机 Obsidian 运行目录：`.obsidian/plugins/fs-TB/`；浏览器增量包为 4.1.1。
+- 唯一实现：`tangzi-kk/knowflow` 4.2.0；`obsidian-auto-rename` 仅作为事务核心迁移来源。
+- 发布状态：源码、自动门禁、双端安装包和真实 Vault 预览验收已完成；GitHub Release 在本次提交后发布。
+- 本机 Obsidian 运行目录：`.obsidian/plugins/fs-TB/`；4.1.1 作为上一版回滚基线保留。
+
+## 2026-08-02 二次设计与实现
+
+- 从“发现、识别、决策、执行”四个职责重新组织编码流程。
+- 新增全库递归自动识别：合法标签优先，标题/关键词/正文规则识别，低置信度回退 `S`。
+- 新建、修改、改名事件只生成待确认任务；全库命令一次预览、一次确认，继续使用现有备份、协调锁和回滚。
+- 新安装 `spaceId` 留空，升级保留已有用户值。
+- 设计入口：`docs/design/4.2-自动识别与全库整理.md`。
 
 ## 2026-07-29 未发布改进
 
@@ -23,16 +31,16 @@
 | 单一 UI | 已完成 | 一套文件树右键、一个 Ribbon、无持久侧栏、设置页窄宽修复 |
 | 采集 proposal | 已完成 | fetch/clip 先落地再等待确认；旧服务失败关闭 |
 | 发布门禁 | 已完成 | 版本一致性、构建、发布审计、SHA256、暂存 Vault 与真机通信通过 |
-| 真机安装 | 已完成 | Obsidian 4.1.1 运行正常；安装前保留原 data.json 并完成升级迁移 |
+| 自动识别与批量编码 | 已完成 | 全库递归预览、确定性标签建议、低置信度回退、一次确认与现有事务复用 |
+| 真机安装 | 已完成 | 4.2.0 已安装到真实 Vault；`data.json` 先备份并原位保留，状态接口返回 4.2.0/协议 1 |
 
 ## 验证记录
 
 - 完整发布基线：167/167 通过；两端 typecheck、build、release audit 与版本一致性通过。
 - 通信专项：25/25 通过；真实 localhost 回环：7/7 通过。
-- `artifacts/KnowFlow-4.1.1-SHA256SUMS`：构建产物校验通过。
-- `artifacts/KnowFlow-4.1.1-PACKAGES-SHA256SUMS`：浏览器与 Obsidian 安装包校验通过。
-- Obsidian 真机：HTTP 200、版本 4.1.1、协议 1、`capture-proposal-v1` 可用、`lark-cli` 就绪。
-- 当前对外文件：`artifacts/fs-TB-Obsidian-4.1.1.zip` 与 `artifacts/KnowFlow-Browser-4.1.1.zip`。
+- 4.1.1 的构建、SHA256 与真实通信记录作为回滚基线保留。
+- 4.2.0 自动门禁、双端构建、安装包校验和真实 Obsidian 预览记录见 `docs/validation/4.2-acceptance.md`。
+- 真实全库预览：目标根目录递归扫描，发现 202 项待处理、78 项重复编码阻断；冲突信息可滚动，安全项确认按钮可见。本轮按安全边界取消预览，未提交 Vault 正文变更。
 
 ## 运行记录与边界
 

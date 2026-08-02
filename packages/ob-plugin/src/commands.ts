@@ -12,7 +12,11 @@ import { Notice, Modal, TFile, type App } from 'obsidian';
 import type { FeishuSyncPlugin } from './main.js';
 import { refreshMapping } from './mapping.js';
 import { createPushbackHandler } from './handlers/pushbackHandler.js';
-import { openOrganizationPreview, registerEncodingContextMenu } from './encodingUi.js';
+import {
+  openAutoRecognitionPreview,
+  openOrganizationPreview,
+  registerEncodingContextMenu,
+} from './encodingUi.js';
 
 export function registerCommands(plugin: FeishuSyncPlugin): void {
   const { app, settings } = plugin;
@@ -120,6 +124,14 @@ export function registerCommands(plugin: FeishuSyncPlugin): void {
       } catch (error) {
         new Notice(`❌ 整理预览失败：${error instanceof Error ? error.message : String(error)}`);
       }
+    },
+  });
+
+  plugin.addCommand({
+    id: 'scan-and-organize-vault',
+    name: '自动识别并整理全库文档…',
+    callback: () => {
+      void openAutoRecognitionPreview(plugin);
     },
   });
 

@@ -23,7 +23,7 @@ interface PluginWithKnowledgeWorkflow {
 }
 
 const FILE_EXPLORER_SOURCE = 'file-explorer-context-menu';
-const PROTECTED_PATH_RE = /^(?:AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
+const PROTECTED_PATH_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
 const registeredPlugins = new WeakSet<FeishuSyncPlugin>();
 
 /**
@@ -105,6 +105,20 @@ export async function openOrganizationPreview(
   }
 }
 
+/**
+ * 全库入口：一次扫描所有可整理 Markdown，自动识别标签并生成一个批量预览。
+ * 空路径代表 Vault 根目录；真正写入仍由 PreviewModal 的一次确认触发。
+ */
+export async function openAutoRecognitionPreview(plugin: FeishuSyncPlugin): Promise<void> {
+  new Notice('🔎 正在扫描可整理 Markdown，请稍候…');
+  await openPreviewWithWorkflow(
+    plugin.app,
+    knowledgeWorkflow(plugin),
+    [''],
+    { kind: 'directory', depth: 'recursive', mode: 'auto' },
+  );
+}
+
 function addOrganizationMenuItem(
   menu: Menu,
   plugin: FeishuSyncPlugin,
@@ -150,7 +164,7 @@ export class PreviewModal extends Modal {
       cls: 'setting-item-description',
     });
     this.contentEl.createEl('p', {
-      text: `范围：${scopeLabel(this.organizationScope.kind)}，仅直属层（不会递归）`,
+      text: `范围：${scopeLabel(this.organizationScope.kind)}${this.organizationScope.depth === 'recursive' ? '，递归全库' : '，仅直属层'}`,
       cls: 'setting-item-description',
     });
 
@@ -171,6 +185,12 @@ export class PreviewModal extends Modal {
       if (item.code) {
         row.createEl('code', { text: item.code });
       }
+      if (item.recognition) {
+        row.createEl('span', {
+          text: `识别：${item.recognition.tag} · ${confidenceLabel(item.recognition.confidence)}`,
+          cls: 'setting-item-description',
+        });
+      }
     }
 
     if (this.organizationScope.mode === 'organize') {
@@ -181,11 +201,15 @@ export class PreviewModal extends Modal {
     const cancel = actions.createEl('button', { text: '取消' });
     cancel.onclick = () => this.close();
     const confirm = actions.createEl('button', {
-      text: this.organizationScope.mode === 'clear' ? '确认清除' : '确认执行',
+      text: this.organizationScope.mode === 'clear'
+        ? '确认清除'
+        : this.organizationScope.mode === 'auto' && this.plan.blockedReasons.length
+          ? '确认执行可行项'
+          : '确认执行',
       cls: 'mod-cta',
     });
     const blocked = this.plan.items.length === 0
-      || this.plan.blockedReasons.length > 0
+      || (this.plan.blockedReasons.length > 0 && this.organizationScope.mode !== 'auto')
       || this.plan.conflicts.length > 0;
     confirm.disabled = blocked;
     confirm.onclick = () => {
@@ -248,7 +272,10 @@ export class PreviewModal extends Modal {
       if (result.status !== 'committed') {
         throw new Error('事务已回滚，文件未保持半完成状态');
       }
-      new Notice(`✅ 整理事务已完成${result.changedPaths.length ? `：${result.changedPaths.length} 项` : ''}`);
+      const blockedNote = this.plan.blockedReasons.length
+        ? `，另有 ${this.plan.blockedReasons.length} 项保留待处理`
+        : '';
+      new Notice(`✅ 整理事务已完成${result.changedPaths.length ? `：${result.changedPaths.length} 项` : ''}${blockedNote}`);
       this.onCommitted?.(this.plan.operationId);
       this.close();
     } catch (error) {
@@ -331,7 +358,7 @@ function renderMessages(
 ): void {
   if (messages.length === 0) return;
   const section = container.createDiv({ cls: className });
-  section.createEl('strong', { text: `${label}：` });
+  section.createEl('strong', { text: `${label}（${messages.length}）：` });
   section.createEl('span', { text: messages.join('；') });
 }
 
@@ -341,9 +368,16 @@ function scopeLabel(kind: OrganizationKind): string {
   return '所选内容';
 }
 
+function confidenceLabel(confidence: 'high' | 'medium' | 'low'): string {
+  if (confidence === 'high') return '高置信度';
+  if (confidence === 'medium') return '中置信度';
+  return '低置信度回退';
+}
+
 function previewTitle(mode: OrganizationMode | undefined): string {
   if (mode === 'clear') return '清除编码预览';
   if (mode === 'manual') return '手动编码预览';
+  if (mode === 'auto') return '全库自动识别与编码预览';
   return '整理变更预览';
 }
 

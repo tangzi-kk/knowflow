@@ -57,8 +57,22 @@ test('the plugin registers one KnowFlow ribbon and no persistent view', () => {
   assert.match(entrySource, /刷新目录映射/);
   assert.match(entrySource, /重建编码索引/);
   assert.match(entrySource, /导出同步日志/);
+  assert.match(entrySource, /自动识别全库文档/);
   assert.doesNotMatch(entrySource, /registerView|setViewState|getRightLeaf/);
   assert.doesNotMatch(mainSource, /addRibbonIcon\(/);
+});
+
+test('whole-vault recognition remains a recursive preview before one batch confirmation', () => {
+  assert.match(uiSource, /openAutoRecognitionPreview/);
+  assert.match(uiSource, /depth: 'recursive'/);
+  assert.match(uiSource, /mode: 'auto'/);
+  assert.match(uiSource, /全库自动识别与编码预览/);
+  assert.match(uiSource, /识别：\$\{item\.recognition\.tag/);
+  assert.match(uiSource, /确认执行可行项/);
+  assert.match(entrySource, /自动识别全库文档/);
+  assert.match(mainSource, /registerAutomaticRecognition/);
+  assert.match(mainSource, /automatic-recognition-proposal/);
+  assert.doesNotMatch(mainSource, /commitPlan\(/);
 });
 
 test('mixed selections skip unsupported files and failed registration can retry cleanly', () => {
