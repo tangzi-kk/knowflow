@@ -4,7 +4,7 @@
 
 - 协议上游：`tangzi-kk/skr-knowledge` 1.2.1，协议主版本保持为 1。
 - 唯一实现：`tangzi-kk/knowflow` 4.2.0；`obsidian-auto-rename` 仅作为事务核心迁移来源。
-- 发布状态：源码、自动门禁、双端安装包和真实 Vault 预览验收已完成；GitHub Release 在本次提交后发布。
+- 发布状态：源码、自动门禁、双端安装包、真实 Vault 预览验收和 GitHub Release 均已完成；发布地址为 [v4.2.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.2.0)。
 - 本机 Obsidian 运行目录：`.obsidian/plugins/fs-TB/`；4.1.1 作为上一版回滚基线保留。
 
 ## 2026-08-02 二次设计与实现

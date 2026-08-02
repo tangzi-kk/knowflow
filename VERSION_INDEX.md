@@ -21,7 +21,7 @@
 ## GitHub 地址
 
 - 仓库：`https://github.com/tangzi-kk/knowflow`
-- 当前 4.2.0 稳定产物已写入仓库 `artifacts/`，并将在本次提交后随 GitHub Release 发布。
+- 当前 4.2.0 稳定产物已写入仓库 `artifacts/`，并已发布到 [GitHub Release v4.2.0](https://github.com/tangzi-kk/knowflow/releases/tag/v4.2.0)。
 - `releases/` 中的 3.2.1 和 0.3.0 是历史真机归档，不是当前安装包。
 - 人类阅读说明：`docs/human-guide.html`
 - AI 接手说明：`docs/AI_HANDOFF.md`
