@@ -2,22 +2,24 @@ import { Modal, Notice, type App } from 'obsidian';
 import { TAG_NAMES } from '@sync/shared';
 import type { FeishuSyncPlugin } from './main.js';
 import {
-  commitFolderEncoding,
-  previewFolderEncoding,
-  type FolderEncodingPreview,
+  commitFolderEncodingGroup,
+  folderParentPath,
+  previewFolderEncodingGroup,
+  type FolderEncodingBatchPreview,
 } from './folderEncoding.js';
 import { ALLOWED_TAGS } from './knowledgeContract.js';
 
-/** 打开单个文件夹的结构编码面板；应用前始终显示目标名称和长编码。 */
+/** 打开目标文件夹所在容器的编码面板；应用前预览整个容器的排序结果。 */
 export async function openFolderEncodingPanel(
   plugin: FeishuSyncPlugin,
   path: string,
 ): Promise<void> {
   try {
-    const preview = await previewFolderEncoding(plugin.app, path, {
+    const parentPath = folderParentPath(path);
+    const preview = await previewFolderEncodingGroup(plugin.app, parentPath, {
       whitelist: plugin.settings.folderAutoEncodingWhitelist,
     });
-    new FolderEncodingModal(plugin.app, plugin, path, preview).open();
+    new FolderEncodingModal(plugin.app, plugin, path, parentPath, preview).open();
   } catch (error) {
     new Notice(`❌ 无法打开文件夹编码面板：${messageOf(error)}`);
   }
@@ -25,7 +27,7 @@ export async function openFolderEncodingPanel(
 
 class FolderEncodingModal extends Modal {
   private selectedTag: string;
-  private preview?: FolderEncodingPreview;
+  private preview?: FolderEncodingBatchPreview;
   private previewArea?: HTMLElement;
   private applyButton?: HTMLButtonElement;
   private working = false;
@@ -33,24 +35,25 @@ class FolderEncodingModal extends Modal {
   constructor(
     app: App,
     private readonly plugin: FeishuSyncPlugin,
-    private readonly path: string,
-    initialPreview: FolderEncodingPreview,
+    private readonly targetPath: string,
+    private readonly parentPath: string,
+    initialPreview: FolderEncodingBatchPreview,
   ) {
     super(app);
     this.preview = initialPreview;
-    this.selectedTag = initialPreview.tag || 'S';
+    this.selectedTag = initialPreview.items.find((item) => item.folderPath === targetPath)?.tag || 'S';
   }
 
   onOpen(): void {
-    this.titleEl.setText('设置文件夹编码');
+    this.titleEl.setText('整理容器编码');
     this.contentEl.empty();
     this.contentEl.createEl('p', {
-      text: '文件夹只承担结构归类：输入/知识池从三级、输出从二级开始编码；导引、附件和固定入口不会进入这里。显示名称使用短编码，长编码只保存到本地索引供后端使用。',
+      text: `文件夹是一个容器：只整理当前容器内的直接子文件夹。输入/知识池从三级、输出从二级开始编码；导引、附件和固定入口不会进入这里。`,
       cls: 'setting-item-description',
     });
 
     const field = this.contentEl.createDiv({ cls: 'fstb-advanced-row' });
-    field.createEl('label', { text: '文件夹标签' });
+    field.createEl('label', { text: '当前文件夹标签' });
     const select = field.createEl('select', { attr: { 'aria-label': '文件夹标签' } });
     for (const tag of ALLOWED_TAGS) {
       select.createEl('option', {
@@ -91,8 +94,9 @@ class FolderEncodingModal extends Modal {
       });
     }
     try {
-      this.preview = await previewFolderEncoding(this.plugin.app, this.path, {
+      this.preview = await previewFolderEncodingGroup(this.plugin.app, this.parentPath, {
         tagOverride: this.selectedTag,
+        targetPath: this.targetPath,
         whitelist: this.plugin.settings.folderAutoEncodingWhitelist,
       });
       this.renderPreview(this.preview);
@@ -107,13 +111,9 @@ class FolderEncodingModal extends Modal {
     }
   }
 
-  private renderPreview(preview: FolderEncodingPreview | undefined): void {
+  private renderPreview(preview: FolderEncodingBatchPreview | undefined): void {
     if (!this.previewArea || !preview) return;
     this.previewArea.empty();
-    this.previewArea.createEl('p', {
-      text: `当前：${preview.folderPath || '/'}\n将显示：${preview.newName}`,
-      cls: 'setting-item-description',
-    });
     if (preview.blockedReason) {
       this.previewArea.createEl('p', {
         text: `⛔ ${preview.blockedReason}`,
@@ -123,20 +123,16 @@ class FolderEncodingModal extends Modal {
       return;
     }
     this.previewArea.createEl('p', {
-      text: `显示短编码：${preview.shortCode}`,
+      text: `容器：${preview.parentPath || '/'} · ${preview.items.length} 个直接子文件夹`,
       cls: 'setting-item-description',
     });
-    const details = this.previewArea.createEl('details');
-    details.createEl('summary', { text: '查看目录长编码（后端记录）' });
-    details.createEl('code', { text: preview.encoding });
-    if (preview.warning) {
-      this.previewArea.createEl('p', {
-        text: `提示：${preview.warning}`,
-        cls: 'fstb-plan-warnings',
-      });
+    const list = this.previewArea.createEl('ul', { cls: 'fstb-tag-preview-list' });
+    for (const item of preview.items) {
+      const row = list.createEl('li');
+      row.createEl('span', { text: item.changed ? `${item.originalName} → ${item.newName}` : `${item.newName}（不变）` });
     }
     this.previewArea.createEl('p', {
-      text: preview.changed ? '应用后会更新文件夹名称和目录编码索引。' : '当前文件夹已使用该编码，无需改名。',
+      text: preview.changed ? '应用后会按名称排序更新容器内目录名称和本地索引。' : '当前容器已按名称连续编号，无需改名。',
       cls: 'setting-item-description',
     });
     if (this.applyButton) this.applyButton.disabled = !preview.changed;
@@ -147,8 +143,8 @@ class FolderEncodingModal extends Modal {
     this.working = true;
     if (this.applyButton) this.applyButton.disabled = true;
     try {
-      const result = await commitFolderEncoding(this.plugin.app, this.preview);
-      new Notice(`✅ 文件夹编码已更新：${result.preview.newName}`);
+      const result = await commitFolderEncodingGroup(this.plugin.app, this.preview);
+      new Notice(`✅ 容器编码已整理：${result.preview.items.length} 个文件夹`);
       this.close();
     } catch (error) {
       new Notice(`❌ 文件夹编码失败：${messageOf(error)}`);

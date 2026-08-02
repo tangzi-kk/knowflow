@@ -184,7 +184,7 @@ function addClipMenuItem(menu: Menu, plugin: FeishuSyncPlugin, directory: string
 
 function addFolderEncodingMenuItem(menu: Menu, plugin: FeishuSyncPlugin, path: string): void {
   menu.addItem((item) => item
-    .setTitle('调整此文件夹结构编码…')
+    .setTitle('整理此容器编码…')
     .setIcon('folder-cog')
     .onClick(() => {
       void openFolderEncodingPanel(plugin, path);

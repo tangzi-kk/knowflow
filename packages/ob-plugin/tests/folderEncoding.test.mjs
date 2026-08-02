@@ -14,8 +14,10 @@ registerHooks({
 });
 
 const {
+  commitFolderEncodingGroup,
   commitFolderEncoding,
   ensureFolderEncoding,
+  previewFolderEncodingGroup,
   isFolderEncodingExcluded,
   previewFolderEncoding,
 } = await import('../src/folderEncoding.ts');
@@ -137,6 +139,97 @@ test('new folders infer a tag, show a short name and persist a full structural c
     encoding: result.preview.encoding,
     updatedAt: indexOf(app)[0].updatedAt,
   });
+});
+
+test('new folder numbering starts at 01 within its parent, not from another parent', async () => {
+  const app = appWithFolders([
+    '2️⃣输出/第一组/S01 · 已占用',
+    '2️⃣输出/第二组/新目录',
+  ]);
+
+  const preview = await previewFolderEncoding(app, '2️⃣输出/第二组/新目录');
+
+  assert.equal(preview.shortCode, 'S01');
+  assert.equal(preview.newPath, '2️⃣输出/第二组/S01 · 新目录');
+});
+
+test('automatic group encoding sorts sibling titles and compacts each tag from 01', async () => {
+  const parent = '0️⃣输入/🎓成长notes_干货';
+  const app = appWithFolders([
+    `${parent}/S07 · 播客总结`,
+    `${parent}/S16 · 提示词与写作系统`,
+    `${parent}/J01 · 人生指南与经验`,
+  ]);
+
+  const preview = await previewFolderEncodingGroup(app, parent);
+  const shortCodes = preview.items
+    .sort((left, right) => left.newPath.localeCompare(right.newPath, 'zh-CN'))
+    .map((item) => [item.originalName, item.shortCode]);
+  assert.deepEqual(shortCodes, [
+    ['J01 · 人生指南与经验', 'J01'],
+    ['S07 · 播客总结', 'S01'],
+    ['S16 · 提示词与写作系统', 'S02'],
+  ]);
+
+  await commitFolderEncodingGroup(app, preview);
+  assert.ok(app.vault.getAbstractFileByPath(`${parent}/S01 · 播客总结`));
+  assert.ok(app.vault.getAbstractFileByPath(`${parent}/S02 · 提示词与写作系统`));
+  assert.ok(app.vault.getAbstractFileByPath(`${parent}/J01 · 人生指南与经验`));
+});
+
+test('container ordering uses natural alphabetical and numeric title order', async () => {
+  const parent = '2️⃣输出/排序验收容器';
+  const app = appWithFolders([
+    `${parent}/S09 · 主题10`,
+    `${parent}/S08 · 主题2`,
+    `${parent}/S07 · beta`,
+    `${parent}/S06 · Alpha`,
+  ]);
+
+  const preview = await previewFolderEncodingGroup(app, parent);
+  const ordered = preview.items
+    .sort((left, right) => left.number - right.number)
+    .map((item) => item.newName.replace(/^[A-Z]\d{2} · /, ''));
+  assert.deepEqual(ordered, ['Alpha', 'beta', '主题2', '主题10']);
+});
+
+test('a container tag change reassigns only the target into the new tag group', async () => {
+  const parent = '0️⃣输入/🎓成长notes_干货';
+  const target = `${parent}/S07 · 播客总结`;
+  const app = appWithFolders([
+    target,
+    `${parent}/S16 · 提示词与写作系统`,
+    `${parent}/Z01 · 资源`,
+  ]);
+
+  const preview = await previewFolderEncodingGroup(app, parent, {
+    targetPath: target,
+    tagOverride: 'Z',
+  });
+  const targetItem = preview.items.find((item) => item.folderPath === target);
+  assert.equal(targetItem?.shortCode, 'Z01');
+  assert.equal(preview.items.find((item) => item.originalName === 'S16 · 提示词与写作系统')?.shortCode, 'S01');
+  assert.equal(preview.items.find((item) => item.originalName === 'Z01 · 资源')?.shortCode, 'Z02');
+
+  await commitFolderEncodingGroup(app, preview);
+  assert.ok(app.vault.getAbstractFileByPath(`${parent}/Z01 · 播客总结`));
+  assert.ok(app.vault.getAbstractFileByPath(`${parent}/S01 · 提示词与写作系统`));
+});
+
+test('containers have independent short sequences even when their long values match', async () => {
+  const first = '0️⃣输入/💡碎片输入_闪念';
+  const second = '0️⃣输入/🎓成长notes_干货';
+  const app = appWithFolders([
+    `${first}/S01 · 已有目录`,
+    `${second}/S07 · 新容器目录`,
+  ]);
+
+  const firstPreview = await previewFolderEncodingGroup(app, first);
+  const secondPreview = await previewFolderEncodingGroup(app, second);
+  assert.equal(firstPreview.items[0].shortCode, 'S01');
+  assert.equal(secondPreview.items[0].shortCode, 'S01');
+  assert.equal(firstPreview.items[0].encoding.match(/_[A-Z]_\d{2}$/)?.[0], '_S_01');
+  assert.equal(secondPreview.items[0].encoding.match(/_[A-Z]_\d{2}$/)?.[0], '_S_01');
 });
 
 test('built-in and user whitelist paths are blocked, including descendants', async () => {

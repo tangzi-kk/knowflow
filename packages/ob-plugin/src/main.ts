@@ -49,10 +49,11 @@ import {
 } from './encodingWorkflow.js';
 import { rebuildEncodingIndex } from './encodingIndex.js';
 import {
-  commitFolderEncoding,
+  commitFolderEncodingGroup,
+  folderParentPath,
   isFolderEncodingExcluded,
   normalizeFolderPath,
-  previewFolderEncoding,
+  previewFolderEncodingGroup,
 } from './folderEncoding.js';
 import { isProtectedDocumentPath } from './vaultStructure.js';
 
@@ -240,10 +241,12 @@ export class FeishuSyncPlugin extends Plugin {
       }
       this.automaticFolderEncodingIgnore.set(oldPath, Date.now() + 5000);
     }
-    const ignoredUntil = this.automaticFolderEncodingIgnore.get(path);
+    const ignoredEntry = [...this.automaticFolderEncodingIgnore.entries()]
+      .find(([ignoredPath]) => path === ignoredPath || path.startsWith(`${ignoredPath}/`));
+    const ignoredUntil = ignoredEntry?.[1];
     if (ignoredUntil) {
       if (ignoredUntil > Date.now()) return;
-      this.automaticFolderEncodingIgnore.delete(path);
+      this.automaticFolderEncodingIgnore.delete(ignoredEntry?.[0] ?? path);
     }
     this.automaticFolderEncodingPaths.add(path);
     if (this.automaticFolderEncodingTimer) clearTimeout(this.automaticFolderEncodingTimer);
@@ -264,30 +267,31 @@ export class FeishuSyncPlugin extends Plugin {
   }
 
   private async processAutomaticFolderEncoding(paths: string[]): Promise<void> {
-    for (const path of paths) {
+    const parentPaths = [...new Set(paths.map(folderParentPath))]
+      .sort((left, right) => left.split('/').length - right.split('/').length);
+    for (const parentPath of parentPaths) {
       try {
-        const preview = await previewFolderEncoding(this.app, path, {
+        const preview = await previewFolderEncodingGroup(this.app, parentPath, {
           whitelist: this.settings.folderAutoEncodingWhitelist,
         });
         if (preview.blockedReason || !preview.changed) continue;
         const expiresAt = Date.now() + 5000;
-        this.automaticFolderEncodingIgnore.set(path, expiresAt);
-        this.automaticFolderEncodingIgnore.set(preview.newPath, expiresAt);
-        const result = await commitFolderEncoding(this.app, preview);
+        for (const item of preview.items) {
+          this.automaticFolderEncodingIgnore.set(item.folderPath, expiresAt);
+          this.automaticFolderEncodingIgnore.set(item.newPath, expiresAt);
+        }
+        const result = await commitFolderEncodingGroup(this.app, preview);
         this.recordActivity({
           time: new Date().toISOString(),
           kind: 'system',
           status: 'succeeded',
           action: 'automatic-folder-encoding',
-          path: result.preview.newPath,
+          path: result.preview.parentPath,
         });
-        new Notice(
-          `📁 文件夹已自动编码：${result.preview.newName}`
-          + (result.preview.warning ? `（${result.preview.warning}）` : ''),
-        );
+        new Notice(`📁 文件夹已自动编码：已按名称排序整理 ${result.preview.items.length} 个`);
       } catch (error) {
         // 目标占用通常会伴随一次 rename 事件；短窗口抑制同一路径，避免重复刷屏。
-        this.automaticFolderEncodingIgnore.set(path, Date.now() + 30000);
+        this.automaticFolderEncodingIgnore.set(parentPath, Date.now() + 30000);
         const errorCode = (error as { code?: unknown })?.code;
         const errorMessage = messageOf(error);
         // 某些 Obsidian 版本在 rename 竞态下只返回英文错误文本，不带自定义 code。
@@ -300,7 +304,7 @@ export class FeishuSyncPlugin extends Plugin {
             kind: 'system',
             status: 'skipped',
             action: 'automatic-folder-encoding',
-            path,
+            path: parentPath,
             errorCode: 'FOLDER_ENCODING_TARGET_OCCUPIED',
           });
           continue;
@@ -310,7 +314,7 @@ export class FeishuSyncPlugin extends Plugin {
           kind: 'system',
           status: 'failed',
           action: 'automatic-folder-encoding',
-          path,
+          path: parentPath,
           errorCode: 'FOLDER_ENCODING_FAILED',
         });
         new Notice(`⚠️ 文件夹自动编码失败：${messageOf(error)}；可右键手动设置`);

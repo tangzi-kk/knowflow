@@ -9,8 +9,9 @@ import {
 } from './vaultStructure.js';
 
 /**
- * 文件夹不是 Markdown 文档，不能伪造 YAML。它使用独立的结构编码：
- * 完整值保存到 `.feishu-sync/目录编码索引.json`，界面和文件夹名只显示 `TAGnn`。
+ * 文件夹不是 Markdown 文档，不能伪造 YAML。它使用独立的结构编码容器模型：
+ * 父文件夹定义编号边界，完整值保存到 `.feishu-sync/目录编码索引.json`，
+ * 界面和文件夹名只显示 `TAGnn`。
  */
 export const FOLDER_ENCODING_INDEX_PATH = '.feishu-sync/目录编码索引.json';
 export const FOLDER_SHORT_RE = /^([SXLZQJ])(\d{2})\s*·\s*(.+)$/;
@@ -50,6 +51,8 @@ export interface FolderEncodingPreview {
 export interface FolderEncodingOptions {
   tagOverride?: string;
   whitelist?: string[];
+  /** 在容器批量预览中，只把标签修改应用到这个目标文件夹。 */
+  targetPath?: string;
 }
 
 export interface FolderEncodingResult {
@@ -57,9 +60,28 @@ export interface FolderEncodingResult {
   changed: boolean;
 }
 
+export interface FolderEncodingBatchPreview {
+  parentPath: string;
+  items: FolderEncodingPreview[];
+  changed: boolean;
+  blockedReason?: string;
+}
+
+export interface FolderEncodingBatchResult {
+  preview: FolderEncodingBatchPreview;
+  changed: boolean;
+}
+
 /** 统一相对 Vault 的目录路径，空字符串代表根目录。 */
 export function normalizeFolderPath(path: string): string {
   return normalizeStructurePath(path);
+}
+
+/** 返回目录的直接父路径；根目录返回空字符串。 */
+export function folderParentPath(path: string): string {
+  const normalized = normalizeFolderPath(path);
+  const separator = normalized.lastIndexOf('/');
+  return separator < 0 ? '' : normalized.slice(0, separator);
 }
 
 /** 保护目录、隐藏目录和用户白名单永远不参与文件夹自动编码。 */
@@ -107,7 +129,8 @@ export async function previewFolderEncoding(
     return blockedPreview(folderPath, originalName, `目标标签不在协议枚举中：${options.tagOverride}`);
   }
   const tag = overrideTag ?? parsed?.tag ?? inferFolderTag(originalName);
-  const number = parsed?.number ?? nextFolderNumber(app, records, tag);
+  const parentPath = folderParentPath(folderPath);
+  const number = parsed?.number ?? nextFolderNumber(app, records, tag, parentPath, folderPath);
   const title = (parsed?.title
     ?? originalName.replace(/^[SXLZQJ]\d{2}\s*·\s*/, '').trim()) || '未命名';
   const shortCode = `${tag}${String(number).padStart(2, '0')}`;
@@ -117,9 +140,10 @@ export async function previewFolderEncoding(
   const newName = `${shortCode} · ${title}`;
   const sequenceConflict = records.some((record) => (
     record.path !== folderPath
+    && folderParentPath(record.path) === parentPath
     && record.encoding.match(FOLDER_FULL_RE)?.[2] === tag
     && Number(record.encoding.match(FOLDER_FULL_RE)?.[3]) === number
-  )) || listFolders(app).some((candidate) => {
+  )) || listDirectFolders(app, parentPath).some((candidate) => {
     if (candidate.path === folderPath) return false;
     const candidateCode = parseFolderShortCode(candidate.name);
     return candidateCode?.tag === tag && candidateCode.number === number;
@@ -127,7 +151,6 @@ export async function previewFolderEncoding(
   if (sequenceConflict) {
     return blockedPreview(folderPath, originalName, `标签 ${tag} 的目录序号 ${shortCode} 已被占用，请先处理冲突或选择其他标签`);
   }
-  const parentPath = folderPath.includes('/') ? folderPath.slice(0, folderPath.lastIndexOf('/')) : '';
   const newPath = parentPath ? `${parentPath}/${newName}` : newName;
   const occupied = app.vault.getAbstractFileByPath(newPath);
   if (occupied && occupied.path !== folder.path) {
@@ -151,6 +174,162 @@ export async function previewFolderEncoding(
     changed,
     warning,
   };
+}
+
+/**
+ * 预览同一父目录下的全部可编码子目录。
+ * 每个标签在自己的父目录内从 01 开始，按去掉旧短编码后的名称自然排序；
+ * 这样新增目录不会因为其他父目录已经使用 S01 而跳到 S07。
+ */
+export async function previewFolderEncodingGroup(
+  app: App,
+  parentPath: string,
+  options: FolderEncodingOptions = {},
+): Promise<FolderEncodingBatchPreview> {
+  const normalizedParent = normalizeFolderPath(parentPath);
+  const targetPath = options.targetPath ? normalizeFolderPath(options.targetPath) : undefined;
+  const overrideTag = normalizeTag(options.tagOverride);
+  if (options.tagOverride !== undefined && !overrideTag) {
+    return blockedBatch(normalizedParent, `目标标签不在协议枚举中：${options.tagOverride}`);
+  }
+  if (options.tagOverride !== undefined && !targetPath) {
+    return blockedBatch(normalizedParent, '容器标签修改缺少目标文件夹');
+  }
+  const records = await readFolderIndex(app);
+  const folders = listDirectFolders(app, normalizedParent)
+    .filter((folder) => !isFolderEncodingExcluded(folder.path, options.whitelist))
+    .filter((folder) => !folderEncodingBlockedReason(folder.path));
+  if (folders.length === 0) {
+    return { parentPath: normalizedParent, items: [], changed: false };
+  }
+  if (targetPath && !folders.some((folder) => folder.path === targetPath)) {
+    return blockedBatch(normalizedParent, '目标文件夹不在当前容器内');
+  }
+
+  const groups = new Map<string, FolderLike[]>();
+  for (const folder of folders) {
+    const inferredTag = parseFolderShortCode(folder.name)?.tag ?? inferFolderTag(folder.name);
+    const tag = folder.path === targetPath && overrideTag ? overrideTag : inferredTag;
+    const group = groups.get(tag) ?? [];
+    group.push(folder);
+    groups.set(tag, group);
+  }
+
+  const items: FolderEncodingPreview[] = [];
+  for (const [tag, group] of groups) {
+    group.sort(compareFolderNames);
+    group.forEach((folder, index) => {
+      const parsed = parseFolderShortCode(folder.name);
+      const title = folderTitle(folder.name) || '未命名';
+      const number = index + 1;
+      const shortCode = `${tag}${String(number).padStart(2, '0')}`;
+      const existingRecord = records.find((record) => record.path === folder.path);
+      const datePrefix = existingRecord?.encoding.match(FOLDER_FULL_RE)?.[1] ?? datePrefixFromDate();
+      const encoding = `${datePrefix}_${tag}_${String(number).padStart(2, '0')}`;
+      const newName = `${shortCode} · ${title}`;
+      const newPath = normalizedParent ? `${normalizedParent}/${newName}` : newName;
+      const warning = parsed ? undefined : '未检测到标签前缀，按文件夹名称规则或低置信度 S 自动归类';
+      items.push({
+        folderPath: folder.path,
+        originalName: folder.name,
+        newPath,
+        newName,
+        tag,
+        number,
+        shortCode,
+        encoding,
+        changed: newPath !== folder.path
+          || !existingRecord
+          || existingRecord.encoding !== encoding
+          || existingRecord.name !== newName,
+        warning,
+      });
+    });
+  }
+
+  const originalPaths = new Set(items.map((item) => item.folderPath));
+  const plannedPaths = new Set<string>();
+  for (const item of items) {
+    if (plannedPaths.has(item.newPath)) {
+      return blockedBatch(normalizedParent, `计划内目标路径重复：${item.newPath}`);
+    }
+    plannedPaths.add(item.newPath);
+    const occupied = app.vault.getAbstractFileByPath(item.newPath);
+    if (occupied && !originalPaths.has(occupied.path)) {
+      return blockedBatch(normalizedParent, `目标文件夹已存在：${item.newPath}`);
+    }
+  }
+  return {
+    parentPath: normalizedParent,
+    items,
+    changed: items.some((item) => item.changed),
+  };
+}
+
+/** 原子提交容器内直接子目录的连续重编号；只改目录名和目录编码索引，不改 Markdown 内容。 */
+export async function commitFolderEncodingGroup(
+  app: App,
+  preview: FolderEncodingBatchPreview,
+): Promise<FolderEncodingBatchResult> {
+  if (preview.blockedReason) {
+    const error = new Error(preview.blockedReason) as Error & { code?: string };
+    if (preview.blockedReason.includes('目标文件夹已存在')) {
+      error.code = 'FOLDER_ENCODING_TARGET_OCCUPIED';
+    }
+    throw error;
+  }
+  const before = await readFolderIndex(app);
+  const moves = preview.items
+    .filter((item) => item.changed && item.newPath !== item.folderPath)
+    .map((item, index) => ({
+      item,
+      temporaryPath: `${preview.parentPath ? `${preview.parentPath}/` : ''}.knowflow-folder-tmp-${Date.now()}-${index}`,
+      state: 'original' as 'original' | 'temporary' | 'final',
+    }));
+  const originalPaths = new Set(preview.items.map((item) => item.folderPath));
+  for (const move of moves) {
+    const occupied = app.vault.getAbstractFileByPath(move.item.newPath);
+    if (occupied && !originalPaths.has(occupied.path)) {
+      const error = new Error(`目标文件夹已存在：${move.item.newPath}`) as Error & { code?: string };
+      error.code = 'FOLDER_ENCODING_TARGET_OCCUPIED';
+      throw error;
+    }
+  }
+
+  try {
+    for (const move of moves) {
+      const folder = getFolder(app, move.item.folderPath);
+      if (!folder) throw new Error(`文件夹不存在：${move.item.folderPath}`);
+      await app.vault.rename(folder as never, move.temporaryPath);
+      move.state = 'temporary';
+    }
+    for (const move of moves) {
+      const folder = getFolder(app, move.temporaryPath);
+      if (!folder) throw new Error(`临时文件夹不存在：${move.temporaryPath}`);
+      await app.vault.rename(folder as never, move.item.newPath);
+      move.state = 'final';
+    }
+    await writeFolderIndex(app, rebaseFolderIndex(before, preview.items));
+    return { preview, changed: preview.changed };
+  } catch (error) {
+    for (const move of [...moves].reverse()) {
+      if (move.state === 'original') continue;
+      const currentPath = move.state === 'final' ? move.item.newPath : move.temporaryPath;
+      const folder = getFolder(app, currentPath);
+      if (!folder) continue;
+      try {
+        await app.vault.rename(folder as never, move.item.folderPath);
+      } catch {
+        // 保留原始错误；活动日志会把目录留在待处理状态。
+      }
+    }
+    try {
+      await writeFolderIndex(app, before);
+    } catch {
+      // 不掩盖最初的目录改名错误。
+    }
+    throw error;
+  }
 }
 
 export async function commitFolderEncoding(
@@ -235,26 +414,28 @@ function isFolder(value: unknown): value is FolderLike {
   );
 }
 
-function listFolders(app: App): FolderLike[] {
-  const result: FolderLike[] = [];
-  const root = app.vault.getRoot() as unknown;
-  const visit = (folder: FolderLike): void => {
-    if (folder.path) result.push(folder);
-    for (const child of folder.children) {
-      if (isFolder(child)) visit(child);
-    }
-  };
-  if (isFolder(root)) visit(root);
-  return result;
+function listDirectFolders(app: App, parentPath: string): FolderLike[] {
+  const parent = parentPath ? getFolder(app, parentPath) : app.vault.getRoot() as unknown as FolderLike;
+  if (!isFolder(parent)) return [];
+  return parent.children.filter(isFolder) as FolderLike[];
 }
 
-function nextFolderNumber(app: App, records: FolderIndexRecord[], tag: string): number {
+function nextFolderNumber(
+  app: App,
+  records: FolderIndexRecord[],
+  tag: string,
+  parentPath: string,
+  currentPath: string,
+): number {
   const used = new Set<number>();
   for (const record of records) {
     const match = record.encoding.match(FOLDER_FULL_RE);
-    if (match?.[2] === tag) used.add(Number(match[3]));
+    if (folderParentPath(record.path) === parentPath && match?.[2] === tag) {
+      used.add(Number(match[3]));
+    }
   }
-  for (const folder of listFolders(app)) {
+  for (const folder of listDirectFolders(app, parentPath)) {
+    if (folder.path === currentPath) continue;
     const parsed = parseFolderShortCode(folder.name);
     if (parsed?.tag === tag) used.add(parsed.number);
   }
@@ -262,6 +443,25 @@ function nextFolderNumber(app: App, records: FolderIndexRecord[], tag: string): 
     if (!used.has(number)) return number;
   }
   throw new Error(`标签 ${tag} 的文件夹编码已用完 01-99`);
+}
+
+function folderTitle(name: string): string {
+  return parseFolderShortCode(name)?.title
+    ?? name.replace(/^[SXLZQJ]\d{2}\s*·\s*/, '').trim();
+}
+
+function compareFolderNames(left: FolderLike, right: FolderLike): number {
+  const leftTitle = folderTitle(left.name);
+  const rightTitle = folderTitle(right.name);
+  const leftLatin = /^[A-Za-z0-9]/.test(leftTitle);
+  const rightLatin = /^[A-Za-z0-9]/.test(rightTitle);
+  if (leftLatin !== rightLatin) return leftLatin ? -1 : 1;
+  const locale = leftLatin ? 'en' : 'zh-CN';
+  const titleOrder = leftTitle.localeCompare(rightTitle, locale, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+  return titleOrder || left.path.localeCompare(right.path, locale, { sensitivity: 'base' });
 }
 
 function inferFolderTag(name: string): string {
@@ -296,6 +496,48 @@ function normalizeWhitelist(values: string[]): string[] {
     .flatMap((value) => value.split(/[\n,，]/))
     .map(normalizeFolderPath)
     .filter(Boolean))];
+}
+
+function blockedBatch(parentPath: string, blockedReason: string): FolderEncodingBatchPreview {
+  return {
+    parentPath,
+    items: [],
+    changed: false,
+    blockedReason,
+  };
+}
+
+function rebaseFolderIndex(
+  records: FolderIndexRecord[],
+  previews: FolderEncodingPreview[],
+): FolderIndexRecord[] {
+  const originalPaths = new Set(previews.map((preview) => preview.folderPath));
+  const destinationPaths = new Set(previews.map((preview) => preview.newPath));
+  const renames = previews
+    .filter((preview) => preview.newPath !== preview.folderPath)
+    .sort((left, right) => right.folderPath.length - left.folderPath.length);
+  const next = records.flatMap((record) => {
+    if (originalPaths.has(record.path) || destinationPaths.has(record.path)) return [];
+    const rename = renames.find((candidate) =>
+      record.path.startsWith(`${candidate.folderPath}/`));
+    if (!rename) return [record];
+    return [{
+      ...record,
+      path: `${rename.newPath}/${record.path.slice(rename.folderPath.length + 1)}`,
+      updatedAt: new Date().toISOString(),
+    }];
+  });
+  for (const preview of previews) {
+    next.push({
+      path: preview.newPath,
+      name: preview.newName,
+      tag: preview.tag,
+      shortCode: preview.shortCode,
+      encoding: preview.encoding,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+  return next.sort((left, right) => left.path.localeCompare(right.path, 'zh-CN'));
 }
 
 function upsertRecord(records: FolderIndexRecord[], preview: FolderEncodingPreview): FolderIndexRecord[] {

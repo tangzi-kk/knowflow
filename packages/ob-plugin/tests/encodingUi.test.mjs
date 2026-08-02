@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const sourceDirectory = path.resolve(testDirectory, '../src');
 const uiSource = await readFile(path.join(sourceDirectory, 'encodingUi.ts'), 'utf8');
+const folderUiSource = await readFile(path.join(sourceDirectory, 'folderEncodingUi.ts'), 'utf8');
 const entrySource = await readFile(path.join(sourceDirectory, 'uiEntry.ts'), 'utf8');
 const mainSource = await readFile(path.join(sourceDirectory, 'main.ts'), 'utf8');
 
@@ -18,7 +19,7 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.match(uiSource, /file-explorer-context-menu/);
   assert.match(uiSource, /修改此文档标签…/);
   assert.match(uiSource, /修改此目录标签（含子目录）…/);
-  assert.match(uiSource, /调整此文件夹结构编码…/);
+  assert.match(uiSource, /整理此容器编码…/);
   assert.match(uiSource, /剪藏到这里…/);
   assert.match(uiSource, /openFolderEncodingPanel/);
   assert.match(uiSource, /修改所选内容标签/);
@@ -27,6 +28,15 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.match(uiSource, /tagOverride/);
   assert.match(uiSource, /TagAssignmentModal/);
   assert.match(uiSource, /WeakSet<FeishuSyncPlugin>/);
+});
+
+test('folder encoding treats the parent folder as a container and previews the whole sibling set', () => {
+  assert.match(folderUiSource, /previewFolderEncodingGroup/);
+  assert.match(folderUiSource, /commitFolderEncodingGroup/);
+  assert.match(folderUiSource, /folderParentPath/);
+  assert.match(folderUiSource, /文件夹是一个容器/);
+  assert.match(folderUiSource, /按名称排序更新容器内目录名称/);
+  assert.doesNotMatch(folderUiSource, /查看目录长编码（后端记录）/);
 });
 
 test('tag assignment panel only shows the tag choice and a human-readable path preview', () => {
