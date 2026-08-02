@@ -553,11 +553,21 @@ async function buildPlanItem(
     if (currentCode) {
       const currentTag = encodingTag(currentCode);
       const parts = currentCode.split('_');
-      code = currentTag === overrideTag
-        ? currentCode
-        : `${parts[0]}_${parts[1]}_${overrideTag}_${parts[3]}_${parts.slice(4).join('_')}`;
-      if (currentTag !== overrideTag) {
-        warnings.push(`标签已由 ${currentTag} 更新为 ${overrideTag}，编码标签段同步更新`);
+      if (currentTag === overrideTag) {
+        code = currentCode;
+      } else {
+        const candidate = `${parts[0]}_${parts[1]}_${overrideTag}_${parts[3]}_${parts.slice(4).join('_')}`;
+        // 标签切换仍优先保留原序号；若目标标签下已有同码文档，自动分配
+        // 当前日期下的下一个空闲序号，避免整批目录被“编码重复”全部阻断。
+        if (!occupied.has(candidate) && !reservedCodes.has(candidate)) {
+          code = candidate;
+        } else {
+          code = allocateEncoding(before, overrideTag, occupied, reservedCodes);
+          warnings.push(`标签已由 ${currentTag} 更新为 ${overrideTag}；原序号已占用，已自动分配新序号`);
+        }
+        if (!warnings.some((warning) => warning.includes(`标签已由 ${currentTag} 更新为 ${overrideTag}`))) {
+          warnings.push(`标签已由 ${currentTag} 更新为 ${overrideTag}，编码标签段同步更新`);
+        }
       }
     } else {
       code = allocateEncoding(before, overrideTag, occupied, reservedCodes);

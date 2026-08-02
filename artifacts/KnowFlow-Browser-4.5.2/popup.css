@@ -1,0 +1,414 @@
+/* ──────────────────────────────────────────────
+   飞书同步 → Obsidian  ·  Popup v3
+   Matches design prototype: Duolingo press buttons,
+   green mascot greeting, WeChat status bar
+   ────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  width: 380px;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--c-text);
+  background: var(--c-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════ STATUS BAR (top) ═══════════ */
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.status-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-unknown {
+  background: var(--c-surface-dim);
+  color: var(--c-text-3);
+}
+.status-ok {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-hover);
+}
+.status-error {
+  background: var(--c-error-soft);
+  color: var(--c-error);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+}
+
+.status-ok .status-dot {
+  box-shadow: 0 0 0 3px var(--c-brand-ring);
+}
+
+/* ═══════════ CHIPS ═══════════ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-sm);
+  background: var(--c-surface);
+  color: var(--c-text-2);
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip-badge {
+  height: 20px;
+  padding: 0 8px;
+  font-size: 10px;
+  border-radius: var(--r-sm);
+  border: none;
+  font-weight: 600;
+}
+
+.chip-brand {
+  background: var(--c-brand-soft);
+  color: var(--c-brand-hover);
+  border-color: transparent;
+}
+
+/* ═══════════ MASCOT GREETING (green bg) ═══════════ */
+.mascot-greeting {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px;
+  background: var(--c-brand-soft);
+  border-bottom: 0.5px solid var(--c-divider);
+}
+
+.greeting-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+.greeting-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--c-text-3);
+  margin-top: 1px;
+  letter-spacing: 0.01em;
+}
+
+/* ═══════════ DUOLINGO PRESS BUTTONS ═══════════ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* Button Sizes */
+.btn-sm {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  border-radius: var(--r-sm);
+  border-bottom: 2px solid transparent;
+}
+
+.btn-md {
+  height: 36px;
+  padding: 0 16px;
+  font-size: 13px;
+  border-radius: var(--r-md);
+  border-bottom: 3px solid transparent;
+}
+
+.btn-lg {
+  height: 42px;
+  padding: 0 24px;
+  font-size: 14px;
+  border-radius: var(--r-lg);
+  border-bottom: 3px solid transparent;
+}
+
+/* Primary — brand green */
+.btn-primary {
+  background: var(--c-brand);
+  color: var(--c-white);
+  border-bottom-color: var(--c-brand-hover);
+}
+.btn-primary:hover {
+  background: var(--brand-400);
+}
+.btn-primary:active {
+  transform: translateY(3px);
+  border-bottom-width: 0;
+  background: var(--c-brand-hover);
+}
+
+/* Secondary */
+.btn-secondary {
+  background: var(--c-surface-dim);
+  color: var(--c-text-2);
+  border-bottom-color: var(--neutral-300);
+}
+.btn-secondary:hover {
+  background: var(--neutral-300);
+  color: var(--c-text);
+}
+.btn-secondary:active {
+  transform: translateY(3px);
+  border-bottom-width: 0;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  transform: none !important;
+  border-bottom-color: transparent !important;
+}
+
+/* ═══════════ INPUTS ═══════════ */
+.input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--font);
+  font-weight: 400;
+  transition: border-color var(--t-fast);
+  outline: none;
+}
+
+.input-md {
+  height: 36px;
+  padding: 0 12px;
+  font-size: 13px;
+  border-radius: var(--r-md);
+}
+
+.input::placeholder {
+  color: var(--neutral-400);
+}
+
+.input:hover {
+  border-color: var(--neutral-400);
+}
+
+.input:focus {
+  border-color: var(--c-brand);
+}
+
+/* ═══════════ SWITCH / TOGGLE — WeUI ═══════════ */
+.switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-track {
+  display: block;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--neutral-300);
+  border: none;
+  transition: background 0.2s var(--ease);
+  position: relative;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 2px;
+  left: 2px;
+  border-radius: 50%;
+  background: var(--c-white);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  transition: transform 0.25s var(--spring);
+}
+
+.switch input:checked + .switch-track {
+  background: var(--c-brand);
+}
+
+.switch input:checked + .switch-track::after {
+  transform: translateX(20px);
+}
+
+.switch input:focus-visible + .switch-track {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+/* ═══════════ TOOLBAR TOGGLE SECTION ═══════════ */
+.toolbar-toggle-section {
+  padding: 12px 14px;
+  border-bottom: 0.5px solid var(--c-divider);
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.toggle-hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--c-text-3);
+  margin-top: 4px;
+  letter-spacing: 0.01em;
+}
+
+/* ═══════════ HERO ACTIONS ═══════════ */
+.hero {
+  padding: 14px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ═══════════ SECTION DIVIDER ═══════════ */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 16px;
+  color: var(--c-text-3);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.section-divider::before,
+.section-divider::after {
+  content: '';
+  flex: 1;
+  height: 0.5px;
+  background: var(--c-divider);
+}
+
+/* ═══════════ CONNECTION FORM ═══════════ */
+.conn-form {
+  padding: 8px 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.small-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-3);
+  letter-spacing: 0.02em;
+}
+
+.host-port {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.host-port .input:first-child { flex: 1; }
+.host-port .input:last-child { width: 72px; }
+
+.sep {
+  color: var(--c-text-3);
+  font-weight: 500;
+}
+
+.mono {
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+}
+
+.inline-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ═══════════ RESULT ═══════════ */
+.result {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  display: none;
+}
+
+.result.show { display: block; }
+.result.success { background: var(--c-brand-soft); color: var(--c-brand-hover); }
+.result.error { background: var(--c-error-soft); color: var(--c-error); }
+
+/* ═══════════ DARK MODE ═══════════ */
+@media (prefers-color-scheme: dark) {
+  .toolbar-toggle-section { border-color: var(--c-divider); }
+  .switch-track { background: var(--neutral-600); }
+  .switch input:checked + .switch-track { background: var(--c-brand); }
+}

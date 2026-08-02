@@ -354,6 +354,56 @@ test('explicit tag override updates the full code short code filename and YAML t
   assert.match(file.content, /编码: 26_0726_Z_21_a1/);
 });
 
+test('tag override reallocates a free sequence when the target tag code is occupied', async () => {
+  const sourceContent = `---
+协议版本: 1
+文档ID: 550e8400-e29b-41d4-a716-446655440000
+标签: Q
+编码: 26_0726_Q_01_a1
+短编码: Q01.a1
+日期: 2026-07-26
+状态: 收集
+---
+待归类内容`;
+  const occupantContent = `---
+协议版本: 1
+文档ID: 650e8400-e29b-41d4-a716-446655440000
+标签: Z
+编码: 26_0726_Z_01_a1
+短编码: Z01.a1
+日期: 2026-07-26
+状态: 收集
+---
+已有 Z 内容`;
+  const fixture = createApp([sourceContent, occupantContent]);
+  const source = fixture.notes[0];
+  const occupant = fixture.notes[1];
+  fixture.entries.delete(source.path);
+  source.path = '0️⃣输入/Q01.a1 待归类内容.md';
+  source.name = 'Q01.a1 待归类内容.md';
+  source.basename = 'Q01.a1 待归类内容';
+  fixture.entries.set(source.path, source);
+  fixture.entries.delete(occupant.path);
+  occupant.path = '0️⃣输入/Z01.a1 已有 Z 内容.md';
+  occupant.name = 'Z01.a1 已有 Z 内容.md';
+  occupant.basename = 'Z01.a1 已有 Z 内容';
+  fixture.entries.set(occupant.path, occupant);
+
+  const plan = await previewKnowledgeTargets(fixture.app, [source.path], {
+    kind: 'file',
+    depth: 'direct',
+    mode: 'auto',
+    tagOverride: 'Z',
+  });
+
+  assert.equal(plan.blockedReasons.length, 0);
+  assert.equal(plan.items.length, 1);
+  assert.equal(plan.items[0].code, '26_0726_Z_02_a1');
+  assert.equal(plan.items[0].shortCode, 'Z02.a1');
+  assert.equal(plan.items[0].newPath, '0️⃣输入/Z02.a1 待归类内容.md');
+  assert.match(plan.warnings.join('\n'), /原序号已占用，已自动分配新序号/);
+});
+
 test('directory tag override applies recursively to child directories', async () => {
   const fixture = createApp([validContent('Q')]);
   const childDirectory = {

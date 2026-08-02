@@ -1,6 +1,6 @@
 {
   "name": "@sync/shared",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "private": true,
   "description": "飞书↔OB 同步共享层：协议类型、callout 转换、hash、YAML、文件名清洗、图片 token",
   "type": "module",

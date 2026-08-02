@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-4.5.1-blue" alt="release version">
+  <img src="https://img.shields.io/badge/release-4.5.2-blue" alt="release version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,7 +23,7 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.1` | `artifacts/` | 文件夹自动编码、白名单、简化标签面板与精炼右键菜单 |
+| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.2` | `artifacts/` | 标签切换冲突自动重分配、纯中文右键菜单 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
@@ -31,8 +31,8 @@
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.5.1.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.1/` 或 `artifacts/KnowFlow-Browser-4.5.1.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.5.2.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.2/` 或 `artifacts/KnowFlow-Browser-4.5.2.zip`
 
 阅读入口：
 
@@ -296,7 +296,7 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 <details>
 <summary><b>Q: 文档很多，如何自动编码？</b></summary>
 
-默认打开“自动识别并编码文档”后，新建、修改或改名 Markdown 会自动识别、分配完整编码并写入；文件名和界面默认显示短编码（如 `S01.a1`），低置信度文档回退为 `S`。受保护目录、损坏 YAML 和冲突项会跳过并提示；需要把目录内文档从 `Q`、`Z` 等任一合法标签统一改为另一合法标签时，在文件树右键“修改标签”，目录默认递归处理子目录。文件夹右键的“KnowFlow：剪藏到这里…”负责把飞书内容采集到当前目录。需要全库补齐时，运行 Ribbon 或命令面板中的“自动识别并整理全库文档”。
+默认打开“自动识别并编码文档”后，新建、修改或改名 Markdown 会自动识别、分配完整编码并写入；文件名和界面默认显示短编码（如 `S01.a1`），低置信度文档回退为 `S`。受保护目录、损坏 YAML 和冲突项会跳过并提示；需要把目录内文档从 `Q`、`Z` 等任一合法标签统一改为另一合法标签时，在文件树右键“修改标签”，目录默认递归处理子目录。文件夹右键的“剪藏到这里…”负责把飞书内容采集到当前目录。需要全库补齐时，运行 Ribbon 或命令面板中的“自动识别并整理全库文档”。
 
 标签修改面板只显示标签下拉选择和修改后的路径预览，不展示完整编码、重复编码或内部事务信息。
 </details>

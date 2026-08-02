@@ -42,7 +42,7 @@ class FolderEncodingModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText('KnowFlow 设置文件夹编码');
+    this.titleEl.setText('设置文件夹编码');
     this.contentEl.empty();
     this.contentEl.createEl('p', {
       text: '文件夹只承担结构归类：输入/知识池从三级、输出从二级开始编码；导引、附件和固定入口不会进入这里。显示名称使用短编码，长编码只保存到本地索引供后端使用。',

@@ -16,12 +16,13 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.equal((uiSource.match(/workspace\.on\(\s*['"]files-menu['"]/g) ?? []).length, 1);
   assert.match(uiSource, /source !== FILE_EXPLORER_SOURCE/);
   assert.match(uiSource, /file-explorer-context-menu/);
-  assert.match(uiSource, /KnowFlow：修改此文档标签…/);
-  assert.match(uiSource, /KnowFlow：修改此目录标签（含子目录）…/);
-  assert.match(uiSource, /KnowFlow：调整此文件夹结构编码…/);
-  assert.match(uiSource, /KnowFlow：剪藏到这里…/);
+  assert.match(uiSource, /修改此文档标签…/);
+  assert.match(uiSource, /修改此目录标签（含子目录）…/);
+  assert.match(uiSource, /调整此文件夹结构编码…/);
+  assert.match(uiSource, /剪藏到这里…/);
   assert.match(uiSource, /openFolderEncodingPanel/);
-  assert.match(uiSource, /KnowFlow：修改所选内容标签/);
+  assert.match(uiSource, /修改所选内容标签/);
+  assert.doesNotMatch(uiSource, /KnowFlow：(?:剪藏|修改|调整)/);
   assert.match(uiSource, /openTagAssignmentPanel/);
   assert.match(uiSource, /tagOverride/);
   assert.match(uiSource, /TagAssignmentModal/);
@@ -70,7 +71,7 @@ test('clear encoding explains both file and property impact before a second prev
 
 test('the plugin registers one KnowFlow ribbon and no persistent view', () => {
   assert.equal((entrySource.match(/addRibbonIcon\(/g) ?? []).length, 1);
-  assert.match(entrySource, /'KnowFlow：整理与同步'/);
+  assert.match(entrySource, /'整理与同步'/);
   assert.match(entrySource, /new Menu\(\)/);
   assert.match(entrySource, /修改当前文档标签并整理…/);
   assert.match(entrySource, /待确认同步任务/);

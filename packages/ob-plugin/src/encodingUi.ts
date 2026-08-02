@@ -65,8 +65,8 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
           addFolderEncodingMenuItem(menu, plugin, target.path);
         }
         const title = kind === 'directory'
-          ? 'KnowFlow：修改此目录标签（含子目录）…'
-          : 'KnowFlow：修改此文档标签…';
+          ? '修改此目录标签（含子目录）…'
+          : '修改此文档标签…';
         addTagAssignmentMenuItem(menu, plugin, [target.path], kind, title);
       },
     ));
@@ -86,8 +86,8 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
           supportedTargets.map((target) => target.path),
           'selection',
           ignoredCount
-            ? `KnowFlow：修改所选内容标签（${supportedTargets.length}，已忽略 ${ignoredCount} 项）…`
-            : 'KnowFlow：修改所选内容标签…',
+            ? `修改所选内容标签（${supportedTargets.length}，已忽略 ${ignoredCount} 项）…`
+            : '修改所选内容标签…',
         );
       },
     ));
@@ -177,14 +177,14 @@ function addTagAssignmentMenuItem(
 
 function addClipMenuItem(menu: Menu, plugin: FeishuSyncPlugin, directory: string): void {
   menu.addItem((item) => item
-    .setTitle('KnowFlow：剪藏到这里…')
+    .setTitle('剪藏到这里…')
     .setIcon('download')
     .onClick(() => openFetchToDirectory(plugin, directory)));
 }
 
 function addFolderEncodingMenuItem(menu: Menu, plugin: FeishuSyncPlugin, path: string): void {
   menu.addItem((item) => item
-    .setTitle('KnowFlow：调整此文件夹结构编码…')
+    .setTitle('调整此文件夹结构编码…')
     .setIcon('folder-cog')
     .onClick(() => {
       void openFolderEncodingPanel(plugin, path);
@@ -267,7 +267,7 @@ export class TagAssignmentModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText('KnowFlow 修改标签');
+    this.titleEl.setText('修改标签');
     this.contentEl.empty();
     this.contentEl.createEl('p', {
       text: this.organizationScope.kind === 'directory'

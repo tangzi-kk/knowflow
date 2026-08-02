@@ -19,7 +19,7 @@ const registeredPlugins = new WeakSet<FeishuSyncPlugin>();
 export function registerKnowFlowRibbon(plugin: FeishuSyncPlugin): void {
   if (registeredPlugins.has(plugin)) return;
 
-  plugin.addRibbonIcon('workflow', 'KnowFlow：整理与同步', (event) => {
+  plugin.addRibbonIcon('workflow', '整理与同步', (event) => {
     const menu = new Menu();
     const targets = currentFileTreeTargets(plugin.app);
 
@@ -120,7 +120,7 @@ class SyncStatusModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText('KnowFlow 状态');
+    this.titleEl.setText('同步状态');
     const server = this.plugin.state.serverRunning ? '已连接' : '未连接';
     const cli = this.plugin.state.larkCliResolved
       ? `${this.plugin.state.larkCliVersion} · ${this.plugin.state.larkCliResolved}`

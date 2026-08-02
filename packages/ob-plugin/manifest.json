@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.5.1",
+  "version": "4.5.2",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.5.1：简化标签面板与文件夹自动编码",
+  "description": "KnowFlow 4.5.2：修复标签切换与精简中文菜单",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }
