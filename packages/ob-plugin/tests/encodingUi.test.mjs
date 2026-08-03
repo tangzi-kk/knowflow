@@ -22,6 +22,7 @@ test('one registrar owns the file explorer single and multi-selection menus', ()
   assert.match(uiSource, /整理此容器编码…/);
   assert.match(uiSource, /剪藏到这里…/);
   assert.match(uiSource, /openFolderEncodingPanel/);
+  assert.match(uiSource, /isFolderEncodingContainer\(target\.path\)/);
   assert.match(uiSource, /修改所选内容标签/);
   assert.doesNotMatch(uiSource, /KnowFlow：(?:剪藏|修改|调整)/);
   assert.match(uiSource, /openTagAssignmentPanel/);
@@ -34,6 +35,8 @@ test('folder encoding treats the parent folder as a container and previews the w
   assert.match(folderUiSource, /previewFolderEncodingGroup/);
   assert.match(folderUiSource, /commitFolderEncodingGroup/);
   assert.match(folderUiSource, /folderParentPath/);
+  assert.match(folderUiSource, /isFolderEncodingContainer/);
+  assert.match(folderUiSource, /const targetPath = isContainer \? undefined/);
   assert.match(folderUiSource, /文件夹是一个容器/);
   assert.match(folderUiSource, /按名称排序更新容器内目录名称/);
   assert.doesNotMatch(folderUiSource, /查看目录长编码（后端记录）/);
@@ -116,6 +119,10 @@ test('folder create and rename events use the automatic folder encoding path', (
   assert.match(mainSource, /folderAutoEncodingWhitelist/);
   assert.match(mainSource, /automatic-folder-encoding/);
   assert.match(mainSource, /文件夹已自动编码/);
+  assert.match(mainSource, /reconcileAutomaticFolderContainers/);
+  assert.match(mainSource, /getAllLoadedFiles/);
+  assert.match(mainSource, /pathsAreContainers: true/);
+  assert.match(mainSource, /已自动整理 \$\{result\.changedFolders\} 个文件夹/);
 });
 
 test('correction UI defaults to short code and keeps full code behind details', () => {

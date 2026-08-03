@@ -4,6 +4,8 @@ import type { FeishuSyncPlugin } from './main.js';
 import {
   commitFolderEncodingGroup,
   folderParentPath,
+  isFolderEncodingContainer,
+  normalizeFolderPath,
   previewFolderEncodingGroup,
   type FolderEncodingBatchPreview,
 } from './folderEncoding.js';
@@ -15,11 +17,14 @@ export async function openFolderEncodingPanel(
   path: string,
 ): Promise<void> {
   try {
-    const parentPath = folderParentPath(path);
+    const normalizedPath = normalizeFolderPath(path);
+    const isContainer = isFolderEncodingContainer(normalizedPath);
+    const parentPath = isContainer ? normalizedPath : folderParentPath(normalizedPath);
+    const targetPath = isContainer ? undefined : normalizedPath;
     const preview = await previewFolderEncodingGroup(plugin.app, parentPath, {
       whitelist: plugin.settings.folderAutoEncodingWhitelist,
     });
-    new FolderEncodingModal(plugin.app, plugin, path, parentPath, preview).open();
+    new FolderEncodingModal(plugin.app, plugin, targetPath, parentPath, preview).open();
   } catch (error) {
     new Notice(`❌ 无法打开文件夹编码面板：${messageOf(error)}`);
   }
@@ -35,13 +40,15 @@ class FolderEncodingModal extends Modal {
   constructor(
     app: App,
     private readonly plugin: FeishuSyncPlugin,
-    private readonly targetPath: string,
+    private readonly targetPath: string | undefined,
     private readonly parentPath: string,
     initialPreview: FolderEncodingBatchPreview,
   ) {
     super(app);
     this.preview = initialPreview;
-    this.selectedTag = initialPreview.items.find((item) => item.folderPath === targetPath)?.tag || 'S';
+    this.selectedTag = targetPath
+      ? initialPreview.items.find((item) => item.folderPath === targetPath)?.tag || 'S'
+      : '';
   }
 
   onOpen(): void {
@@ -52,20 +59,22 @@ class FolderEncodingModal extends Modal {
       cls: 'setting-item-description',
     });
 
-    const field = this.contentEl.createDiv({ cls: 'fstb-advanced-row' });
-    field.createEl('label', { text: '当前文件夹标签' });
-    const select = field.createEl('select', { attr: { 'aria-label': '文件夹标签' } });
-    for (const tag of ALLOWED_TAGS) {
-      select.createEl('option', {
-        value: tag,
-        text: `${tag} · ${tagName(tag)}`,
+    if (this.targetPath) {
+      const field = this.contentEl.createDiv({ cls: 'fstb-advanced-row' });
+      field.createEl('label', { text: '当前文件夹标签' });
+      const select = field.createEl('select', { attr: { 'aria-label': '文件夹标签' } });
+      for (const tag of ALLOWED_TAGS) {
+        select.createEl('option', {
+          value: tag,
+          text: `${tag} · ${tagName(tag)}`,
+        });
+      }
+      select.value = this.selectedTag;
+      select.addEventListener('change', () => {
+        this.selectedTag = select.value;
+        void this.refreshPreview();
       });
     }
-    select.value = this.selectedTag;
-    select.addEventListener('change', () => {
-      this.selectedTag = select.value;
-      void this.refreshPreview();
-    });
 
     this.previewArea = this.contentEl.createDiv({ cls: 'fstb-tag-preview' });
     const actions = this.contentEl.createDiv({ cls: 'modal-button-container' });
@@ -95,8 +104,7 @@ class FolderEncodingModal extends Modal {
     }
     try {
       this.preview = await previewFolderEncodingGroup(this.plugin.app, this.parentPath, {
-        tagOverride: this.selectedTag,
-        targetPath: this.targetPath,
+        ...(this.targetPath ? { tagOverride: this.selectedTag, targetPath: this.targetPath } : {}),
         whitelist: this.plugin.settings.folderAutoEncodingWhitelist,
       });
       this.renderPreview(this.preview);

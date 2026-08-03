@@ -17,6 +17,7 @@ const {
   commitFolderEncodingGroup,
   commitFolderEncoding,
   ensureFolderEncoding,
+  isFolderEncodingContainer,
   previewFolderEncodingGroup,
   isFolderEncodingExcluded,
   previewFolderEncoding,
@@ -141,6 +142,13 @@ test('new folders infer a tag, show a short name and persist a full structural c
   });
 });
 
+test('input and knowledge level-two folders are containers but never encoding items', () => {
+  assert.equal(isFolderEncodingContainer('0️⃣输入/🎓成长notes_干货'), true);
+  assert.equal(isFolderEncodingContainer('1️⃣🗃知识池/🔵工作_正财'), true);
+  assert.equal(isFolderEncodingContainer('0️⃣输入/🎓成长notes_干货/S01 · 播客总结'), false);
+  assert.equal(isFolderEncodingExcluded('0️⃣输入/🎓成长notes_干货'), true);
+});
+
 test('new folder numbering starts at 01 within its parent, not from another parent', async () => {
   const app = appWithFolders([
     '2️⃣输出/第一组/S01 · 已占用',
@@ -175,6 +183,29 @@ test('automatic group encoding sorts sibling titles and compacts each tag from 0
   assert.ok(app.vault.getAbstractFileByPath(`${parent}/S01 · 播客总结`));
   assert.ok(app.vault.getAbstractFileByPath(`${parent}/S02 · 提示词与写作系统`));
   assert.ok(app.vault.getAbstractFileByPath(`${parent}/J01 · 人生指南与经验`));
+});
+
+test('container commit removes stale index records that no longer exist in the Vault', async () => {
+  const parent = '0️⃣输入/🎓成长notes_干货';
+  const adapter = new MemoryAdapter();
+  adapter.files.set('.feishu-sync/目录编码索引.json', JSON.stringify([{
+    path: `${parent}/J01 · 已删除目录`,
+    name: 'J01 · 已删除目录',
+    tag: 'J',
+    shortCode: 'J01',
+    encoding: '26_0802_J_01',
+    updatedAt: '2026-08-02T00:00:00.000Z',
+  }]));
+  const app = appWithFolders([
+    `${parent}/S07 · 播客总结`,
+    `${parent}/S16 · 提示词与写作系统`,
+  ], adapter);
+
+  const preview = await previewFolderEncodingGroup(app, parent);
+  await commitFolderEncodingGroup(app, preview);
+
+  assert.equal(indexOf(app).some((record) => record.path.includes('已删除目录')), false);
+  assert.ok(indexOf(app).some((record) => record.path.endsWith('S01 · 播客总结')));
 });
 
 test('container ordering uses natural alphabetical and numeric title order', async () => {

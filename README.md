@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/release-4.5.4-blue" alt="release version">
+  <img src="https://img.shields.io/badge/release-4.5.5-blue" alt="release version">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
   <img src="https://img.shields.io/badge/platform-Obsidian%20Desktop%20%7C%20Chrome%20%7C%20Edge-orange" alt="platform">
   <img src="https://img.shields.io/badge/node-%3E%3D22.6-brightgreen" alt="node">
@@ -23,20 +23,20 @@
 
 | 分类 | 组件 | 版本 | 仓库内地址 | 状态 |
 |---|---|---:|---|---|
-| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.4` | [`GitHub Release v4.5.4`](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.4) | 容器内目录自然排序、连续编码、批量安全重排 |
+| 当前版本 | `fs-TB` + `KnowFlow` | `4.5.5` | [`GitHub Release v4.5.5`](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.5) | 二级容器自动整理、连续编码、失效索引清理 |
 | 运行归档 | `fs-TB` | `3.2.1` | `releases/obsidian-fs-TB/3.2.1/` | 已核验真实运行 |
 | 独立旧扩展 | `Feishu Doc Exporter` | `0.3.0` | `releases/browser-feishu-doc-exporter/0.3.0/` | 已核验，不与 KnowFlow 混同 |
 
 仓库地址：[github.com/tangzi-kk/knowflow](https://github.com/tangzi-kk/knowflow)
 
-当前正式发布：[KnowFlow v4.5.4](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.4)
+当前正式发布：[KnowFlow v4.5.5](https://github.com/tangzi-kk/knowflow/releases/tag/v4.5.5)
 
-4.5.4 已完成容器编码回归、双端自动门禁和真实 Obsidian 插件升级验收；父文件夹作为容器，直接子文件夹按自然名称从 `01` 连续编号。真实知识库的容器重排仍需在你指定的测试目录中手动点一次“应用”确认，详细边界见 [`4.5.4 验收记录`](docs/validation/4.5.4-acceptance.md)。
+4.5.5 已完成二级容器自动整理、双端自动门禁和真实 Obsidian 插件升级验收；输入/知识池二级目录作为容器，容器内直接子文件夹按自然名称从 `01` 连续编号。详细记录见 [`4.5.5 验收记录`](docs/validation/4.5.5-acceptance.md)。
 
 当前安装包：
 
-- Obsidian：`artifacts/fs-TB-Obsidian-4.5.4.zip`
-- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.4/` 或 `artifacts/KnowFlow-Browser-4.5.4.zip`
+- Obsidian：`artifacts/fs-TB-Obsidian-4.5.5.zip`
+- Chrome/Edge：`artifacts/KnowFlow-Browser-4.5.5/` 或 `artifacts/KnowFlow-Browser-4.5.5.zip`
 
 阅读入口：
 
@@ -119,7 +119,7 @@
 | `styles.css` | 样式表 |
 
 **安装步骤**：
-1. 下载 [`fs-TB-Obsidian-4.5.4.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.4/fs-TB-Obsidian-4.5.4.zip) 并解压
+1. 下载 [`fs-TB-Obsidian-4.5.5.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.5/fs-TB-Obsidian-4.5.5.zip) 并解压
 2. 放入 vault 的 `.obsidian/plugins/fs-TB/` 目录
 3. Obsidian → 设置 → 第三方插件 → 关闭安全模式 → 启用「飞书同步 (fs-TB)」
 4. 在插件设置页确认 lark-cli 路径，复制启动令牌
@@ -135,7 +135,7 @@
 **[⬇️ 下载最新版浏览器扩展](https://github.com/tangzi-kk/knowflow/releases/latest)**
 
 **安装步骤**：
-1. 下载 [`KnowFlow-Browser-4.5.4.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.4/KnowFlow-Browser-4.5.4.zip) 并解压
+1. 下载 [`KnowFlow-Browser-4.5.5.zip`](https://github.com/tangzi-kk/knowflow/releases/download/v4.5.5/KnowFlow-Browser-4.5.5.zip) 并解压
 2. Chrome → `chrome://extensions` → 打开「开发者模式」
 3. 点击「加载已解压的扩展程序」→ 选择解压后的文件夹
 4. 点击扩展图标 → 设置页填入 OB 插件地址 `127.0.0.1:4567` 和启动令牌
@@ -195,8 +195,8 @@ Obsidian 命令面板常用入口：`自动识别并整理全库文档`、`显�
 发布包校验：
 
 ```bash
-shasum -a 256 -c artifacts/KnowFlow-4.5.4-SHA256SUMS
-(cd artifacts && shasum -a 256 -c KnowFlow-4.5.4-PACKAGES-SHA256SUMS)
+shasum -a 256 -c artifacts/KnowFlow-4.5.5-SHA256SUMS
+(cd artifacts && shasum -a 256 -c KnowFlow-4.5.5-PACKAGES-SHA256SUMS)
 ```
 
 ---
@@ -321,7 +321,7 @@ overwrite 命令清空整个文档含 title block。插件会在 overwrite 后�
 <details>
 <summary><b>Q: 文件夹会自动编码吗？</b></summary>
 
-会，但目录层级是固定的：根入口目录永远不编码；`🪧导引/` 和 `3️⃣附件文件/` 整棵目录树永远保护；`0️⃣输入/` 与 `1️⃣🗃知识池/` 的二级语义入口也不编码，从三级文件夹开始才自动编码；`2️⃣输出/` 的二级目录可以编码。可编码目录会得到类似 `Z01 · 剪藏` 的短编码并提示；每个父文件夹都是一个容器，容器内直接子文件夹按名称自然排序、按标签从 `01` 连续编号。长编码保存在 `.feishu-sync/目录编码索引.json`，不写入 YAML；索引按“容器路径 + 长编码”定位。设置页可填写相对 Vault 路径白名单，白名单及隐藏目录、`.feishu-sync` 始终跳过。右键可编码目录显示“整理此容器编码…”，会先预览整个容器再原子提交；目录内 Markdown 的标签整理使用“修改此目录标签（含子目录）…”。
+会，但目录层级是固定的：根入口目录永远不编码；`🪧导引/` 和 `3️⃣附件文件/` 整棵目录树永远保护；`0️⃣输入/` 与 `1️⃣🗃知识池/` 的二级语义入口是容器但自身不编码，从三级文件夹开始自动编码；`2️⃣输出/` 的二级目录可以编码。可编码目录会得到类似 `Z01 · 剪藏` 的短编码；容器内直接子文件夹按名称自然排序、按标签从 `01` 连续编号，插件启动也会自动补齐旧目录。长编码保存在 `.feishu-sync/目录编码索引.json`，不写入 YAML；索引按“容器路径 + 长编码”定位。设置页可填写相对 Vault 路径白名单，白名单及隐藏目录、`.feishu-sync` 始终跳过。右键二级容器或其子目录都显示“整理此容器编码…”，会先预览整个容器再原子提交；目录内 Markdown 的标签整理使用“修改此目录标签（含子目录）…”。
 </details>
 
 ---

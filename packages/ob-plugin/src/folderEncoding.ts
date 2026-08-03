@@ -5,6 +5,7 @@ import {
 } from './knowledgeContract.js';
 import {
   folderEncodingBlockedReason,
+  isFolderEncodingContainer as isSemanticContainerPath,
   normalizeStructurePath,
 } from './vaultStructure.js';
 
@@ -82,6 +83,11 @@ export function folderParentPath(path: string): string {
   const normalized = normalizeFolderPath(path);
   const separator = normalized.lastIndexOf('/');
   return separator < 0 ? '' : normalized.slice(0, separator);
+}
+
+/** 二级语义入口不编码，但它们承载三级目录的容器整理。 */
+export function isFolderEncodingContainer(path: string): boolean {
+  return isSemanticContainerPath(path);
 }
 
 /** 保护目录、隐藏目录和用户白名单永远不参与文件夹自动编码。 */
@@ -309,7 +315,7 @@ export async function commitFolderEncodingGroup(
       await app.vault.rename(folder as never, move.item.newPath);
       move.state = 'final';
     }
-    await writeFolderIndex(app, rebaseFolderIndex(before, preview.items));
+    await writeFolderIndex(app, rebaseFolderIndex(app, before, preview.items));
     return { preview, changed: preview.changed };
   } catch (error) {
     for (const move of [...moves].reverse()) {
@@ -508,6 +514,7 @@ function blockedBatch(parentPath: string, blockedReason: string): FolderEncoding
 }
 
 function rebaseFolderIndex(
+  app: App,
   records: FolderIndexRecord[],
   previews: FolderEncodingPreview[],
 ): FolderIndexRecord[] {
@@ -537,7 +544,9 @@ function rebaseFolderIndex(
       updatedAt: new Date().toISOString(),
     });
   }
-  return next.sort((left, right) => left.path.localeCompare(right.path, 'zh-CN'));
+  return next
+    .filter((record) => Boolean(app.vault.getAbstractFileByPath(record.path)))
+    .sort((left, right) => left.path.localeCompare(right.path, 'zh-CN'));
 }
 
 function upsertRecord(records: FolderIndexRecord[], preview: FolderEncodingPreview): FolderIndexRecord[] {

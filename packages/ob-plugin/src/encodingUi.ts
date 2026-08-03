@@ -24,7 +24,7 @@ import {
   deriveShortEncoding,
 } from './knowledgeContract.js';
 import { openFolderEncodingPanel } from './folderEncodingUi.js';
-import { isFolderEncodingExcluded } from './folderEncoding.js';
+import { isFolderEncodingContainer, isFolderEncodingExcluded } from './folderEncoding.js';
 import { isProtectedDocumentPath } from './vaultStructure.js';
 import { openFetchToDirectory } from './fetchEntrypoints.js';
 
@@ -61,7 +61,8 @@ export function registerEncodingContextMenu(plugin: FeishuSyncPlugin): void {
           menu.addSeparator();
         }
         if (target instanceof TFolder
-          && !isFolderEncodingExcluded(target.path, plugin.settings.folderAutoEncodingWhitelist)) {
+          && (isFolderEncodingContainer(target.path)
+            || !isFolderEncodingExcluded(target.path, plugin.settings.folderAutoEncodingWhitelist))) {
           addFolderEncodingMenuItem(menu, plugin, target.path);
         }
         const title = kind === 'directory'

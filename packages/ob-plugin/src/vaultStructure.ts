@@ -98,6 +98,18 @@ export function folderEncodingBlockedReason(path: string): string | undefined {
   return undefined;
 }
 
+/**
+ * 输入与知识池的二级语义入口本身不编码，但它们是目录编码容器。
+ * 容器内的三级直接子文件夹才是结构编码对象。
+ */
+export function isFolderEncodingContainer(path: string): boolean {
+  const normalized = normalizeStructurePath(path);
+  if (!normalized) return false;
+  const segments = normalized.split('/');
+  const area = fixedVaultArea(normalized);
+  return (area === 'input' || area === 'knowledge') && segments.length === 2;
+}
+
 /** 文档自动编码和编码索引共用的保护判断。 */
 export function isProtectedDocumentPath(path: string): boolean {
   return isAlwaysProtectedPath(path);

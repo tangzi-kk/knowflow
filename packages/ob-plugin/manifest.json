@@ -1,9 +1,9 @@
 {
   "id": "fs-TB",
   "name": "飞书同步 (fs-TB)",
-  "version": "4.5.4",
+  "version": "4.5.5",
   "minAppVersion": "1.5.0",
-  "description": "KnowFlow 4.5.4：容器内目录按名称连续编码并安全重排",
+  "description": "KnowFlow 4.5.5：二级容器启动自动整理并安全重排",
   "author": "Shi Keran",
   "isDesktopOnly": true
 }

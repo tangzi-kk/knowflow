@@ -51,6 +51,7 @@ import { rebuildEncodingIndex } from './encodingIndex.js';
 import {
   commitFolderEncodingGroup,
   folderParentPath,
+  isFolderEncodingContainer,
   isFolderEncodingExcluded,
   normalizeFolderPath,
   previewFolderEncodingGroup,
@@ -142,6 +143,7 @@ export class FeishuSyncPlugin extends Plugin {
     this.app.workspace.onLayoutReady(() => {
       this.automaticRecognitionReady = true;
       cleanupImageCache(this, this.settings.cacheCleanup).catch(() => {});
+      void this.reconcileAutomaticFolderContainers();
     });
 
     console.log(`[fs-TB] ${this.manifest.version} loaded on port ${this.settings.port}`);
@@ -260,15 +262,43 @@ export class FeishuSyncPlugin extends Plugin {
     const paths = [...this.automaticFolderEncodingPaths];
     this.automaticFolderEncodingPaths.clear();
     if (paths.length === 0) return;
-    this.automaticFolderEncodingTail = this.automaticFolderEncodingTail
+    const run = this.automaticFolderEncodingTail
       .catch(() => {})
       .then(() => this.processAutomaticFolderEncoding(paths));
-    await this.automaticFolderEncodingTail;
+    this.automaticFolderEncodingTail = run.then(() => undefined);
+    await run;
   }
 
-  private async processAutomaticFolderEncoding(paths: string[]): Promise<void> {
-    const parentPaths = [...new Set(paths.map(folderParentPath))]
+  /** 启动后按固定二级容器补齐旧目录；容器自身不改名，只整理其直接子目录。 */
+  private async reconcileAutomaticFolderContainers(): Promise<void> {
+    if (!this.settings.automaticRecognition || !this.automaticRecognitionReady) return;
+    const containerPaths = [...new Set(this.app.vault.getAllLoadedFiles()
+      .filter((file): file is TFolder => file instanceof TFolder)
+      .map((folder) => normalizeFolderPath(folder.path))
+      .filter((path) => isFolderEncodingContainer(path))
+      .filter(Boolean))];
+    if (containerPaths.length === 0) return;
+    const run = this.automaticFolderEncodingTail
+      .catch(() => {})
+      .then(() => this.processAutomaticFolderEncoding(containerPaths, {
+        pathsAreContainers: true,
+        notify: false,
+      }));
+    this.automaticFolderEncodingTail = run.then(() => undefined);
+    const result = await run;
+    if (result.changedFolders > 0) {
+      new Notice(`📁 已自动整理 ${result.changedFolders} 个文件夹（${result.changedContainers} 个容器）`);
+    }
+  }
+
+  private async processAutomaticFolderEncoding(
+    paths: string[],
+    options: { pathsAreContainers?: boolean; notify?: boolean } = {},
+  ): Promise<{ changedFolders: number; changedContainers: number }> {
+    const parentPaths = [...new Set(options.pathsAreContainers ? paths : paths.map(folderParentPath))]
       .sort((left, right) => left.split('/').length - right.split('/').length);
+    let changedFolders = 0;
+    let changedContainers = 0;
     for (const parentPath of parentPaths) {
       try {
         const preview = await previewFolderEncodingGroup(this.app, parentPath, {
@@ -281,6 +311,8 @@ export class FeishuSyncPlugin extends Plugin {
           this.automaticFolderEncodingIgnore.set(item.newPath, expiresAt);
         }
         const result = await commitFolderEncodingGroup(this.app, preview);
+        changedFolders += result.preview.items.filter((item) => item.changed).length;
+        changedContainers += 1;
         this.recordActivity({
           time: new Date().toISOString(),
           kind: 'system',
@@ -288,7 +320,9 @@ export class FeishuSyncPlugin extends Plugin {
           action: 'automatic-folder-encoding',
           path: result.preview.parentPath,
         });
-        new Notice(`📁 文件夹已自动编码：已按名称排序整理 ${result.preview.items.length} 个`);
+        if (options.notify !== false) {
+          new Notice(`📁 文件夹已自动编码：已按名称排序整理 ${result.preview.items.length} 个`);
+        }
       } catch (error) {
         // 目标占用通常会伴随一次 rename 事件；短窗口抑制同一路径，避免重复刷屏。
         this.automaticFolderEncodingIgnore.set(parentPath, Date.now() + 30000);
@@ -317,10 +351,13 @@ export class FeishuSyncPlugin extends Plugin {
           path: parentPath,
           errorCode: 'FOLDER_ENCODING_FAILED',
         });
-        new Notice(`⚠️ 文件夹自动编码失败：${messageOf(error)}；可右键手动设置`);
+        if (options.notify !== false) {
+          new Notice(`⚠️ 文件夹自动编码失败：${messageOf(error)}；可右键手动设置`);
+        }
         console.warn('[fs-TB] automatic folder encoding failed:', error);
       }
     }
+    return { changedFolders, changedContainers };
   }
 
   private queueAutomaticRecognition(file: TAbstractFile): void {
