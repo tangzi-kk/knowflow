@@ -5,6 +5,7 @@
  * - reader：解析 frontmatter + body，计算 hash，比对 sync_hash
  * - writer：组装 YAML + body，写文件
  */
+import { randomUUID } from 'node:crypto';
 import {
   parseFrontmatter,
   assembleFile,
@@ -14,6 +15,8 @@ import {
   withMdExt,
   joinPath,
   rewriteImagesToFeishuProto,
+  PROTOCOL_VERSION,
+  withCompleteFrontmatter,
   type YAMLFrontmatter,
 } from '@sync/shared';
 
@@ -61,15 +64,26 @@ export function buildInitialFrontmatter(
   syncTime: string,
   meta?: Record<string, unknown>,
 ): YAMLFrontmatter {
-  return {
+  const supplied = meta ? stripEmpty(meta) : {};
+  const suppliedDocumentId = stringValue(supplied.文档ID);
+  const documentId = UUID_RE.test(suppliedDocumentId) ? suppliedDocumentId : randomUUID();
+  const suppliedDate = stringValue(supplied.日期);
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(suppliedDate)
+    ? suppliedDate
+    : syncTime.slice(0, 10);
+
+  return withCompleteFrontmatter({
+    ...supplied,
+    协议版本: PROTOCOL_VERSION,
+    文档ID: documentId,
+    日期: date,
+    // 同步绑定必须以当前请求为准，不能被文档正文中的普通字段覆盖。
     feishu_id: feishuId,
     feishu_doc_id: feishuDocId,
     feishu_title: feishuTitle,
     sync_time: syncTime,
-    // 飞书 callout 元数据（空值字段不写入，保持 YAML 干净）
-    ...(meta && stripEmpty(meta)),
     // sync_hash 在写入时由 writer 计算填入
-  };
+  }) as YAMLFrontmatter;
 }
 
 /**
@@ -87,7 +101,7 @@ export function mergeFrontmatterForUpdate(
   syncTime: string,
   meta?: Record<string, unknown>,
 ): YAMLFrontmatter {
-  return {
+  const merged = withCompleteFrontmatter({
     // 已有字段优先（用户改过的），飞书 callout 元数据只补缺失
     ...(meta && stripEmpty(meta)),
     ...existing,
@@ -95,7 +109,11 @@ export function mergeFrontmatterForUpdate(
     feishu_doc_id: feishuDocId,
     feishu_title: feishuTitle,
     sync_time: syncTime,
-  } as YAMLFrontmatter;
+    协议版本: PROTOCOL_VERSION,
+  });
+  const existingDocumentId = stringValue(merged.文档ID);
+  merged.文档ID = UUID_RE.test(existingDocumentId) ? existingDocumentId : randomUUID();
+  return merged as YAMLFrontmatter;
 }
 
 /** 移除值为空（undefined/null/''/空数组）的字段，避免污染 YAML。 */
@@ -118,11 +136,18 @@ export function assembleMd(frontmatter: YAMLFrontmatter, body: string): string {
   // 计算并写入 sync_hash
   const hash = bodyHash(body);
   const fmWithHash: YAMLFrontmatter = {
-    ...frontmatter,
+    ...withCompleteFrontmatter(frontmatter),
     sync_hash: hash,
   };
   return assembleFile(fmWithHash, body);
 }
+
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * 把飞书导出的 md 处理为 OB 正文。

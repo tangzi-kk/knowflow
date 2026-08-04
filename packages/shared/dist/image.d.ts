@@ -41,6 +41,13 @@ export declare function extractImgTokenMapFromXml(xml: string): Map<string, stri
  */
 export declare function extractFeishuImageTokens(md: string): string[];
 /**
+ * 回写后用飞书重新分配的图片 token 修正本地正文。
+ * 飞书 XML 回写会为图片生成新的 `src` token；如果本地仍保留旧 token，
+ * 下一次无变化回写会被误判为“远端有修改”。只按图片出现顺序替换，
+ * 保留本地 alt 文本和其它 Markdown。
+ */
+export declare function alignFeishuImageTokens(localMd: string, remoteMd: string): string;
+/**
  * 把 OB 正文里的 `![](feishu://TOKEN)` 还原为飞书 xml `<img src="TOKEN"/>`。
  * 用于 OB→飞书回写（md 部分用 markdown，图片需用 xml 标签才能被飞书识别为已有 token）。
  */

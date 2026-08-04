@@ -3,7 +3,7 @@
  *
  * - resolveCli()：候选路径探测，版本校验 ≥ 1.0.52
  * - run()：统一 spawnSync 包装，重试、相对路径、emoji 清洗、~反转义、JSON 包装解包
- * - 标题修复：overwrite 后追加 str_replace 修 <title>
+ * - 标题修复：XML overwrite 直接写入 `<title>`，避免旧版 JSON 更新参数在新 lark-cli 中失效
  *
  * 多设备适配关键点：
  * - GUI 启动的 Obsidian 拿不到终端 PATH（nvm/homebrew 不在内），故 spawn 时注入增强 PATH
@@ -327,23 +327,15 @@ export function overwriteDoc(token: string, content: string, title: string, _cwd
     // overwrite
     run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'markdown', '--content', '@./content.md'], { cwd: tmpDir });
 
-    // 标题修复：str_replace 修 <title>
+    // lark-cli 1.0.82 只接受 xml/markdown，不再接受旧版 json doc-format。
+    // 以 XML 行内替换修复 overwrite 后的默认标题。
     const cleanTitle = stripVariationSelectors(title);
     run([
       'docs', '+update', '--doc', token,
       '--command', 'str_replace',
-      '--doc-format', 'json',
-      '--content', JSON.stringify({
-        request: [{
-          block_type: 1, // page
-          page: {
-            elements: [{
-              text_run: { content: cleanTitle, text_element_style: { bold: true } }
-            }]
-          }
-        }],
-        index: 0,
-      }),
+      '--doc-format', 'xml',
+      '--pattern', 'Untitled',
+      '--content', `<b>${escapeXml(cleanTitle)}</b>`,
     ], { cwd: tmpDir, timeout: 15000 });
   } finally {
     // 清理临时文件
@@ -359,33 +351,25 @@ export function overwriteDocXml(token: string, xmlContent: string, title: string
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'knowflow-write-'));
   const tmpFile = path.join(tmpDir, 'content.xml');
 
-  const cleaned = stripVariationSelectors(xmlContent);
+  // XML overwrite 支持显式 title；把标题和正文放在同一次事务中，避免
+  // overwrite 成功后再发一个旧版 JSON str_replace 导致“远端结果未知”。
+  const cleaned = `<title>${escapeXml(stripVariationSelectors(title))}</title>${stripVariationSelectors(xmlContent)}`;
   fs.writeFileSync(tmpFile, cleaned, 'utf8');
 
   try {
     run(['docs', '+update', '--doc', token, '--command', 'overwrite', '--doc-format', 'xml', '--content', '@./content.xml'], { cwd: tmpDir });
-
-    // 标题修复
-    const cleanTitle = stripVariationSelectors(title);
-    run([
-      'docs', '+update', '--doc', token,
-      '--command', 'str_replace',
-      '--doc-format', 'json',
-      '--content', JSON.stringify({
-        request: [{
-          block_type: 1,
-          page: {
-            elements: [{
-              text_run: { content: cleanTitle, text_element_style: { bold: true } }
-            }]
-          }
-        }],
-        index: 0,
-      }),
-    ], { cwd: tmpDir, timeout: 15000 });
   } finally {
     try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
   }
+}
+
+function escapeXml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 /**

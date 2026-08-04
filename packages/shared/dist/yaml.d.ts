@@ -1,4 +1,13 @@
 /**
+ * 新建或触碰文档时必须存在的 YAML 字段。
+ *
+ * 这些默认值只补“缺失”字段，不覆盖用户已有值；同步绑定和文档 ID
+ * 仍由各自的事务流程负责生成，避免 shared 层引入运行时随机数。
+ */
+export declare const YAML_METADATA_DEFAULTS: Readonly<Record<string, unknown>>;
+/** 补齐规范字段；数组默认值每次复制，避免调用方互相污染。 */
+export declare function withCompleteFrontmatter(fm: Record<string, unknown>): Record<string, unknown>;
+/**
  * 将 frontmatter 对象序列化为 YAML 字符串（含 `---` 分隔符）。
  * 按规范顺序输出，跳过空值。
  */

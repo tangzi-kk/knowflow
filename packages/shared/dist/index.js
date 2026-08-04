@@ -8,8 +8,8 @@ export { DEFAULT_PORT, TOKEN_HEADER, PROTOCOL_VERSION, SERVER_CAPABILITIES, REQU
 // ── 工具函数 ──
 export { bodyHash, bodyHashAsync, isChanged } from './hash.js';
 export { sanitizeFilename, withMdExt, joinPath } from './filename.js';
-export { FEISHU_PROTO, extractTokenFromAuthcodeUrl, rewriteImagesToFeishuProto, extractImgTokenMapFromXml, extractImgTokensFromXml, extractFeishuImageTokens, feishuProtoToXml, } from './image.js';
-export { serializeFrontmatter, parseFrontmatter, inspectFrontmatter, assembleFile, } from './yaml.js';
+export { FEISHU_PROTO, extractTokenFromAuthcodeUrl, rewriteImagesToFeishuProto, extractImgTokenMapFromXml, extractImgTokensFromXml, extractFeishuImageTokens, alignFeishuImageTokens, feishuProtoToXml, } from './image.js';
+export { serializeFrontmatter, parseFrontmatter, inspectFrontmatter, assembleFile, withCompleteFrontmatter, YAML_METADATA_DEFAULTS, } from './yaml.js';
 export { stripVariationSelectors, unescapeFeishuTilde, metaToCalloutXml, calloutXmlToMeta, feishuCalloutToOB, convertFeishuCalloutsToOB, obCalloutToFeishu, convertOBCalloutsToFeishu, } from './callout.js';
 export { unwrapLarkEnvelope } from './larkEnvelope.js';
 //# sourceMappingURL=index.js.map

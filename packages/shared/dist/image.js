@@ -13,6 +13,20 @@ export const FEISHU_PROTO = 'feishu://';
 /** 飞书 internal-api 图片域名（识别需登录态的临时链接）。 */
 const INTERNAL_API_HOST = 'internal-api-drive-stream.feishu.cn';
 const INTERNAL_API_HOST_LARK = 'internal-api-drive-stream.larksuite.com';
+/** 新版文档 Markdown 导出可能使用 api3-* 公共媒体域名。 */
+const API3_DRIVE_HOST_RE = /^api\d+[-.][a-z0-9-]+-drive\.(?:feishu\.cn|larksuite\.com)$/i;
+function isInternalDriveUrl(value) {
+    try {
+        const url = new URL(value);
+        if (url.hostname === INTERNAL_API_HOST || url.hostname === INTERNAL_API_HOST_LARK)
+            return true;
+        return API3_DRIVE_HOST_RE.test(url.hostname)
+            && url.pathname.includes('/space/api/box/stream/download/');
+    }
+    catch {
+        return false;
+    }
+}
 /** file_token 格式：飞书 token 是 base62-ish，长度 ~28。 */
 const TOKEN_RE = /[A-Za-z0-9]{20,}/;
 /**
@@ -32,7 +46,7 @@ export function extractTokenFromAuthcodeUrl(url) {
         return null;
     }
     const host = u.hostname;
-    if (host !== INTERNAL_API_HOST && host !== INTERNAL_API_HOST_LARK)
+    if (host !== INTERNAL_API_HOST && host !== INTERNAL_API_HOST_LARK && !API3_DRIVE_HOST_RE.test(host))
         return null;
     const segments = u.pathname.split('/').filter(Boolean);
     let best = null;
@@ -60,8 +74,7 @@ export function rewriteImagesToFeishuProto(md, tokenMap = new Set()) {
         if (trimmed.startsWith(FEISHU_PROTO))
             return full;
         // internal-api 链接：提 token
-        if (trimmed.includes(INTERNAL_API_HOST) ||
-            trimmed.includes(INTERNAL_API_HOST_LARK)) {
+        if (isInternalDriveUrl(trimmed)) {
             const token = pickExactToken(tokenMap, trimmed) ?? extractTokenFromAuthcodeUrl(trimmed) ?? pickFromMap(tokenMap);
             if (token)
                 return `![${alt}](${FEISHU_PROTO}${token})`;
@@ -145,6 +158,26 @@ export function extractFeishuImageTokens(md) {
         tokens.add(m[1]);
     }
     return [...tokens];
+}
+/**
+ * 回写后用飞书重新分配的图片 token 修正本地正文。
+ * 飞书 XML 回写会为图片生成新的 `src` token；如果本地仍保留旧 token，
+ * 下一次无变化回写会被误判为“远端有修改”。只按图片出现顺序替换，
+ * 保留本地 alt 文本和其它 Markdown。
+ */
+export function alignFeishuImageTokens(localMd, remoteMd) {
+    const remoteTokens = [];
+    remoteMd.replace(/!\[[^\]]*\]\(feishu:\/\/([A-Za-z0-9]+)\)/g, (_full, token) => {
+        remoteTokens.push(token);
+        return _full;
+    });
+    if (remoteTokens.length === 0)
+        return localMd;
+    let index = 0;
+    return localMd.replace(/!\[([^\]]*)\]\(feishu:\/\/([A-Za-z0-9]+)\)/g, (full, alt) => {
+        const token = remoteTokens[index++];
+        return token ? `![${alt}](feishu://${token})` : full;
+    });
 }
 /**
  * 把 OB 正文里的 `![](feishu://TOKEN)` 还原为飞书 xml `<img src="TOKEN"/>`。

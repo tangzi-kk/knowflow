@@ -6,6 +6,7 @@
  * - 写入插件默认目录或请求传入目录。
  * - 使用知识库字段预设填充基础 YAML，落地后只创建待确认整理提案。
  */
+import { randomUUID } from 'node:crypto';
 import { assembleFile, PROTOCOL_VERSION, type ClipRequest, type ClipResponse } from '@sync/shared';
 import { App, TFile, TFolder } from 'obsidian';
 import type { RequestContext } from '../server.js';
@@ -207,6 +208,8 @@ function normalizeClipMeta(meta: unknown, fallback: {
   const input = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta as Record<string, unknown> : {};
   const score = normalizeScore(input.评分);
   const out: Record<string, unknown> = {
+    协议版本: PROTOCOL_VERSION,
+    文档ID: cleanText(input.文档ID) || randomUUID(),
     标签: normalizeTag(input.标签),
     编码: '',
     输入: cleanText(input.输入) || fallback.dir || fallback.url,

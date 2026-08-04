@@ -3,7 +3,7 @@
  *
  * - 用 js-yaml 处理中文字段名（js-yaml 原生支持 Unicode key）
  * - 解析时保留注释顺序（js-yaml 不保留，但我们用固定字段映射重建）
- * - 序列化时按规范顺序输出（同步绑定→标签→编码→输入→日期→关键词→评分→索引）
+ * - 序列化时按规范顺序输出（同步绑定→标签→编码→输入→日期→关键词→评分→索引→关联）
  */
 import * as YAML from 'js-yaml';
 
@@ -35,7 +35,51 @@ const FIELD_ORDER: (keyof import('./types').YAMLFrontmatter)[] = [
   '索引_操作&反馈',
   '索引_块',
   '索引_风险',
+  '关联项目',
+  '关联文档',
+  '关联人物',
 ];
+
+/**
+ * 新建或触碰文档时必须存在的 YAML 字段。
+ *
+ * 这些默认值只补“缺失”字段，不覆盖用户已有值；同步绑定和文档 ID
+ * 仍由各自的事务流程负责生成，避免 shared 层引入运行时随机数。
+ */
+export const YAML_METADATA_DEFAULTS: Readonly<Record<string, unknown>> = Object.freeze({
+  协议版本: 1,
+  标签: '',
+  编码: '',
+  短编码: '',
+  输入: '',
+  日期: '',
+  日期索引: [],
+  关键词: [],
+  概述: '',
+  评分: '',
+  评分_显示: '',
+  状态: '收集',
+  索引_知识库: '',
+  索引_颜色: '',
+  '索引_操作&反馈': [],
+  索引_块: [],
+  索引_风险: [],
+  关联项目: [],
+  关联文档: [],
+  关联人物: [],
+});
+
+/** 补齐规范字段；数组默认值每次复制，避免调用方互相污染。 */
+export function withCompleteFrontmatter(
+  fm: Record<string, unknown>,
+): Record<string, unknown> {
+  const completed: Record<string, unknown> = { ...fm };
+  for (const [key, defaultValue] of Object.entries(YAML_METADATA_DEFAULTS)) {
+    if (completed[key] !== undefined && completed[key] !== null) continue;
+    completed[key] = Array.isArray(defaultValue) ? [...defaultValue] : defaultValue;
+  }
+  return completed;
+}
 
 /** 空值跳过集合：仅跳过未设置；空字符串/空数组用于规范字段占位。 */
 function isEmpty(v: unknown): boolean {
@@ -48,14 +92,15 @@ function isEmpty(v: unknown): boolean {
  * 按规范顺序输出，跳过空值。
  */
 export function serializeFrontmatter(fm: Record<string, unknown>): string {
+  const completed = withCompleteFrontmatter(fm);
   const ordered: Record<string, unknown> = {};
   for (const key of FIELD_ORDER) {
-    if (!isEmpty(fm[key])) {
-      ordered[key as string] = fm[key];
+    if (!isEmpty(completed[key])) {
+      ordered[key as string] = completed[key];
     }
   }
   // 收尾：可能有多余字段不在 FIELD_ORDER 里（向后兼容）
-  for (const [k, v] of Object.entries(fm)) {
+  for (const [k, v] of Object.entries(completed)) {
     if (!(k in ordered) && !isEmpty(v)) {
       ordered[k] = v;
     }

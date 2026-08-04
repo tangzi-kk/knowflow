@@ -10,7 +10,7 @@
  * - emoji 带 U+FE0F variation selector 飞书不认 → 写入前 strip
  * - `~` 被飞书转义成 `\~` → 回读时反转义
  */
-import { CALLOUT_FIELD_MAP, TAG_NAMES, DOC_INFO_CALLOUT, OB_CALLOUT_TO_FEISHU, FEISHU_BG_TO_OB_CALLOUT, } from './types.js';
+import { TAG_NAMES, DOC_INFO_CALLOUT, OB_CALLOUT_TO_FEISHU, FEISHU_BG_TO_OB_CALLOUT, } from './types.js';
 // ──────────────── emoji 清洗 ────────────────
 /** 移除 emoji 的 U+FE0F variation selector。飞书不认带 VS 的 emoji（03 文档 §3.3）。 */
 const VS_RE = /\uFE0F/gu;
@@ -80,7 +80,46 @@ function htmlToPlainText(html) {
         .replace(/&amp;/g, '&')
         .replace(/&quot;/g, '"')
         .replace(/&apos;/g, "'")
+        // 飞书 Markdown 导出会把 callout 内的强调符号转义成 `\\**`、`\\*`。
+        // 回到 Obsidian 前还原，避免同一正文仅因展示层转义而被判定为冲突。
+        .replace(/\\([*_~`])/g, '$1')
         .trim();
+}
+function escapeXmlText(value) {
+    return stripVariationSelectors(String(value ?? ''))
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&apos;')
+        .replace(/[\r\n]+/g, ' ')
+        .trim();
+}
+function isBlankValue(value) {
+    return value === undefined
+        || value === null
+        || value === ''
+        || (Array.isArray(value) && value.length === 0);
+}
+function displayValue(value, fallback = '未设置') {
+    if (isBlankValue(value))
+        return fallback;
+    if (Array.isArray(value)) {
+        const values = value.map(item => String(item).trim()).filter(Boolean);
+        return values.length > 0 ? values.join(' · ') : fallback;
+    }
+    return String(value).trim() || fallback;
+}
+function xmlListItem(label, value, fallback = '未设置') {
+    return `<li><b>${escapeXmlText(label)}</b>：${escapeXmlText(displayValue(value, fallback))}</li>`;
+}
+function xmlSection(title, fields) {
+    return [
+        `<p><b>${escapeXmlText(title)}</b></p>`,
+        '<ul>',
+        ...fields.map(([label, value]) => xmlListItem(label, value)),
+        '</ul>',
+    ];
 }
 // ──────────────── OB→飞书：YAML→合并信息 callout XML ────────────────
 /**
@@ -91,30 +130,31 @@ function htmlToPlainText(html) {
  * @returns callout XML 字符串（含 strip VS）
  */
 export function metaToCalloutXml(meta) {
-    const lines = [];
-    for (const item of CALLOUT_FIELD_MAP) {
-        const raw = meta[item.field];
-        if (raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && raw.length === 0))
-            continue;
-        let value;
-        if (item.field === '标签') {
-            value = formatTagValue(raw);
-        }
-        else if (item.field === '评分_显示') {
-            value = stripVariationSelectors(String(raw));
-        }
-        else if (Array.isArray(raw)) {
-            value = raw.join(' · ');
-        }
-        else {
-            value = stripVariationSelectors(String(raw));
-        }
-        if (!value)
-            continue;
-        lines.push(`<li><b>${item.label}</b>：${value}</li>`);
-    }
-    if (lines.length === 0)
-        return '';
+    const score = !isBlankValue(meta.评分_显示) ? meta.评分_显示 : meta.评分;
+    const primary = [
+        ['标签', isBlankValue(meta.标签) ? undefined : formatTagValue(meta.标签)],
+        ['状态', meta.状态],
+        ['概述', meta.概述],
+        ['关键词', meta.关键词],
+        ['输入', meta.输入],
+        ['日期', meta.日期],
+        ['日期索引', meta.日期索引],
+        ['评分', score],
+        ['知识库索引', meta.索引_知识库],
+        ['颜色索引', meta.索引_颜色],
+        ['操作与反馈', meta['索引_操作&反馈']],
+        ['块索引', meta.索引_块],
+        ['风险索引', meta.索引_风险],
+        ['关联项目', meta.关联项目],
+        ['关联文档', meta.关联文档],
+        ['关联人物', meta.关联人物],
+    ];
+    const system = [
+        ['协议版本', meta.协议版本],
+        ['文档ID', meta.文档ID],
+        ['编码', meta.编码],
+        ['短编码', meta.短编码],
+    ];
     const { emoji, ...attrs } = DOC_INFO_CALLOUT;
     const attrStr = Object.entries(attrs)
         .map(([k, v]) => `${k}="${v}"`)
@@ -122,10 +162,8 @@ export function metaToCalloutXml(meta) {
     const cleanEmoji = stripVariationSelectors(emoji);
     return [
         `<callout emoji="${cleanEmoji}" ${attrStr}>`,
-        `<p><b>文档信息</b></p>`,
-        `<ul>`,
-        ...lines,
-        `</ul>`,
+        ...xmlSection('KnowFlow 元数据', primary),
+        ...xmlSection('系统信息', system),
         `</callout>`,
         '',
     ].join('\n');
@@ -140,51 +178,102 @@ export function metaToCalloutXml(meta) {
  */
 export function calloutXmlToMeta(xml) {
     const result = {};
-    // 找"文档信息"callout
-    const calloutRe = /<callout\b[^>]*>\s*<p><b>文档信息<\/b><\/p>\s*<ul>([\s\S]*?)<\/ul>\s*<\/callout>/;
-    const calloutMatch = xml.match(calloutRe);
-    if (!calloutMatch)
-        return result;
-    const ulContent = calloutMatch[1];
-    const liRe = /<li><b>([^<]+)<\/b>[：:](.+?)<\/li>/g;
-    let m;
-    while ((m = liRe.exec(ulContent)) !== null) {
-        const label = m[1].trim();
-        const value = unescapeFeishuTilde(m[2].trim());
-        // 根据标签名映射到字段
-        if (label === '标签') {
-            const tag = parseTagValue(value);
-            if (tag)
-                result.标签 = tag;
-        }
-        else if (label === '编码') {
-            result.编码 = value.replace(/^🔢\s*/, '').trim();
-        }
-        else if (label === '输入') {
-            result.输入 = value.replace(/^📥\s*/, '').trim();
-        }
-        else if (label === '日期') {
-            result.日期 = value.replace(/^📅\s*/, '').trim();
-        }
-        else if (label === '关键词') {
-            result.关键词 = value.replace(/^🔑\s*/, '').trim();
-        }
-        else if (label === '评分') {
-            // 提取评分显示串（如 "🌟🌟🌟｜实践"）
-            result.评分_显示 = stripVariationSelectors(value);
-            // 尝试提取数字
-            const starCount = (value.match(/🌟/g) || []).length;
-            if (starCount >= 1 && starCount <= 5) {
-                result.评分 = starCount;
-            }
-        }
-        else if (label === '索引') {
-            // 索引是多维度合并显示（💰正财 · 🔵工作 · ...）
-            // 需要进一步拆分各维度
-            parseIndexField(value, result);
+    const calloutRe = /<callout\b[^>]*>[\s\S]*?<\/callout>/g;
+    for (const match of xml.matchAll(calloutRe)) {
+        const callout = match[0];
+        if (!/<p><b>(?:KnowFlow 元数据|文档信息)<\/b><\/p>/.test(callout))
+            continue;
+        const liRe = /<li>\s*<b>([^<]+)<\/b>\s*[：:]\s*([\s\S]*?)<\/li>/g;
+        let item;
+        while ((item = liRe.exec(callout)) !== null) {
+            const label = htmlToPlainText(item[1]);
+            const value = unescapeFeishuTilde(htmlToPlainText(item[2]));
+            applyCalloutField(label, value, result);
         }
     }
     return result;
+}
+function arrayFieldValue(value) {
+    if (!value || value === '未设置' || value === '—')
+        return [];
+    return value.split(/\s*·\s*|\s*[、,，]\s*|\n/).map(item => item.trim()).filter(Boolean);
+}
+function applyCalloutField(label, value, result) {
+    if (!value || value === '未设置' || value === '—')
+        return;
+    if (label === '标签') {
+        const tag = parseTagValue(value);
+        if (tag)
+            result.标签 = tag;
+    }
+    else if (label === '协议版本') {
+        const version = Number(value);
+        if (Number.isInteger(version))
+            result.协议版本 = version;
+    }
+    else if (label === '文档ID') {
+        result.文档ID = value;
+    }
+    else if (label === '编码') {
+        result.编码 = value.replace(/^🔢\s*/, '').trim();
+    }
+    else if (label === '短编码') {
+        result.短编码 = value.trim();
+    }
+    else if (label === '输入') {
+        result.输入 = value.replace(/^📥\s*/, '').trim();
+    }
+    else if (label === '日期') {
+        result.日期 = value.replace(/^📅\s*/, '').trim();
+    }
+    else if (label === '日期索引') {
+        result.日期索引 = arrayFieldValue(value);
+    }
+    else if (label === '关键词') {
+        result.关键词 = arrayFieldValue(value);
+    }
+    else if (label === '概述') {
+        result.概述 = value;
+    }
+    else if (label === '状态') {
+        result.状态 = value;
+    }
+    else if (label === '评分') {
+        result.评分_显示 = stripVariationSelectors(value);
+        const starCount = (value.match(/🌟/g) || []).length;
+        const numeric = value.match(/(?:^|\D)([1-5])(?:\D|$)/)?.[1];
+        const score = starCount >= 1 && starCount <= 5 ? starCount : Number(numeric);
+        if (score >= 1 && score <= 5)
+            result.评分 = score;
+    }
+    else if (label === '知识库索引' || label === '索引_知识库') {
+        result.索引_知识库 = value;
+    }
+    else if (label === '颜色索引' || label === '索引_颜色') {
+        result.索引_颜色 = value;
+    }
+    else if (label === '操作与反馈' || label === '索引_操作&反馈') {
+        result['索引_操作&反馈'] = arrayFieldValue(value);
+    }
+    else if (label === '块索引' || label === '索引_块') {
+        result.索引_块 = arrayFieldValue(value);
+    }
+    else if (label === '风险索引' || label === '索引_风险') {
+        result.索引_风险 = arrayFieldValue(value);
+    }
+    else if (label === '关联项目') {
+        result.关联项目 = arrayFieldValue(value);
+    }
+    else if (label === '关联文档') {
+        result.关联文档 = arrayFieldValue(value);
+    }
+    else if (label === '关联人物') {
+        result.关联人物 = arrayFieldValue(value);
+    }
+    else if (label === '索引') {
+        // 兼容旧版把所有索引合并成一行的格式。
+        parseIndexField(value, result);
+    }
 }
 /**
  * 解析索引合并字段 "💰正财 · 🔵工作 · ✅完成 · 🎯具象 · ✅简单 · ❤️健康"

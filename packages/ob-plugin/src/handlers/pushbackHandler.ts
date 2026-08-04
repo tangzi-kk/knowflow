@@ -19,6 +19,8 @@ import {
   metaToCalloutXml,
   feishuProtoToXml,
   convertOBCalloutsToFeishu,
+  alignFeishuImageTokens,
+  bodyHash,
   type YAMLFrontmatter,
 } from '@sync/shared';
 import { TFile, type App } from 'obsidian';
@@ -138,14 +140,32 @@ export function createPushbackHandler(deps: PushbackDeps) {
       );
     }
 
+    // 飞书回写后可能为图片重新分配 file_token；读回 XML 只用于同步本地图片引用，
+    // 不用远端正文覆盖本地正文，避免丢失本地 alt 文本和 Markdown 排版。
+    let syncedBody: string;
+    try {
+      const writtenRemote = fetchRemoteDocument({
+        nodeToken: feishuId || docToken,
+        objToken: docToken,
+        spaceId: deps.settings.spaceId,
+      });
+      syncedBody = alignFeishuImageTokens(parsed.body, writtenRemote.body);
+    } catch (error) {
+      throw new HttpError(
+        'REMOTE_WRITE_REPAIR_REQUIRED',
+        `远端已回写，但回读图片 token 失败；恢复副本：${recoveryPath}；${error instanceof Error ? error.message : String(error)}`,
+        500,
+      );
+    }
+
     // 步骤 9：更新 sync_hash + sync_time
     const syncTime = new Date().toISOString();
     const updatedFm = {
       ...parsed.frontmatter,
-      sync_hash: parsed.hash,
+      sync_hash: bodyHash(syncedBody),
       sync_time: syncTime,
     };
-    const newContent = assembleMd(updatedFm as never, parsed.body);
+    const newContent = assembleMd(updatedFm as never, syncedBody);
     try {
       await deps.app.vault.modify(file, newContent);
     } catch (error) {
@@ -161,7 +181,7 @@ export function createPushbackHandler(deps: PushbackDeps) {
     return {
       ok: true,
       action: 'pushed',
-      hash: parsed.hash,
+      hash: bodyHash(syncedBody),
       title,
     };
   };

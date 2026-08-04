@@ -23,7 +23,7 @@ export declare function escapeFeishuTilde(s: string): string;
  * @param meta 知识库元数据
  * @returns callout XML 字符串（含 strip VS）
  */
-export declare function metaToCalloutXml(meta: KnowledgeMeta): string;
+export declare function metaToCalloutXml(meta: Record<string, unknown>): string;
 /**
  * 从飞书 XML 的头部信息 callout 中解析出 YAML 字段值。
  * 依据 `03_格式规范.md` §四：`<li><b>字段名</b>：值</li>` 格式。

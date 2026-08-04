@@ -7,26 +7,40 @@
  */
 /** 同步版 sha256 hex（仅 Node 环境）。浏览器用 bodyHashAsync。 */
 export function bodyHash(body) {
+    const canonicalBody = normalizeBodyForHash(body);
     // Node 环境
     try {
         const { createHash } = require('node:crypto');
-        return createHash('sha256').update(body, 'utf8').digest('hex');
+        return createHash('sha256').update(canonicalBody, 'utf8').digest('hex');
     }
     catch {
         // 浏览器环境无 require，走 async 版（这里同步返回 fallback，调用方应用 async 版）
-        return syncFallbackHash(body);
+        return syncFallbackHash(canonicalBody);
     }
 }
 /**
  * 异步 sha256 hex（浏览器 + Node 通用）。推荐使用。
  */
 export async function bodyHashAsync(body) {
+    const canonicalBody = normalizeBodyForHash(body);
     const crypto = globalThis.crypto;
     if (crypto?.subtle) {
-        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body).buffer);
+        const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalBody).buffer);
         return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
     }
-    return syncFallbackHash(body);
+    return syncFallbackHash(canonicalBody);
+}
+/**
+ * 飞书 Markdown 会丢弃图片 alt 文本，而 Obsidian 会保留它。
+ * alt 只影响可读性，不是远端资源身份；hash 时统一为空，避免无变化回写被误判。
+ */
+function normalizeBodyForHash(body) {
+    return body
+        .replace(/\r\n/g, '\n')
+        .replace(/!\[[^\]]*\]\(feishu:\/\/([A-Za-z0-9]+)\)/g, (_full, token) => `![](feishu://${token})`)
+        // 飞书 Markdown 导出不带文件末尾换行，Obsidian 文件通常带一个；
+        // 末尾空行不属于正文语义，hash 时统一去掉。
+        .replace(/\n+$/g, '');
 }
 /**
  * 简易同步 fallback（非加密级，仅当 crypto API 都不可用时用）。

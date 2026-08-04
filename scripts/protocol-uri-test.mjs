@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict';
 import {
   buildObsidianLarkDocUri,
+  alignFeishuImageTokens,
+  bodyHash,
   parseFrontmatter,
   parseObsidianLarkDocParams,
+  rewriteImagesToFeishuProto,
 } from '../packages/shared/dist/index.js';
 
 const uri = buildObsidianLarkDocUri({
@@ -46,3 +49,26 @@ assert.deepEqual(parseFrontmatter('---\n标题: 测试\n---\n\n正文'), {
   frontmatter: { 标题: '测试' },
   body: '正文',
 });
+
+assert.equal(
+  alignFeishuImageTokens(
+    '![合成图](feishu://OLDTOKEN)',
+    '![合成图](feishu://NEWTOKEN)',
+  ),
+  '![合成图](feishu://NEWTOKEN)',
+);
+
+assert.equal(
+  bodyHash('![合成图](feishu://NEWTOKEN)'),
+  bodyHash('![](feishu://NEWTOKEN)'),
+);
+
+assert.equal(bodyHash('正文\n'), bodyHash('正文\n\n'));
+
+assert.equal(
+  rewriteImagesToFeishuProto(
+    '![](https://api3-eeft-drive.feishu.cn/space/api/box/stream/download/authcode/?code=temporary)',
+    new Set(['STABLETOKEN1234567890']),
+  ),
+  '![](feishu://STABLETOKEN1234567890)',
+);

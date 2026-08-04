@@ -67,6 +67,7 @@ export {
   extractImgTokenMapFromXml,
   extractImgTokensFromXml,
   extractFeishuImageTokens,
+  alignFeishuImageTokens,
   feishuProtoToXml,
 } from './image.js';
 export {
@@ -74,6 +75,8 @@ export {
   parseFrontmatter,
   inspectFrontmatter,
   assembleFile,
+  withCompleteFrontmatter,
+  YAML_METADATA_DEFAULTS,
 } from './yaml.js';
 export type { FrontmatterInspection } from './yaml.js';
 export {

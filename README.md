@@ -43,6 +43,7 @@
 - 人类阅读说明：[`docs/human-guide.html`](docs/human-guide.html)
 - AI 接手说明：[`docs/AI_HANDOFF.md`](docs/AI_HANDOFF.md)
 - 当前设计入口：[`docs/design/README.md`](docs/design/README.md)
+- 飞书 ↔ Obsidian 正式格式规范：[`docs/design/feishu-obsidian-format.md`](docs/design/feishu-obsidian-format.md)
 - 需求池：[`需求池.md`](需求池.md)；本地编辑页：[`需求编辑器.html`](需求编辑器.html)（产品需求直接保存，另可导出记忆候选与知识需求）
 - UI 原型：[`ui-prototype/README.md`](ui-prototype/README.md)
 
@@ -149,7 +150,7 @@
 |------|------|
 | 🔄 **双向同步** | 飞书 → OB（拉取）、OB → 飞书（回写），hash 轻核验避免重复 |
 | 🎨 **Callout 保留** | 飞书高亮块颜色/emoji → OB callout，回写时反向还原 |
-| 🏷️ **元数据绑定** | 飞书头部「文档信息」callout ↔ OB YAML frontmatter 自动互转 |
+| 🏷️ **元数据绑定** | 飞书头部「KnowFlow 元数据」callout ↔ 完整 OB YAML frontmatter 自动互转，系统绑定信息单独保护 |
 | 📸 **图片处理** | 飞书图片 → `feishu://FILE_TOKEN` 永久引用，预览时实时下载 |
 | 🔢 **自动识别与编码** | 新建/修改后自动按标题、正文和关键词识别标签、分配完整编码并改名为短编码前缀；文件夹作为容器按名称自然排序、从 `01` 连续重排，右键可预览整个容器 |
 | 📋 **Clipper 兼容** | 监听飞书官方 Clipper 占位文件，自动替换为真实同步内容 |

@@ -13,7 +13,6 @@
 
 import type { KnowledgeMeta, Tag } from './types.js';
 import {
-  CALLOUT_FIELD_MAP,
   TAG_NAMES,
   DOC_INFO_CALLOUT,
   OB_CALLOUT_TO_FEISHU,
@@ -95,7 +94,50 @@ function htmlToPlainText(html: string): string {
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
+    // 飞书 Markdown 导出会把 callout 内的强调符号转义成 `\\**`、`\\*`。
+    // 回到 Obsidian 前还原，避免同一正文仅因展示层转义而被判定为冲突。
+    .replace(/\\([*_~`])/g, '$1')
     .trim();
+}
+
+function escapeXmlText(value: unknown): string {
+  return stripVariationSelectors(String(value ?? ''))
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;')
+    .replace(/[\r\n]+/g, ' ')
+    .trim();
+}
+
+function isBlankValue(value: unknown): boolean {
+  return value === undefined
+    || value === null
+    || value === ''
+    || (Array.isArray(value) && value.length === 0);
+}
+
+function displayValue(value: unknown, fallback = '未设置'): string {
+  if (isBlankValue(value)) return fallback;
+  if (Array.isArray(value)) {
+    const values = value.map(item => String(item).trim()).filter(Boolean);
+    return values.length > 0 ? values.join(' · ') : fallback;
+  }
+  return String(value).trim() || fallback;
+}
+
+function xmlListItem(label: string, value: unknown, fallback = '未设置'): string {
+  return `<li><b>${escapeXmlText(label)}</b>：${escapeXmlText(displayValue(value, fallback))}</li>`;
+}
+
+function xmlSection(title: string, fields: Array<[string, unknown]>): string[] {
+  return [
+    `<p><b>${escapeXmlText(title)}</b></p>`,
+    '<ul>',
+    ...fields.map(([label, value]) => xmlListItem(label, value)),
+    '</ul>',
+  ];
 }
 
 // ──────────────── OB→飞书：YAML→合并信息 callout XML ────────────────
@@ -107,29 +149,32 @@ function htmlToPlainText(html: string): string {
  * @param meta 知识库元数据
  * @returns callout XML 字符串（含 strip VS）
  */
-export function metaToCalloutXml(meta: KnowledgeMeta): string {
-  const lines: string[] = [];
-
-  for (const item of CALLOUT_FIELD_MAP) {
-    const raw = meta[item.field];
-    if (raw === undefined || raw === null || raw === '' || (Array.isArray(raw) && raw.length === 0)) continue;
-
-    let value: string;
-    if (item.field === '标签') {
-      value = formatTagValue(raw as Tag | undefined);
-    } else if (item.field === '评分_显示') {
-      value = stripVariationSelectors(String(raw));
-    } else if (Array.isArray(raw)) {
-      value = (raw as string[]).join(' · ');
-    } else {
-      value = stripVariationSelectors(String(raw));
-    }
-    if (!value) continue;
-
-    lines.push(`<li><b>${item.label}</b>：${value}</li>`);
-  }
-
-  if (lines.length === 0) return '';
+export function metaToCalloutXml(meta: Record<string, unknown>): string {
+  const score = !isBlankValue(meta.评分_显示) ? meta.评分_显示 : meta.评分;
+  const primary = [
+    ['标签', isBlankValue(meta.标签) ? undefined : formatTagValue(meta.标签 as Tag)],
+    ['状态', meta.状态],
+    ['概述', meta.概述],
+    ['关键词', meta.关键词],
+    ['输入', meta.输入],
+    ['日期', meta.日期],
+    ['日期索引', meta.日期索引],
+    ['评分', score],
+    ['知识库索引', meta.索引_知识库],
+    ['颜色索引', meta.索引_颜色],
+    ['操作与反馈', meta['索引_操作&反馈']],
+    ['块索引', meta.索引_块],
+    ['风险索引', meta.索引_风险],
+    ['关联项目', meta.关联项目],
+    ['关联文档', meta.关联文档],
+    ['关联人物', meta.关联人物],
+  ] as Array<[string, unknown]>;
+  const system = [
+    ['协议版本', meta.协议版本],
+    ['文档ID', meta.文档ID],
+    ['编码', meta.编码],
+    ['短编码', meta.短编码],
+  ] as Array<[string, unknown]>;
 
   const { emoji, ...attrs } = DOC_INFO_CALLOUT;
   const attrStr = Object.entries(attrs)
@@ -139,10 +184,8 @@ export function metaToCalloutXml(meta: KnowledgeMeta): string {
 
   return [
     `<callout emoji="${cleanEmoji}" ${attrStr}>`,
-    `<p><b>文档信息</b></p>`,
-    `<ul>`,
-    ...lines,
-    `</ul>`,
+    ...xmlSection('KnowFlow 元数据', primary),
+    ...xmlSection('系统信息', system),
     `</callout>`,
     '',
   ].join('\n');
@@ -160,47 +203,80 @@ export function metaToCalloutXml(meta: KnowledgeMeta): string {
 export function calloutXmlToMeta(xml: string): Partial<KnowledgeMeta> {
   const result: Partial<KnowledgeMeta> = {};
 
-  // 找"文档信息"callout
-  const calloutRe = /<callout\b[^>]*>\s*<p><b>文档信息<\/b><\/p>\s*<ul>([\s\S]*?)<\/ul>\s*<\/callout>/;
-  const calloutMatch = xml.match(calloutRe);
-  if (!calloutMatch) return result;
+  const calloutRe = /<callout\b[^>]*>[\s\S]*?<\/callout>/g;
+  for (const match of xml.matchAll(calloutRe)) {
+    const callout = match[0];
+    if (!/<p><b>(?:KnowFlow 元数据|文档信息)<\/b><\/p>/.test(callout)) continue;
 
-  const ulContent = calloutMatch[1];
-  const liRe = /<li><b>([^<]+)<\/b>[：:](.+?)<\/li>/g;
-  let m: RegExpExecArray | null;
-
-  while ((m = liRe.exec(ulContent)) !== null) {
-    const label = m[1].trim();
-    const value = unescapeFeishuTilde(m[2].trim());
-
-    // 根据标签名映射到字段
-    if (label === '标签') {
-      const tag = parseTagValue(value);
-      if (tag) result.标签 = tag;
-    } else if (label === '编码') {
-      result.编码 = value.replace(/^🔢\s*/, '').trim();
-    } else if (label === '输入') {
-      result.输入 = value.replace(/^📥\s*/, '').trim();
-    } else if (label === '日期') {
-      result.日期 = value.replace(/^📅\s*/, '').trim();
-    } else if (label === '关键词') {
-      result.关键词 = value.replace(/^🔑\s*/, '').trim();
-    } else if (label === '评分') {
-      // 提取评分显示串（如 "🌟🌟🌟｜实践"）
-      result.评分_显示 = stripVariationSelectors(value);
-      // 尝试提取数字
-      const starCount = (value.match(/🌟/g) || []).length;
-      if (starCount >= 1 && starCount <= 5) {
-        result.评分 = starCount;
-      }
-    } else if (label === '索引') {
-      // 索引是多维度合并显示（💰正财 · 🔵工作 · ...）
-      // 需要进一步拆分各维度
-      parseIndexField(value, result);
+    const liRe = /<li>\s*<b>([^<]+)<\/b>\s*[：:]\s*([\s\S]*?)<\/li>/g;
+    let item: RegExpExecArray | null;
+    while ((item = liRe.exec(callout)) !== null) {
+      const label = htmlToPlainText(item[1]);
+      const value = unescapeFeishuTilde(htmlToPlainText(item[2]));
+      applyCalloutField(label, value, result);
     }
   }
 
   return result;
+}
+
+function arrayFieldValue(value: string): string[] {
+  if (!value || value === '未设置' || value === '—') return [];
+  return value.split(/\s*·\s*|\s*[、,，]\s*|\n/).map(item => item.trim()).filter(Boolean);
+}
+
+function applyCalloutField(label: string, value: string, result: Partial<KnowledgeMeta>): void {
+  if (!value || value === '未设置' || value === '—') return;
+  if (label === '标签') {
+    const tag = parseTagValue(value);
+    if (tag) result.标签 = tag;
+  } else if (label === '协议版本') {
+    const version = Number(value);
+    if (Number.isInteger(version)) result.协议版本 = version as 1;
+  } else if (label === '文档ID') {
+    result.文档ID = value;
+  } else if (label === '编码') {
+    result.编码 = value.replace(/^🔢\s*/, '').trim();
+  } else if (label === '短编码') {
+    result.短编码 = value.trim();
+  } else if (label === '输入') {
+    result.输入 = value.replace(/^📥\s*/, '').trim();
+  } else if (label === '日期') {
+    result.日期 = value.replace(/^📅\s*/, '').trim();
+  } else if (label === '日期索引') {
+    result.日期索引 = arrayFieldValue(value);
+  } else if (label === '关键词') {
+    result.关键词 = arrayFieldValue(value);
+  } else if (label === '概述') {
+    result.概述 = value;
+  } else if (label === '状态') {
+    result.状态 = value as KnowledgeMeta['状态'];
+  } else if (label === '评分') {
+    result.评分_显示 = stripVariationSelectors(value);
+    const starCount = (value.match(/🌟/g) || []).length;
+    const numeric = value.match(/(?:^|\D)([1-5])(?:\D|$)/)?.[1];
+    const score = starCount >= 1 && starCount <= 5 ? starCount : Number(numeric);
+    if (score >= 1 && score <= 5) result.评分 = score;
+  } else if (label === '知识库索引' || label === '索引_知识库') {
+    result.索引_知识库 = value;
+  } else if (label === '颜色索引' || label === '索引_颜色') {
+    result.索引_颜色 = value;
+  } else if (label === '操作与反馈' || label === '索引_操作&反馈') {
+    result['索引_操作&反馈'] = arrayFieldValue(value);
+  } else if (label === '块索引' || label === '索引_块') {
+    result.索引_块 = arrayFieldValue(value);
+  } else if (label === '风险索引' || label === '索引_风险') {
+    result.索引_风险 = arrayFieldValue(value);
+  } else if (label === '关联项目') {
+    result.关联项目 = arrayFieldValue(value);
+  } else if (label === '关联文档') {
+    result.关联文档 = arrayFieldValue(value);
+  } else if (label === '关联人物') {
+    result.关联人物 = arrayFieldValue(value);
+  } else if (label === '索引') {
+    // 兼容旧版把所有索引合并成一行的格式。
+    parseIndexField(value, result);
+  }
 }
 
 /**
