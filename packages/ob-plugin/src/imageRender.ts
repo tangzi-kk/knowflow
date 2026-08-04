@@ -19,32 +19,69 @@ const CACHE_DIR = '.feishu-sync/cache';
 export function registerImageRenderer(plugin: Plugin): void {
   if (!Platform.isDesktopApp) return;
 
-  plugin.registerMarkdownPostProcessor(async (el) => {
-    const imgs = el.querySelectorAll('img');
-    for (const img of Array.from(imgs)) {
-      const src = img.getAttribute('src') || '';
-      if (!src.startsWith('feishu://')) continue;
+  const processImages = async (root: ParentNode): Promise<void> => {
+    const imgs: HTMLImageElement[] = [];
+    if (root instanceof HTMLImageElement) imgs.push(root);
+    imgs.push(...Array.from(root.querySelectorAll<HTMLImageElement>('img')));
+    await Promise.all(imgs.map((img) => renderImage(plugin, img)));
+  };
 
-      try {
-        const token = validateImageToken(src.slice('feishu://'.length));
-        const localPath = await resolveImage(plugin, token);
-        if (localPath) {
-          // 用 vault:// 链接或 app://local/ 链接
-          const vaultBase = (
-            plugin.app.vault.adapter as typeof plugin.app.vault.adapter & { getBasePath?: () => string }
-          ).getBasePath?.() ?? '';
-          const fullPath = path.join(vaultBase, localPath);
-          img.setAttribute('src', `app://local/${fullPath}`);
-        } else {
-          img.setAttribute('alt', `[飞书图片 ${token.slice(0, 8)} 加载失败]`);
-          img.setAttribute('src', '');
-        }
-      } catch (err) {
-        console.warn('[sync/image] render failed:', err);
-        img.setAttribute('alt', '[飞书图片加载失败]');
+  // MarkdownPostProcessor 只覆盖阅读视图；Live Preview 使用 CodeMirror 自己
+  // 创建 img，因此另加一个 DOM 观察器，保证两种视图都能处理 feishu:// 图片。
+  plugin.registerMarkdownPostProcessor(async (el) => {
+    await processImages(el);
+  });
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of Array.from(mutation.addedNodes)) {
+        if (node.nodeType === Node.ELEMENT_NODE) void processImages(node as Element);
       }
     }
   });
+  if (document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+    void processImages(document.body);
+  }
+  plugin.register(() => observer.disconnect());
+}
+
+async function renderImage(plugin: Plugin, img: HTMLImageElement): Promise<void> {
+  const src = img.getAttribute('src') || '';
+  if (!src.startsWith('feishu://')) return;
+  if (img.dataset.knowflowImageState) return;
+  img.dataset.knowflowImageState = 'pending';
+
+  try {
+    const token = validateImageToken(src.slice('feishu://'.length));
+    const localPath = await resolveImage(plugin, token);
+    // 视图在下载期间可能已经被关闭或换成了别的资源，避免旧任务覆盖新内容。
+    if (img.getAttribute('src') !== src) return;
+    if (localPath) {
+      // 使用 Vault adapter 的官方资源 URI，不手工拼接绝对路径，也不要求
+      // metadata cache 先建立 TFile；这正是 Live Preview 所需的路径形式。
+      const adapter = plugin.app.vault.adapter as typeof plugin.app.vault.adapter & {
+        getResourcePath?: (normalizedPath: string) => string;
+        getBasePath?: () => string;
+      };
+      const resourcePath = adapter.getResourcePath?.(localPath);
+      if (resourcePath) {
+        img.setAttribute('src', resourcePath);
+      } else {
+        const vaultBase = adapter.getBasePath?.() ?? '';
+        img.setAttribute('src', `app://local/${path.join(vaultBase, localPath)}`);
+      }
+      img.dataset.knowflowImageState = 'resolved';
+    } else {
+      img.setAttribute('alt', `[飞书图片 ${token.slice(0, 8)} 加载失败]`);
+      img.removeAttribute('src');
+      img.dataset.knowflowImageState = 'failed';
+    }
+  } catch (err) {
+    console.warn('[sync/image] render failed:', err);
+    img.setAttribute('alt', '[飞书图片加载失败]');
+    img.removeAttribute('src');
+    img.dataset.knowflowImageState = 'failed';
+  }
 }
 
 /**
@@ -85,12 +122,13 @@ async function doResolveImage(plugin: Plugin, token: string): Promise<string | n
     /* ignore */
   }
 
-  // 下载到临时本地路径（lark-cli 需要本地文件系统路径）
+  // lark-cli 的 --output 只接受当前工作目录内的相对路径。
+  // 让它在 Vault 根目录执行，既满足 CLI 安全校验，又保持缓存路径可由 Vault adapter 管理。
   const vaultBase = (adapter as { getBasePath?: () => string }).getBasePath?.() ?? process.cwd();
-  const localFullPath = path.join(vaultBase, cachePath);
 
   try {
-    run(['docs', '+media-download', '--token', token, '--output', localFullPath], {
+    run(['docs', '+media-download', '--token', token, '--output', cachePath], {
+      cwd: vaultBase,
       timeout: 30000,
     });
     return cachePath;
