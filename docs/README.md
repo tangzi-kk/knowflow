@@ -14,14 +14,14 @@
 | 让 AI / Codex 接手 | [`AI_HANDOFF.md`](AI_HANDOFF.md) |
 | 查当前设计决策 | [`design/README.md`](design/README.md) |
 | 查 UI 原型 | [`../ui-prototype/README.md`](../ui-prototype/README.md) |
-| 查 4.1 验收边界 | [`validation/4.1-acceptance.md`](validation/4.1-acceptance.md) |
+| 查 4.5.5 验收边界 | [`validation/4.5.5-acceptance.md`](validation/4.5.5-acceptance.md) |
 
 ## 当前文档
 
 - [`human-guide.html`](human-guide.html)：面向人的非技术说明。
 - [`AI_HANDOFF.md`](AI_HANDOFF.md)：组件边界、路径、验证和当前状态。
 - [`design/README.md`](design/README.md)：当前有效设计决策和正式实现/原型边界。
-- [`validation/4.1-acceptance.md`](validation/4.1-acceptance.md)：当前稳定版验收记录。
+- [`validation/4.5.5-acceptance.md`](validation/4.5.5-acceptance.md)：当前稳定版验收记录和 2026-08-04 真机全流程章节。
 - [`diagrams/`](diagrams/)：任务依赖、状态和错误回退图。
 
 ## 历史资料
