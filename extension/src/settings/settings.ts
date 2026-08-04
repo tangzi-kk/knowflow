@@ -282,6 +282,7 @@ function renderInterpreter(config: InterpreterConfig): void {
   $<HTMLInputElement>('interpreter-enabled').checked = config.enabled;
   $<HTMLInputElement>('interpreter-auto-run').checked = config.autoRun;
   $<HTMLInputElement>('interpreter-custom-enabled').checked = config.customProviderEnabled === true;
+  $<HTMLInputElement>('interpreter-fallback-enabled').checked = config.fallbackEnabled !== false;
   $<HTMLInputElement>('interpreter-provider').value = config.provider;
   $<HTMLInputElement>('interpreter-base-url').value = config.baseUrl;
   $<HTMLInputElement>('interpreter-model').value = config.model;
@@ -296,6 +297,7 @@ function readInterpreter(): InterpreterConfig {
     enabled: $<HTMLInputElement>('interpreter-enabled').checked,
     autoRun: $<HTMLInputElement>('interpreter-auto-run').checked,
     customProviderEnabled: $<HTMLInputElement>('interpreter-custom-enabled').checked,
+    fallbackEnabled: $<HTMLInputElement>('interpreter-fallback-enabled').checked,
     provider: $<HTMLInputElement>('interpreter-provider').value.trim() || DEFAULT_INTERPRETER_CONFIG.provider,
     baseUrl: $<HTMLInputElement>('interpreter-base-url').value.trim() || DEFAULT_INTERPRETER_CONFIG.baseUrl,
     model: $<HTMLInputElement>('interpreter-model').value.trim() || DEFAULT_INTERPRETER_CONFIG.model,

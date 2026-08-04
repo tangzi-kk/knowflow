@@ -4,7 +4,16 @@
  * - 消息路由（连接检测 / Web Clipper / AI Chat / 飞书同步触发）
  * - 定期健康检查 + badge 更新
  */
-import { DEFAULT_CONFIG, loadConfig, testConnection, saveConfig, postClip, postFetch } from './client.js';
+import {
+  DEFAULT_CONFIG,
+  chatWithOpenAiCompatible,
+  loadConfig,
+  loadInterpreterConfig,
+  testConnection,
+  saveConfig,
+  postClip,
+  postFetch,
+} from './client.js';
 import { sendDeepSeekWebMessage, getDeepSeekToken, setDeepSeekToken, isValidToken } from './deepseek-web.js';
 import { GEMINI_WEB_MODELS, resolveAiRoute, type AiProvider } from './ai-routing.js';
 import { AI_CONFIG_STORAGE, loadSecretBackedConfig, migrateLegacySecrets } from './storage.js';
@@ -65,6 +74,30 @@ const DEFAULT_CONTEXT_SCENES: ContextScene[] = [
 
 const AI_TIMEOUT_MS = 30000;
 const AI_TIMEOUT_MESSAGE = 'AI 请求超时。请重试，或开启「自定义 AI 解释器」后使用自定义 API。';
+
+async function runLocalAiFallback(fullPrompt: string, attachments: AiAttachment[] = []): Promise<string> {
+  const config = await loadInterpreterConfig();
+  if (config.fallbackEnabled === false) {
+    throw new Error('本地模型回退未启用。请在设置中打开“Gemini 失败时使用本地模型”。');
+  }
+  if (!config.enabled) throw new Error('本地 AI 解释器未启用。');
+
+  const content = attachments.length > 0
+    ? [
+      { type: 'text' as const, text: fullPrompt },
+      ...attachments.map((attachment) => ({
+        type: 'image_url' as const,
+        image_url: { url: attachment.dataUrl },
+      })),
+    ]
+    : fullPrompt;
+
+  return withTimeout(
+    chatWithOpenAiCompatible(config, [{ role: 'user', content }]),
+    AI_TIMEOUT_MS,
+    AI_TIMEOUT_MESSAGE,
+  );
+}
 
 async function migrateAllSecrets(): Promise<void> {
   const report = await migrateLegacySecrets();
@@ -147,7 +180,7 @@ async function runInlineAi(payload: { action?: string; text?: string; prompt?: s
   const route = resolveAiRoute(config);
   const systemPrompt = config.systemPrompt ? `${config.systemPrompt}\n\n` : '';
   const fullPrompt = `${systemPrompt}${prompt}`;
-  let aiResult: string;
+  let aiResult = '';
 
   if (route.kind === 'deepseek-web') {
     const token = await getDeepSeekToken();
@@ -160,6 +193,7 @@ async function runInlineAi(payload: { action?: string; text?: string; prompt?: s
       AI_TIMEOUT_MESSAGE,
     );
   } else if (route.kind === 'gemini-web') {
+    let deepSeekError: unknown = null;
     try {
       aiResult = await withTimeout(
         sendGeminiWebMessage(fullPrompt, route.model, attachments),
@@ -168,19 +202,34 @@ async function runInlineAi(payload: { action?: string; text?: string; prompt?: s
       );
     } catch (geminiError) {
       const token = await getDeepSeekToken();
-      if (!isValidToken(token)) throw geminiError;
-      try {
-        aiResult = await withTimeout(
-          sendDeepSeekWebMessage({ prompt: fullPrompt }),
-          AI_TIMEOUT_MS,
-          AI_TIMEOUT_MESSAGE,
-        );
-      } catch (deepSeekError) {
-        throw new Error(
-          `Gemini Web 不可用，DeepSeek Web 降级也失败。\n` +
-          `Gemini：${geminiError instanceof Error ? geminiError.message : String(geminiError)}\n` +
-          `DeepSeek：${deepSeekError instanceof Error ? deepSeekError.message : String(deepSeekError)}`,
-        );
+      if (isValidToken(token)) {
+        try {
+          aiResult = await withTimeout(
+            sendDeepSeekWebMessage({ prompt: fullPrompt }),
+            AI_TIMEOUT_MS,
+            AI_TIMEOUT_MESSAGE,
+          );
+        } catch (error) {
+          deepSeekError = error;
+        }
+      } else {
+        deepSeekError = new Error('DeepSeek Web Token 未配置');
+      }
+
+      if (!deepSeekError) {
+        // TypeScript control-flow narrowing cannot infer this branch assigns aiResult.
+        if (!aiResult?.trim()) throw new Error('DeepSeek Web 未返回内容');
+      } else {
+        try {
+          aiResult = await runLocalAiFallback(fullPrompt, attachments);
+        } catch (localError) {
+          throw new Error(
+            `Gemini Web 不可用，DeepSeek Web 和本地模型回退均失败。\n` +
+            `Gemini：${geminiError instanceof Error ? geminiError.message : String(geminiError)}\n` +
+            `DeepSeek：${deepSeekError instanceof Error ? deepSeekError.message : String(deepSeekError)}\n` +
+            `本地模型：${localError instanceof Error ? localError.message : String(localError)}`,
+          );
+        }
       }
     }
   } else if (route.kind === 'unsupported') {

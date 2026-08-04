@@ -67,6 +67,8 @@ export interface InterpreterConfig {
   enabled: boolean;
   autoRun: boolean;
   customProviderEnabled?: boolean;
+  /** Gemini Web / 其他在线 Provider 失败时，是否自动使用本地兼容接口。 */
+  fallbackEnabled?: boolean;
   provider: string;
   baseUrl: string;
   model: string;
@@ -175,6 +177,7 @@ export const DEFAULT_INTERPRETER_CONFIG: InterpreterConfig = {
   enabled: true,
   autoRun: false,
   customProviderEnabled: false,
+  fallbackEnabled: true,
   provider: 'NewAPI',
   baseUrl: 'http://127.0.0.1:3000/v1',
   model: 'smart',
@@ -182,6 +185,57 @@ export const DEFAULT_INTERPRETER_CONFIG: InterpreterConfig = {
   excerptChars: 4000,
   context: '从页面标题、URL、正文摘要和目标目录推断 Obsidian YAML 属性。通过 NewAPI 角色路由调用本地中转；保持保守，不确定的字段留空。',
 };
+
+export type ChatMessage = {
+  role: string;
+  content: string | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
+};
+
+/**
+ * 调用本地 OpenAI 兼容接口。
+ * 解释器和 Gemini 失败回退共用这一条请求路径，避免两套 endpoint 规则漂移。
+ */
+export async function chatWithOpenAiCompatible(
+  config: Pick<InterpreterConfig, 'baseUrl' | 'model' | 'apiKey'>,
+  messages: ChatMessage[],
+  options: { temperature?: number; responseFormat?: 'json_object' } = {},
+): Promise<string> {
+  if (!config.baseUrl || !config.model) throw new Error('请先配置本地 AI 中转地址和路由模型');
+  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: config.model,
+        temperature: options.temperature ?? 0.7,
+        ...(options.responseFormat ? { response_format: { type: options.responseFormat } } : {}),
+        messages,
+      }),
+    });
+  } catch (error) {
+    throw new Error(`无法连接本地 AI 中转：${error instanceof Error ? error.message : String(error)}。请确认 ${config.baseUrl} 可访问。`);
+  }
+
+  const data = await response.json() as {
+    error?: { message?: string };
+    choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+  };
+  if (!response.ok) throw new Error(data.error?.message || `本地 AI 请求失败：HTTP ${response.status}`);
+
+  const content = data.choices?.[0]?.message?.content;
+  if (Array.isArray(content)) {
+    const text = content.map((part) => part.text || '').join('').trim();
+    if (text) return text;
+  } else if (typeof content === 'string' && content.trim()) {
+    return content;
+  }
+  throw new Error('本地 AI 未返回内容');
+}
 
 /** 从 chrome.storage 加载配置。 */
 export async function loadConfig(): Promise<SyncConfig> {
@@ -232,20 +286,7 @@ export async function suggestMetaWithInterpreter(
   if (!config.baseUrl || !config.model) throw new Error('请先配置 AI 中转地址和路由模型');
   if (/newapi/i.test(config.provider) && !config.apiKey) throw new Error('请先在 AI 解释器设置里填写 NewAPI API Key');
 
-  const endpoint = `${config.baseUrl.replace(/\/+$/, '')}/chat/completions`;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
-
-  let res: Response;
-  try {
-    res = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: config.model,
-        temperature: 0.2,
-        response_format: { type: 'json_object' },
-        messages: [
+  const content = await chatWithOpenAiCompatible(config, [
           {
             role: 'system',
             content: [
@@ -294,23 +335,8 @@ export async function suggestMetaWithInterpreter(
             }),
           },
         ],
-      }),
-    });
-  } catch (err) {
-    throw new Error(`无法连接 AI 中转：${err instanceof Error ? err.message : String(err)}。请确认 ${config.baseUrl} 可访问，且 Chrome 已重载扩展。`);
-  }
-
-  const data = await res.json() as {
-    error?: { message?: string };
-    choices?: Array<{ message?: { content?: string } }>;
-  };
-
-  if (!res.ok) {
-    throw new Error(data.error?.message || `AI 请求失败：HTTP ${res.status}`);
-  }
-
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error('AI 未返回建议内容');
+        { temperature: 0.2, responseFormat: 'json_object' },
+  );
 
   try {
     return JSON.parse(content) as SuggestedMeta;

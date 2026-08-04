@@ -1091,6 +1091,7 @@
     enabled: true,
     autoRun: false,
     customProviderEnabled: false,
+    fallbackEnabled: true,
     provider: "NewAPI",
     baseUrl: "http://127.0.0.1:3000/v1",
     model: "smart",
@@ -1469,6 +1470,7 @@
     $("interpreter-enabled").checked = config.enabled;
     $("interpreter-auto-run").checked = config.autoRun;
     $("interpreter-custom-enabled").checked = config.customProviderEnabled === true;
+    $("interpreter-fallback-enabled").checked = config.fallbackEnabled !== false;
     $("interpreter-provider").value = config.provider;
     $("interpreter-base-url").value = config.baseUrl;
     $("interpreter-model").value = config.model;
@@ -1482,6 +1484,7 @@
       enabled: $("interpreter-enabled").checked,
       autoRun: $("interpreter-auto-run").checked,
       customProviderEnabled: $("interpreter-custom-enabled").checked,
+      fallbackEnabled: $("interpreter-fallback-enabled").checked,
       provider: $("interpreter-provider").value.trim() || DEFAULT_INTERPRETER_CONFIG.provider,
       baseUrl: $("interpreter-base-url").value.trim() || DEFAULT_INTERPRETER_CONFIG.baseUrl,
       model: $("interpreter-model").value.trim() || DEFAULT_INTERPRETER_CONFIG.model,

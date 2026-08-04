@@ -1327,6 +1327,7 @@
     DEFAULT_INTERPRETER_CONFIG: () => DEFAULT_INTERPRETER_CONFIG,
     DEFAULT_PROPERTY_OPTIONS: () => DEFAULT_PROPERTY_OPTIONS,
     DEFAULT_PROPERTY_TEMPLATE: () => DEFAULT_PROPERTY_TEMPLATE,
+    chatWithOpenAiCompatible: () => chatWithOpenAiCompatible,
     getStatus: () => getStatus,
     getTree: () => getTree,
     loadConfig: () => loadConfig,
@@ -1383,6 +1384,37 @@
   function pickKnownValue(raw, values) {
     return values.find((value) => raw.includes(value));
   }
+  async function chatWithOpenAiCompatible(config, messages, options = {}) {
+    if (!config.baseUrl || !config.model) throw new Error("\u8BF7\u5148\u914D\u7F6E\u672C\u5730 AI \u4E2D\u8F6C\u5730\u5740\u548C\u8DEF\u7531\u6A21\u578B");
+    const endpoint = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+    const headers = { "Content-Type": "application/json" };
+    if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
+    let response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: config.model,
+          temperature: options.temperature ?? 0.7,
+          ...options.responseFormat ? { response_format: { type: options.responseFormat } } : {},
+          messages
+        })
+      });
+    } catch (error) {
+      throw new Error(`\u65E0\u6CD5\u8FDE\u63A5\u672C\u5730 AI \u4E2D\u8F6C\uFF1A${error instanceof Error ? error.message : String(error)}\u3002\u8BF7\u786E\u8BA4 ${config.baseUrl} \u53EF\u8BBF\u95EE\u3002`);
+    }
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || `\u672C\u5730 AI \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${response.status}`);
+    const content = data.choices?.[0]?.message?.content;
+    if (Array.isArray(content)) {
+      const text = content.map((part) => part.text || "").join("").trim();
+      if (text) return text;
+    } else if (typeof content === "string" && content.trim()) {
+      return content;
+    }
+    throw new Error("\u672C\u5730 AI \u672A\u8FD4\u56DE\u5185\u5BB9");
+  }
   async function loadConfig() {
     return loadSecretBackedConfig(DEFAULT_CONFIG, SYNC_CONFIG_STORAGE);
   }
@@ -1420,78 +1452,59 @@
     if (!config.enabled) throw new Error("\u89E3\u91CA\u5668\u672A\u542F\u7528");
     if (!config.baseUrl || !config.model) throw new Error("\u8BF7\u5148\u914D\u7F6E AI \u4E2D\u8F6C\u5730\u5740\u548C\u8DEF\u7531\u6A21\u578B");
     if (/newapi/i.test(config.provider) && !config.apiKey) throw new Error("\u8BF7\u5148\u5728 AI \u89E3\u91CA\u5668\u8BBE\u7F6E\u91CC\u586B\u5199 NewAPI API Key");
-    const endpoint = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
-    const headers = { "Content-Type": "application/json" };
-    if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
-    let res;
-    try {
-      res = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          model: config.model,
-          temperature: 0.2,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content: [
-                "\u4F60\u662F Obsidian \u77E5\u8BC6\u5E93\u540C\u6B65\u63D2\u4EF6\u7684\u5C5E\u6027\u5EFA\u8BAE\u5668\u3002",
-                "\u53EA\u6839\u636E\u7ED9\u5B9A\u6807\u9898\u3001URL\u3001\u76EE\u5F55\u548C\u53EF\u9009\u9879\u5EFA\u8BAE YAML \u5C5E\u6027\u3002",
-                "\u4EBA\u5DE5\u786E\u8BA4\u4F18\u5148\uFF1B\u4F60\u53EA\u63D0\u4F9B\u5EFA\u8BAE\uFF0C\u4E0D\u8981\u7F16\u9020\u6CA1\u6709\u8BC1\u636E\u7684\u5B57\u6BB5\u3002",
-                "\u8F93\u51FA\u4E25\u683C JSON\uFF0C\u4E0D\u8981 Markdown\u3002"
-              ].join("\n")
+    const content = await chatWithOpenAiCompatible(
+      config,
+      [
+        {
+          role: "system",
+          content: [
+            "\u4F60\u662F Obsidian \u77E5\u8BC6\u5E93\u540C\u6B65\u63D2\u4EF6\u7684\u5C5E\u6027\u5EFA\u8BAE\u5668\u3002",
+            "\u53EA\u6839\u636E\u7ED9\u5B9A\u6807\u9898\u3001URL\u3001\u76EE\u5F55\u548C\u53EF\u9009\u9879\u5EFA\u8BAE YAML \u5C5E\u6027\u3002",
+            "\u4EBA\u5DE5\u786E\u8BA4\u4F18\u5148\uFF1B\u4F60\u53EA\u63D0\u4F9B\u5EFA\u8BAE\uFF0C\u4E0D\u8981\u7F16\u9020\u6CA1\u6709\u8BC1\u636E\u7684\u5B57\u6BB5\u3002",
+            "\u8F93\u51FA\u4E25\u683C JSON\uFF0C\u4E0D\u8981 Markdown\u3002"
+          ].join("\n")
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            task: "\u4E3A\u98DE\u4E66\u6587\u6863\u5EFA\u8BAE Obsidian YAML \u5C5E\u6027",
+            title: input.title,
+            source: input.source,
+            targetDir: input.dir,
+            excerpt: input.excerpt ?? "",
+            template: input.template,
+            options: input.options,
+            rules: {
+              \u6807\u7B7E: "\u5FC5\u987B\u4ECE S/X/L/Z/Q/J \u4E2D\u9009\u4E00\u4E2A\uFF1B\u4E0D\u786E\u5B9A\u9009 S\u3002",
+              \u8BC4\u5206: "\u53EF\u4E3A\u7A7A\uFF1B\u6709\u8BC1\u636E\u65F6\u4ECE 1-5 \u9009\u4E00\u4E2A\u3002",
+              \u8BC4\u5206_\u663E\u793A: "\u4E0E\u8BC4\u5206\u5BF9\u5E94\uFF1A\u{1F31F}\uFF5C\u7D20\u6750 \u5230 \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\uFF5C\u4F53\u7CFB\u3002",
+              \u65E5\u671F\u7D22\u5F15: "\u53EF\u591A\u9009\uFF1A#\u{1F4C5}\u65E5\u671F/\u65F6\u95F4\u3001#\u{1F4C5}\u65E5\u671F/\u5468\u671F\u6027\u3001#\u{1F4C5}\u65E5\u671F/\u60C5\u666F\u5F0F\u3001#\u{1F4C5}\u65E5\u671F/\u5012\u8BA1\u65F6\u3001#\u{1F4C5}\u65E5\u671F/\u91CC\u7A0B\u7891\u3001#\u{1F4C5}\u65E5\u671F/\u5FC3\u60C5\u3001#\u{1F4C5}\u65E5\u671F/\u4E60\u60EF\u3001#\u{1F4C5}\u65E5\u671F/\u7075\u611F\u3001#\u{1F4C5}\u65E5\u671F/\u6D3B\u8DC3\u65F6\u95F4\uFF1B\u666E\u901A\u6587\u7AE0\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
+              \u6982\u8FF0: "\u751F\u6210 1-3 \u53E5\u300180-160 \u5B57\u7684\u6587\u6863\u6982\u8FF0\u3002\u6982\u8FF0\u8981\u8BF4\u660E\u4E3B\u9898\u3001\u7528\u9014\u548C\u53EF\u590D\u7528\u4EF7\u503C\uFF0C\u65B9\u4FBF\u672A\u6765 AI \u4E0D\u8BFB\u5168\u6587\u4E5F\u80FD\u5224\u65AD\u5185\u5BB9\u3002",
+              \u7D22\u5F15_\u77E5\u8BC6\u5E93: "\u4ECE\u6B63\u8D22/\u504F\u8D22/\u6B63\u5370/\u504F\u5370/\u6B63\u5BAB/\u4F24\u5B98\u4E2D\u9009\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
+              \u7D22\u5F15_\u989C\u8272: "\u4ECE\u989C\u8272\u7D22\u5F15\u4E2D\u9009\u4E00\u4E2A\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
+              "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u60F3\u6CD5/\u89C4\u5212/\u6267\u884C/\u53D7\u632B/\u514B\u670D\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u521D\u7A3F/\u5BA1\u6838/\u4FEE\u6539/\u5B8C\u6210/\u590D\u76D8\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
+              \u7D22\u5F15_\u5757: "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u62BD\u8C61/\u5177\u8C61\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u7B80\u5355/\u56F0\u96BE\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
+              \u7D22\u5F15_\u98CE\u9669: "\u53EF\u591A\u9009\uFF1A\u884C\u4E3A/\u7BA1\u7406/\u5065\u5EB7/\u77E5\u8BC6/\u793E\u4EA4/\u5BB6\u5EAD/\u793E\u4F1A/\u610F\u5916\uFF0C\u6CA1\u8BC1\u636E\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
+              \u5173\u952E\u8BCD: "\u63D0\u53D6 3-6 \u4E2A\u5173\u952E\u8BCD\uFF0C\u7528\u987F\u53F7\u5206\u9694\u3002"
             },
-            {
-              role: "user",
-              content: JSON.stringify({
-                task: "\u4E3A\u98DE\u4E66\u6587\u6863\u5EFA\u8BAE Obsidian YAML \u5C5E\u6027",
-                title: input.title,
-                source: input.source,
-                targetDir: input.dir,
-                excerpt: input.excerpt ?? "",
-                template: input.template,
-                options: input.options,
-                rules: {
-                  \u6807\u7B7E: "\u5FC5\u987B\u4ECE S/X/L/Z/Q/J \u4E2D\u9009\u4E00\u4E2A\uFF1B\u4E0D\u786E\u5B9A\u9009 S\u3002",
-                  \u8BC4\u5206: "\u53EF\u4E3A\u7A7A\uFF1B\u6709\u8BC1\u636E\u65F6\u4ECE 1-5 \u9009\u4E00\u4E2A\u3002",
-                  \u8BC4\u5206_\u663E\u793A: "\u4E0E\u8BC4\u5206\u5BF9\u5E94\uFF1A\u{1F31F}\uFF5C\u7D20\u6750 \u5230 \u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\u{1F31F}\uFF5C\u4F53\u7CFB\u3002",
-                  \u65E5\u671F\u7D22\u5F15: "\u53EF\u591A\u9009\uFF1A#\u{1F4C5}\u65E5\u671F/\u65F6\u95F4\u3001#\u{1F4C5}\u65E5\u671F/\u5468\u671F\u6027\u3001#\u{1F4C5}\u65E5\u671F/\u60C5\u666F\u5F0F\u3001#\u{1F4C5}\u65E5\u671F/\u5012\u8BA1\u65F6\u3001#\u{1F4C5}\u65E5\u671F/\u91CC\u7A0B\u7891\u3001#\u{1F4C5}\u65E5\u671F/\u5FC3\u60C5\u3001#\u{1F4C5}\u65E5\u671F/\u4E60\u60EF\u3001#\u{1F4C5}\u65E5\u671F/\u7075\u611F\u3001#\u{1F4C5}\u65E5\u671F/\u6D3B\u8DC3\u65F6\u95F4\uFF1B\u666E\u901A\u6587\u7AE0\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
-                  \u6982\u8FF0: "\u751F\u6210 1-3 \u53E5\u300180-160 \u5B57\u7684\u6587\u6863\u6982\u8FF0\u3002\u6982\u8FF0\u8981\u8BF4\u660E\u4E3B\u9898\u3001\u7528\u9014\u548C\u53EF\u590D\u7528\u4EF7\u503C\uFF0C\u65B9\u4FBF\u672A\u6765 AI \u4E0D\u8BFB\u5168\u6587\u4E5F\u80FD\u5224\u65AD\u5185\u5BB9\u3002",
-                  \u7D22\u5F15_\u77E5\u8BC6\u5E93: "\u4ECE\u6B63\u8D22/\u504F\u8D22/\u6B63\u5370/\u504F\u5370/\u6B63\u5BAB/\u4F24\u5B98\u4E2D\u9009\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
-                  \u7D22\u5F15_\u989C\u8272: "\u4ECE\u989C\u8272\u7D22\u5F15\u4E2D\u9009\u4E00\u4E2A\uFF0C\u6CA1\u8BC1\u636E\u7559\u7A7A\u3002",
-                  "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u60F3\u6CD5/\u89C4\u5212/\u6267\u884C/\u53D7\u632B/\u514B\u670D\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u521D\u7A3F/\u5BA1\u6838/\u4FEE\u6539/\u5B8C\u6210/\u590D\u76D8\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
-                  \u7D22\u5F15_\u5757: "\u8FD4\u56DE\u6570\u7EC4\uFF0C\u6700\u591A 2 \u9879\u3002\u7B2C\u4E00\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u62BD\u8C61/\u5177\u8C61\uFF1B\u7B2C\u4E8C\u7EC4\u53EA\u53EF\u9009\u4E00\u4E2A\uFF1A\u7B80\u5355/\u56F0\u96BE\u3002\u4E0D\u786E\u5B9A\u7684\u7EC4\u7559\u7A7A\uFF0C\u4E0D\u80FD\u540C\u7EC4\u591A\u9009\u3002",
-                  \u7D22\u5F15_\u98CE\u9669: "\u53EF\u591A\u9009\uFF1A\u884C\u4E3A/\u7BA1\u7406/\u5065\u5EB7/\u77E5\u8BC6/\u793E\u4EA4/\u5BB6\u5EAD/\u793E\u4F1A/\u610F\u5916\uFF0C\u6CA1\u8BC1\u636E\u8FD4\u56DE\u7A7A\u6570\u7EC4\u3002",
-                  \u5173\u952E\u8BCD: "\u63D0\u53D6 3-6 \u4E2A\u5173\u952E\u8BCD\uFF0C\u7528\u987F\u53F7\u5206\u9694\u3002"
-                },
-                outputSchema: {
-                  \u6807\u7B7E: "string",
-                  \u65E5\u671F\u7D22\u5F15: "string_array",
-                  \u5173\u952E\u8BCD: "string",
-                  \u6982\u8FF0: "string",
-                  \u8BC4\u5206: "number_or_empty_string",
-                  \u8BC4\u5206_\u663E\u793A: "string",
-                  \u7D22\u5F15_\u77E5\u8BC6\u5E93: "string",
-                  \u7D22\u5F15_\u989C\u8272: "string",
-                  "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "string_array",
-                  \u7D22\u5F15_\u5757: "string_array",
-                  \u7D22\u5F15_\u98CE\u9669: "string_array"
-                }
-              })
+            outputSchema: {
+              \u6807\u7B7E: "string",
+              \u65E5\u671F\u7D22\u5F15: "string_array",
+              \u5173\u952E\u8BCD: "string",
+              \u6982\u8FF0: "string",
+              \u8BC4\u5206: "number_or_empty_string",
+              \u8BC4\u5206_\u663E\u793A: "string",
+              \u7D22\u5F15_\u77E5\u8BC6\u5E93: "string",
+              \u7D22\u5F15_\u989C\u8272: "string",
+              "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": "string_array",
+              \u7D22\u5F15_\u5757: "string_array",
+              \u7D22\u5F15_\u98CE\u9669: "string_array"
             }
-          ]
-        })
-      });
-    } catch (err) {
-      throw new Error(`\u65E0\u6CD5\u8FDE\u63A5 AI \u4E2D\u8F6C\uFF1A${err instanceof Error ? err.message : String(err)}\u3002\u8BF7\u786E\u8BA4 ${config.baseUrl} \u53EF\u8BBF\u95EE\uFF0C\u4E14 Chrome \u5DF2\u91CD\u8F7D\u6269\u5C55\u3002`);
-    }
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error?.message || `AI \u8BF7\u6C42\u5931\u8D25\uFF1AHTTP ${res.status}`);
-    }
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI \u672A\u8FD4\u56DE\u5EFA\u8BAE\u5185\u5BB9");
+          })
+        }
+      ],
+      { temperature: 0.2, responseFormat: "json_object" }
+    );
     try {
       return JSON.parse(content);
     } catch {
@@ -1642,6 +1655,7 @@
         enabled: true,
         autoRun: false,
         customProviderEnabled: false,
+        fallbackEnabled: true,
         provider: "NewAPI",
         baseUrl: "http://127.0.0.1:3000/v1",
         model: "smart",
@@ -2726,6 +2740,25 @@
   ];
   var AI_TIMEOUT_MS = 3e4;
   var AI_TIMEOUT_MESSAGE = "AI \u8BF7\u6C42\u8D85\u65F6\u3002\u8BF7\u91CD\u8BD5\uFF0C\u6216\u5F00\u542F\u300C\u81EA\u5B9A\u4E49 AI \u89E3\u91CA\u5668\u300D\u540E\u4F7F\u7528\u81EA\u5B9A\u4E49 API\u3002";
+  async function runLocalAiFallback(fullPrompt, attachments = []) {
+    const config = await loadInterpreterConfig();
+    if (config.fallbackEnabled === false) {
+      throw new Error("\u672C\u5730\u6A21\u578B\u56DE\u9000\u672A\u542F\u7528\u3002\u8BF7\u5728\u8BBE\u7F6E\u4E2D\u6253\u5F00\u201CGemini \u5931\u8D25\u65F6\u4F7F\u7528\u672C\u5730\u6A21\u578B\u201D\u3002");
+    }
+    if (!config.enabled) throw new Error("\u672C\u5730 AI \u89E3\u91CA\u5668\u672A\u542F\u7528\u3002");
+    const content = attachments.length > 0 ? [
+      { type: "text", text: fullPrompt },
+      ...attachments.map((attachment) => ({
+        type: "image_url",
+        image_url: { url: attachment.dataUrl }
+      }))
+    ] : fullPrompt;
+    return withTimeout(
+      chatWithOpenAiCompatible(config, [{ role: "user", content }]),
+      AI_TIMEOUT_MS,
+      AI_TIMEOUT_MESSAGE
+    );
+  }
   async function migrateAllSecrets() {
     const report = await migrateLegacySecrets();
     if (report.issues.length > 0) {
@@ -2806,7 +2839,7 @@ ${text}`;
 
 ` : "";
     const fullPrompt = `${systemPrompt}${prompt}`;
-    let aiResult;
+    let aiResult = "";
     if (route.kind === "deepseek-web") {
       const token = await getDeepSeekToken();
       if (!isValidToken(token)) {
@@ -2818,6 +2851,7 @@ ${text}`;
         AI_TIMEOUT_MESSAGE
       );
     } else if (route.kind === "gemini-web") {
+      let deepSeekError = null;
       try {
         aiResult = await withTimeout(
           sendGeminiWebMessage(fullPrompt, route.model, attachments),
@@ -2826,19 +2860,32 @@ ${text}`;
         );
       } catch (geminiError) {
         const token = await getDeepSeekToken();
-        if (!isValidToken(token)) throw geminiError;
-        try {
-          aiResult = await withTimeout(
-            sendDeepSeekWebMessage({ prompt: fullPrompt }),
-            AI_TIMEOUT_MS,
-            AI_TIMEOUT_MESSAGE
-          );
-        } catch (deepSeekError) {
-          throw new Error(
-            `Gemini Web \u4E0D\u53EF\u7528\uFF0CDeepSeek Web \u964D\u7EA7\u4E5F\u5931\u8D25\u3002
+        if (isValidToken(token)) {
+          try {
+            aiResult = await withTimeout(
+              sendDeepSeekWebMessage({ prompt: fullPrompt }),
+              AI_TIMEOUT_MS,
+              AI_TIMEOUT_MESSAGE
+            );
+          } catch (error) {
+            deepSeekError = error;
+          }
+        } else {
+          deepSeekError = new Error("DeepSeek Web Token \u672A\u914D\u7F6E");
+        }
+        if (!deepSeekError) {
+          if (!aiResult?.trim()) throw new Error("DeepSeek Web \u672A\u8FD4\u56DE\u5185\u5BB9");
+        } else {
+          try {
+            aiResult = await runLocalAiFallback(fullPrompt, attachments);
+          } catch (localError) {
+            throw new Error(
+              `Gemini Web \u4E0D\u53EF\u7528\uFF0CDeepSeek Web \u548C\u672C\u5730\u6A21\u578B\u56DE\u9000\u5747\u5931\u8D25\u3002
 Gemini\uFF1A${geminiError instanceof Error ? geminiError.message : String(geminiError)}
-DeepSeek\uFF1A${deepSeekError instanceof Error ? deepSeekError.message : String(deepSeekError)}`
-          );
+DeepSeek\uFF1A${deepSeekError instanceof Error ? deepSeekError.message : String(deepSeekError)}
+\u672C\u5730\u6A21\u578B\uFF1A${localError instanceof Error ? localError.message : String(localError)}`
+            );
+          }
         }
       }
     } else if (route.kind === "unsupported") {
