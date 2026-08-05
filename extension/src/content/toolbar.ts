@@ -1574,7 +1574,7 @@ import { copyTextWithFallback } from './clipboard.js';
       }
 
       const originalHTML = btn.innerHTML;
-      btn.innerHTML = iconSVG('<polyline points="3 8l3 3 7-7"/>');
+      btn.innerHTML = iconSVG('<polyline points="3 8 6 11 13 4"/>');
       btn.classList.add('copied');
       showToast('已复制');
       if (copyFeedbackTimer !== null) window.clearTimeout(copyFeedbackTimer);
