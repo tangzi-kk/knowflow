@@ -860,6 +860,30 @@
     }
   };
 
+  // ../packages/shared/dist/yaml.js
+  var YAML_METADATA_DEFAULTS = Object.freeze({
+    \u534F\u8BAE\u7248\u672C: 1,
+    \u6807\u7B7E: "",
+    \u7F16\u7801: "",
+    \u77ED\u7F16\u7801: "",
+    \u8F93\u5165: "",
+    \u65E5\u671F: "",
+    \u65E5\u671F\u7D22\u5F15: [],
+    \u5173\u952E\u8BCD: [],
+    \u6982\u8FF0: "",
+    \u8BC4\u5206: "",
+    \u8BC4\u5206_\u663E\u793A: "",
+    \u72B6\u6001: "\u6536\u96C6",
+    \u7D22\u5F15_\u77E5\u8BC6\u5E93: "",
+    \u7D22\u5F15_\u989C\u8272: "",
+    "\u7D22\u5F15_\u64CD\u4F5C&\u53CD\u9988": [],
+    \u7D22\u5F15_\u5757: [],
+    \u7D22\u5F15_\u98CE\u9669: [],
+    \u5173\u8054\u9879\u76EE: [],
+    \u5173\u8054\u6587\u6863: [],
+    \u5173\u8054\u4EBA\u7269: []
+  });
+
   // src/storage.ts
   var CANONICAL_SCHEMA = 1;
   var LOCAL_SECRET_KEYS = {

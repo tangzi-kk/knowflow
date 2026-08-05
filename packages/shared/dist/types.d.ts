@@ -58,6 +58,12 @@ export interface KnowledgeMeta {
     索引_块?: string[];
     /** 索引_风险，零或多个。 */
     索引_风险?: string[];
+    /** 关联项目，零或多个。 */
+    关联项目?: string[];
+    /** 关联文档，零或多个。 */
+    关联文档?: string[];
+    /** 关联人物，零或多个。 */
+    关联人物?: string[];
 }
 /** OB 文件完整 frontmatter = 同步绑定 + 知识库元数据。 */
 export interface YAMLFrontmatter extends SyncBinding, KnowledgeMeta, Record<string, unknown> {

@@ -1,4 +1,5 @@
 import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
+import { copyTextWithFallback } from './clipboard.js';
 
 /**
  * 浮动选择工具栏 v3.1 — 精简版：AI 操作委托给 Sidepanel 统一处理
@@ -92,6 +93,9 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
   let geminiSessionAlive = true; // Gemini Web session 状态
   let aiRequestInFlight = false;  // 防止重复 AI 请求
   let selectionDebounceTimer: number | null = null;  // mouseup debounce 定时器
+  let toolbarPointerActive = false;
+  let toolbarPointerTimer: number | null = null;
+  let copyFeedbackTimer: number | null = null;
   let lastStreamPrompt = '';  // 最近一次流式 AI 请求的 prompt（用于重试）
   let lastStreamScenePromptTemplate = '';  // 未填充的 prompt 模板（用于截取重试）
   let streamChunkReceived = false;  // 是否已收到第一个 chunk
@@ -1328,11 +1332,11 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
         break;
       }
       case 'copy-error':
-        navigator.clipboard.writeText(errorInfo.message).then(() => {
+        void copyTextWithFallback(errorInfo.message).then((copied) => {
           const orig = btn.textContent;
-          btn.textContent = '已复制 ✓';
+          btn.textContent = copied ? '已复制 ✓' : '复制失败';
           setTimeout(() => { btn.textContent = orig; }, 1500);
-        }).catch(() => { /* noop */ });
+        });
         break;
       default:
         break;
@@ -1406,6 +1410,22 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
     shadow.innerHTML = '';
   }
 
+  function isToolbarEvent(event: Event): boolean {
+    if (!host) return false;
+    const target = event.target as Node | null;
+    if (target && host.contains(target)) return true;
+    return event.composedPath().includes(host);
+  }
+
+  function markToolbarPointerActive(): void {
+    toolbarPointerActive = true;
+    if (toolbarPointerTimer !== null) window.clearTimeout(toolbarPointerTimer);
+    toolbarPointerTimer = window.setTimeout(() => {
+      toolbarPointerActive = false;
+      toolbarPointerTimer = null;
+    }, 1000);
+  }
+
   // ═══════════════════════════════════════════════════════════════
   // Positioning
   // ═══════════════════════════════════════════════════════════════
@@ -1447,6 +1467,12 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
   }
 
   function hideToolbar(): void {
+    moreOpen = false;
+    toolbarPointerActive = false;
+    if (toolbarPointerTimer !== null) {
+      window.clearTimeout(toolbarPointerTimer);
+      toolbarPointerTimer = null;
+    }
     state = reduceToolbarState(state, { type: 'CLOSE' });
     // 如果结果面板展开中，先收起面板再隐藏
     const panel = shadow?.querySelector('.result-panel');
@@ -1498,10 +1524,12 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
       if (action) handleCapsuleAction(action, btn);
     });
 
-    // Prevent mousedown from clearing selection
-    capsule.addEventListener('mousedown', (e: Event) =>
-      e.preventDefault(),
-    );
+    // Keep the current selection while interacting with the shadow toolbar.
+    capsule.addEventListener('mousedown', (e: Event) => {
+      markToolbarPointerActive();
+      e.preventDefault();
+    });
+    capsule.addEventListener('pointerdown', markToolbarPointerActive);
   }
 
   function showToast(message: string): void {
@@ -1523,6 +1551,10 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
     action: Action,
     btn: HTMLButtonElement,
   ): Promise<void> {
+    if (selectionDebounceTimer !== null) {
+      window.clearTimeout(selectionDebounceTimer);
+      selectionDebounceTimer = null;
+    }
     const text = lastSelection.trim();
     const domain = window.location.hostname;
     if (action === 'more') {
@@ -1535,26 +1567,26 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
     const scene = knowledgeScenes.find((item) => item.id === action);
 
     if (scene?.action === 'copy') {
-        if (text) {
-          try {
-            await navigator.clipboard.writeText(text);
-            // Flash checkmark
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = iconSVG(
-              '<polyline points="3 8l3 3 7-7"/>',
-            );
-            btn.classList.add('copied');
-            setTimeout(() => {
-              btn.innerHTML = originalHTML;
-              btn.classList.remove('copied');
-            }, 1200);
-          } catch {
-            // Clipboard write failed silently
-          }
-        }
-        showToast('已复制');
-        hideToolbar();
+      const copied = await copyTextWithFallback(text);
+      if (!copied) {
+        showToast('复制失败，请使用 ⌘C/Control+C 重试');
         return;
+      }
+
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = iconSVG('<polyline points="3 8l3 3 7-7"/>');
+      btn.classList.add('copied');
+      showToast('已复制');
+      if (copyFeedbackTimer !== null) window.clearTimeout(copyFeedbackTimer);
+      copyFeedbackTimer = window.setTimeout(() => {
+        if (btn.isConnected) {
+          btn.innerHTML = originalHTML;
+          btn.classList.remove('copied');
+        }
+        copyFeedbackTimer = null;
+        hideToolbar();
+      }, 900);
+      return;
     }
 
     if (scene?.action === 'showResult') {
@@ -1704,9 +1736,17 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
 
   function setupGlobalListeners(): void {
     // Mouseup: detect text selection (150ms debounce 防误触)
-    document.addEventListener('mouseup', () => {
-      if (selectionDebounceTimer) clearTimeout(selectionDebounceTimer);
+    document.addEventListener('mouseup', (event: MouseEvent) => {
+      if (isToolbarEvent(event) || toolbarPointerActive) {
+        if (selectionDebounceTimer !== null) {
+          window.clearTimeout(selectionDebounceTimer);
+          selectionDebounceTimer = null;
+        }
+        return;
+      }
+      if (selectionDebounceTimer !== null) window.clearTimeout(selectionDebounceTimer);
       selectionDebounceTimer = window.setTimeout(() => {
+        selectionDebounceTimer = null;
         checkRouteChange();
         const sel = window.getSelection();
         const text = sel?.toString().trim();
@@ -1717,6 +1757,7 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
         }
 
         lastSelection = text;
+        moreOpen = false;
         // Store range for potential replacement later
         if (sel && sel.rangeCount > 0) {
         }
@@ -1736,6 +1777,7 @@ import { initialToolbarState, reduceToolbarState } from './toolbar-state.js';
     // Mousedown: hide if clicking outside toolbar
     document.addEventListener('mousedown', (e: Event) => {
       if (state.phase === 'idle') return;
+      if (isToolbarEvent(e) || toolbarPointerActive) return;
       if (host && !host.contains(e.target as Node)) {
         hideToolbar();
       }

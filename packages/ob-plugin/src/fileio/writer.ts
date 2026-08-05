@@ -135,10 +135,10 @@ function stripEmpty(obj: Record<string, unknown>): Record<string, unknown> {
 export function assembleMd(frontmatter: YAMLFrontmatter, body: string): string {
   // 计算并写入 sync_hash
   const hash = bodyHash(body);
-  const fmWithHash: YAMLFrontmatter = {
+  const fmWithHash = {
     ...withCompleteFrontmatter(frontmatter),
     sync_hash: hash,
-  };
+  } as YAMLFrontmatter;
   return assembleFile(fmWithHash, body);
 }
 

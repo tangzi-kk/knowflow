@@ -29,6 +29,36 @@
     return Boolean(requestId) && requestId === state.requestId && (state.phase === "loading" || state.phase === "streaming");
   }
 
+  // src/content/clipboard.ts
+  async function copyTextWithFallback(text) {
+    if (!text) return false;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {
+    }
+    try {
+      if (typeof document === "undefined" || !document.body) return false;
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.top = "-9999px";
+      textarea.style.left = "-9999px";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus({ preventScroll: true });
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      return copied;
+    } catch {
+      return false;
+    }
+  }
+
   // src/content/toolbar.ts
   (function() {
     const MAIN_SCENE_IDS = ["save", "append", "refine"];
@@ -46,6 +76,9 @@
     let geminiSessionAlive = true;
     let aiRequestInFlight = false;
     let selectionDebounceTimer = null;
+    let toolbarPointerActive = false;
+    let toolbarPointerTimer = null;
+    let copyFeedbackTimer = null;
     let lastStreamPrompt = "";
     let lastStreamScenePromptTemplate = "";
     let streamChunkReceived = false;
@@ -1143,13 +1176,12 @@
           break;
         }
         case "copy-error":
-          navigator.clipboard.writeText(errorInfo.message).then(() => {
+          void copyTextWithFallback(errorInfo.message).then((copied) => {
             const orig = btn.textContent;
-            btn.textContent = "\u5DF2\u590D\u5236 \u2713";
+            btn.textContent = copied ? "\u5DF2\u590D\u5236 \u2713" : "\u590D\u5236\u5931\u8D25";
             setTimeout(() => {
               btn.textContent = orig;
             }, 1500);
-          }).catch(() => {
           });
           break;
         default:
@@ -1218,6 +1250,20 @@
       if (!shadow) return;
       shadow.innerHTML = "";
     }
+    function isToolbarEvent(event) {
+      if (!host) return false;
+      const target = event.target;
+      if (target && host.contains(target)) return true;
+      return event.composedPath().includes(host);
+    }
+    function markToolbarPointerActive() {
+      toolbarPointerActive = true;
+      if (toolbarPointerTimer !== null) window.clearTimeout(toolbarPointerTimer);
+      toolbarPointerTimer = window.setTimeout(() => {
+        toolbarPointerActive = false;
+        toolbarPointerTimer = null;
+      }, 1e3);
+    }
     function positionAt(x, y) {
       if (!host) return;
       const rect = host.getBoundingClientRect();
@@ -1240,6 +1286,12 @@
       bindCapsuleEvents();
     }
     function hideToolbar() {
+      moreOpen = false;
+      toolbarPointerActive = false;
+      if (toolbarPointerTimer !== null) {
+        window.clearTimeout(toolbarPointerTimer);
+        toolbarPointerTimer = null;
+      }
       state = reduceToolbarState(state, { type: "CLOSE" });
       const panel = shadow?.querySelector(".result-panel");
       if (panel?.classList.contains("expanded")) {
@@ -1279,10 +1331,11 @@
         const action = btn.dataset.action;
         if (action) handleCapsuleAction(action, btn);
       });
-      capsule.addEventListener(
-        "mousedown",
-        (e) => e.preventDefault()
-      );
+      capsule.addEventListener("mousedown", (e) => {
+        markToolbarPointerActive();
+        e.preventDefault();
+      });
+      capsule.addEventListener("pointerdown", markToolbarPointerActive);
     }
     function showToast(message) {
       if (!shadow) return;
@@ -1295,6 +1348,10 @@
       }, 1600);
     }
     async function handleCapsuleAction(action, btn) {
+      if (selectionDebounceTimer !== null) {
+        window.clearTimeout(selectionDebounceTimer);
+        selectionDebounceTimer = null;
+      }
       const text = lastSelection.trim();
       const domain = window.location.hostname;
       if (action === "more") {
@@ -1305,23 +1362,24 @@
       }
       const scene = knowledgeScenes.find((item) => item.id === action);
       if (scene?.action === "copy") {
-        if (text) {
-          try {
-            await navigator.clipboard.writeText(text);
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = iconSVG(
-              '<polyline points="3 8l3 3 7-7"/>'
-            );
-            btn.classList.add("copied");
-            setTimeout(() => {
-              btn.innerHTML = originalHTML;
-              btn.classList.remove("copied");
-            }, 1200);
-          } catch {
-          }
+        const copied = await copyTextWithFallback(text);
+        if (!copied) {
+          showToast("\u590D\u5236\u5931\u8D25\uFF0C\u8BF7\u4F7F\u7528 \u2318C/Control+C \u91CD\u8BD5");
+          return;
         }
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = iconSVG('<polyline points="3 8l3 3 7-7"/>');
+        btn.classList.add("copied");
         showToast("\u5DF2\u590D\u5236");
-        hideToolbar();
+        if (copyFeedbackTimer !== null) window.clearTimeout(copyFeedbackTimer);
+        copyFeedbackTimer = window.setTimeout(() => {
+          if (btn.isConnected) {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove("copied");
+          }
+          copyFeedbackTimer = null;
+          hideToolbar();
+        }, 900);
         return;
       }
       if (scene?.action === "showResult") {
@@ -1442,9 +1500,17 @@
       }
     }
     function setupGlobalListeners() {
-      document.addEventListener("mouseup", () => {
-        if (selectionDebounceTimer) clearTimeout(selectionDebounceTimer);
+      document.addEventListener("mouseup", (event) => {
+        if (isToolbarEvent(event) || toolbarPointerActive) {
+          if (selectionDebounceTimer !== null) {
+            window.clearTimeout(selectionDebounceTimer);
+            selectionDebounceTimer = null;
+          }
+          return;
+        }
+        if (selectionDebounceTimer !== null) window.clearTimeout(selectionDebounceTimer);
         selectionDebounceTimer = window.setTimeout(() => {
+          selectionDebounceTimer = null;
           checkRouteChange();
           const sel = window.getSelection();
           const text = sel?.toString().trim();
@@ -1453,6 +1519,7 @@
             return;
           }
           lastSelection = text;
+          moreOpen = false;
           if (sel && sel.rangeCount > 0) {
           }
           const range = sel.getRangeAt(0);
@@ -1466,6 +1533,7 @@
       });
       document.addEventListener("mousedown", (e) => {
         if (state.phase === "idle") return;
+        if (isToolbarEvent(e) || toolbarPointerActive) return;
         if (host && !host.contains(e.target)) {
           hideToolbar();
         }
