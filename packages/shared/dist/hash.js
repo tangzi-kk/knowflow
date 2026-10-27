@@ -19,6 +19,57 @@ export function bodyHash(body) {
     }
 }
 /**
+ * 元数据同步 hash。
+ *
+ * 正文 hash 不能发现“只改 YAML 编码/标签”的变更。这里单独对用户可见
+ * 的知识元数据做稳定规范化，供 pushback 进行三方判断；同步绑定、文档
+ * ID 和两个 hash 字段不参与，避免把本地身份字段误当成远端内容。
+ */
+export function metadataHash(meta) {
+    const keys = [
+        '标签',
+        '编码',
+        '短编码',
+        '输入',
+        '日期',
+        '日期索引',
+        '关键词',
+        '概述',
+        '评分',
+        '评分_显示',
+        '状态',
+        '索引_知识库',
+        '索引_颜色',
+        '索引_操作&反馈',
+        '索引_块',
+        '索引_风险',
+        '关联项目',
+        '关联文档',
+        '关联人物',
+    ];
+    const canonical = {};
+    for (const key of keys)
+        canonical[key] = normalizeMetadataValue(meta[key]);
+    return bodyHash(JSON.stringify(canonical));
+}
+function normalizeMetadataValue(value) {
+    if (Array.isArray(value)) {
+        return [...new Set(value.flatMap((item) => splitMetadataItems(item)))].sort();
+    }
+    if (typeof value === 'number')
+        return Number.isFinite(value) ? value : '';
+    if (value === undefined || value === null)
+        return '';
+    const items = splitMetadataItems(value);
+    return items.length > 1 ? items.sort() : (items[0] ?? '');
+}
+function splitMetadataItems(value) {
+    return String(value ?? '')
+        .split(/[、,，\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+}
+/**
  * 异步 sha256 hex（浏览器 + Node 通用）。推荐使用。
  */
 export async function bodyHashAsync(body) {

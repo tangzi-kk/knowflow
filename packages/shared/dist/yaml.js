@@ -17,6 +17,7 @@ const FIELD_ORDER = [
     'feishu_title',
     'sync_hash',
     'sync_time',
+    'sync_meta_hash',
     '标签',
     '编码',
     '短编码',
@@ -104,6 +105,19 @@ export function serializeFrontmatter(fm) {
         quoteStyle: 'double', // 字符串用双引号（保留 emoji）
         forceQuotes: false,
         sortKeys: false, // 我们自己控制顺序
+    });
+    return `${FM_DELIMITER}\n${yamlStr}${FM_DELIMITER}`;
+}
+/**
+ * 序列化自定义字典为纯净 YAML frontmatter（含 `---` 分隔符），不强制注入 SKR 默认元数据。
+ * 用于数据表行卡片、Bitable 记录等轻量数据对象。
+ */
+export function dumpCustomFrontmatter(fm) {
+    const yamlStr = YAML.dump(fm, {
+        lineWidth: -1,
+        quoteStyle: 'double',
+        forceQuotes: false,
+        sortKeys: false,
     });
     return `${FM_DELIMITER}\n${yamlStr}${FM_DELIMITER}`;
 }

@@ -13,6 +13,11 @@ export declare function withCompleteFrontmatter(fm: Record<string, unknown>): Re
  */
 export declare function serializeFrontmatter(fm: Record<string, unknown>): string;
 /**
+ * 序列化自定义字典为纯净 YAML frontmatter（含 `---` 分隔符），不强制注入 SKR 默认元数据。
+ * 用于数据表行卡片、Bitable 记录等轻量数据对象。
+ */
+export declare function dumpCustomFrontmatter(fm: Record<string, unknown>): string;
+/**
  * 从 md 文件内容解析 frontmatter。
  * @param content 完整文件内容
  * @returns { frontmatter, body }，frontmatter 为 null 表示无 frontmatter

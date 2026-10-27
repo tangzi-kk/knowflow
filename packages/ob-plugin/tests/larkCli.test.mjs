@@ -2,7 +2,20 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-import { isRetryableCliFailure } from '../src/lark/cli.ts';
+import { isRetryableCliFailure, resolveNodeTokenFromUrl } from '../src/lark/cli.ts';
+
+test('resolveNodeTokenFromUrl extracts wiki, docx, and bitable base tokens', () => {
+  assert.deepEqual(resolveNodeTokenFromUrl('https://sample.feishu.cn/wiki/wikcn123456'), { node_token: 'wikcn123456' });
+  assert.deepEqual(resolveNodeTokenFromUrl('https://sample.feishu.cn/docx/doxcn654321'), { obj_token: 'doxcn654321' });
+  assert.deepEqual(
+    resolveNodeTokenFromUrl('https://sample.feishu.cn/base/bascnABCDEF?table=tblGHIJKL'),
+    { base_token: 'bascnABCDEF', table_id: 'tblGHIJKL' }
+  );
+  assert.deepEqual(resolveNodeTokenFromUrl('https://sample.feishu.cn/base/bascnONLYBASE'), {
+    base_token: 'bascnONLYBASE',
+    table_id: undefined,
+  });
+});
 
 test('CLI retries only transient failures', () => {
   assert.equal(isRetryableCliFailure('HTTP 429'), true);

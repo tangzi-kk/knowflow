@@ -58,7 +58,7 @@ export {
 } from './protocol.js';
 
 // ── 工具函数 ──
-export { bodyHash, bodyHashAsync, isChanged } from './hash.js';
+export { bodyHash, bodyHashAsync, metadataHash, isChanged } from './hash.js';
 export { sanitizeFilename, withMdExt, joinPath } from './filename.js';
 export {
   FEISHU_PROTO,
@@ -72,6 +72,7 @@ export {
 } from './image.js';
 export {
   serializeFrontmatter,
+  dumpCustomFrontmatter,
   parseFrontmatter,
   inspectFrontmatter,
   assembleFile,

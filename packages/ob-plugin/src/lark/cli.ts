@@ -363,6 +363,31 @@ export function overwriteDocXml(token: string, xmlContent: string, title: string
   }
 }
 
+/** 获取文档 XML 原文，供仅改标题的安全重命名复用。 */
+export function fetchDocumentXml(token: string): string {
+  return run([
+    'docs', '+fetch', '--doc', token, '--doc-format', 'xml', '--detail', 'with-ids',
+  ], { timeout: 60_000 });
+}
+
+/**
+ * 重命名 Wiki 节点但保留正文、子页面引用和资源块。
+ * Wiki 目录节点本质上仍是 docx 页面；先读 XML，去掉旧 title，再用同一
+ * XML overwrite，避免把目录页内容清空或丢失图片。
+ */
+export function renameWikiNode(nodeToken: string, spaceId: string, title: string): void {
+  const info = getWikiNodeInfo(nodeToken, spaceId);
+  const objToken = info?.obj_token;
+  if (!objToken) {
+    const error = new Error(`无法解析飞书 Wiki 节点：${nodeToken.slice(0, 8)}...`) as Error & { code?: string };
+    error.code = 'WIKI_NODE_RESOLVE_FAILED';
+    throw error;
+  }
+  const xml = fetchDocumentXml(objToken);
+  const body = xml.replace(/^\s*<title\b[^>]*>[\s\S]*?<\/title>\s*/i, '');
+  overwriteDocXml(objToken, body, title);
+}
+
 function escapeXml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
@@ -376,7 +401,17 @@ function escapeXml(value: string): string {
  * 从飞书 wiki URL 解析 node_token。
  * URL 形如：https://xxx.feishu.cn/wiki/NODE_TOKEN、/docx/OBJ_TOKEN 或 /doc/OBJ_TOKEN
  */
-export function resolveNodeTokenFromUrl(url: string): { node_token?: string; obj_token?: string } {
+export function resolveNodeTokenFromUrl(url: string): { node_token?: string; obj_token?: string; base_token?: string; table_id?: string } {
+  // base table
+  const baseMatch = url.match(/\/base\/([A-Za-z0-9]+)/);
+  const tableMatch = url.match(/[?&]table=([A-Za-z0-9]+)/);
+  if (baseMatch) {
+    return {
+      base_token: baseMatch[1],
+      table_id: tableMatch ? tableMatch[1] : undefined,
+    };
+  }
+
   // wiki node
   const wikiMatch = url.match(/\/wiki\/([A-Za-z0-9]+)/);
   if (wikiMatch) return { node_token: wikiMatch[1] };
@@ -430,6 +465,48 @@ export function listWikiChildren(spaceId: string, parentToken: string): Array<{ 
     }));
   } catch (err) {
     console.warn('[sync/lark] wiki +node-list failed:', err);
+    return [];
+  }
+}
+
+/**
+ * 获取多维表格 Base 下的数据表列表。
+ */
+export function listBaseTables(baseToken: string): Array<{ table_id: string; name: string }> {
+  try {
+    const output = run(['base', '+table-list', '--base-token', baseToken, '--json'], { json: true });
+    const data = JSON.parse(output);
+    const items = data?.items ?? data?.tables ?? [];
+    return items.map((t: Record<string, unknown>) => ({
+      table_id: String(t.table_id ?? t.id ?? ''),
+      name: String(t.name ?? ''),
+    }));
+  } catch (err) {
+    console.warn('[sync/lark] base +table-list failed:', err);
+    return [];
+  }
+}
+
+/**
+ * 获取多维表格指定表的数据记录。
+ */
+export function listBaseRecords(baseToken: string, tableId: string, limit = 500): Array<{ record_id: string; fields: Record<string, unknown> }> {
+  try {
+    const output = run([
+      'base', '+record-list',
+      '--base-token', baseToken,
+      '--table-id', tableId,
+      '--limit', String(limit),
+      '--format', 'json',
+    ], { json: true });
+    const data = JSON.parse(output);
+    const items = data?.items ?? data?.records ?? [];
+    return items.map((r: Record<string, unknown>) => ({
+      record_id: String(r.record_id ?? r.id ?? ''),
+      fields: (r.fields as Record<string, unknown>) ?? {},
+    }));
+  } catch (err) {
+    console.warn('[sync/lark] base +record-list failed:', err);
     return [];
   }
 }
