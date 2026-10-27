@@ -50,6 +50,11 @@ const RULES: Rule[] = [
     label: '技能',
     terms: ['技能', '技巧', '操作步骤', '流程', 'sop', '工作流', '实践', '经验'],
   },
+  {
+    tag: 'D',
+    label: '导引',
+    terms: ['导引', '规范', '章程', '索引表', '总览', '地图', '架构指南', '指南'],
+  },
 ];
 
 export function recognizeDocument(input: DocumentRecognitionInput): DocumentRecognitionResult {
@@ -122,7 +127,7 @@ export function recognizeDocument(input: DocumentRecognitionInput): DocumentReco
 }
 
 function isTag(value: string): value is Tag {
-  return value === 'S' || value === 'X' || value === 'L' || value === 'Z' || value === 'Q' || value === 'J';
+  return value === 'S' || value === 'X' || value === 'L' || value === 'Z' || value === 'Q' || value === 'J' || value === 'D';
 }
 
 function normalize(value: string): string {

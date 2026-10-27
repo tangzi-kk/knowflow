@@ -37,12 +37,12 @@ export const ALLOWED_STATUSES = Object.freeze([...KNOWLEDGE_CONTRACT.statuses]);
 export const FULL_ENCODING_RE = new RegExp(KNOWLEDGE_CONTRACT.encoding.fullPattern);
 export const SHORT_ENCODING_RE = new RegExp(KNOWLEDGE_CONTRACT.encoding.shortPattern);
 export const FILE_PREFIX_RE =
-  /^(\d{2}_\d{4}_[SXLZQJ]_\d{2}_[a-z]\d+(?:[a-z]\d+)*)\s+/;
+  /^(\d{2}_\d{4}_[SXLZQJD]_\d{2}_[a-z]\d+(?:[a-z]\d+)*)\s+/;
 export const LEGACY_FILE_PREFIX_RE =
-  /^(\d{2}_\d{4}_[SXLZQJ]_\d+(?:_[a-z]\d+)?)\s+/;
+  /^(\d{2}_\d{4}_[SXLZQJD]_\d+(?:_[a-z]\d+)?)\s+/;
 /** 新版文件名只展示短编码；YAML 与同步事件仍保存完整编码。 */
 export const SHORT_FILE_PREFIX_RE =
-  /^([SXLZQJ]\d{2}\.[a-z]\d+(?:[a-z]\d+)*)\s+/;
+  /^([SXLZQJD]\d{2}\.[a-z]\d+(?:[a-z]\d+)*)\s+/;
 
 export function deriveShortEncoding(fullEncoding: string): string {
   if (!FULL_ENCODING_RE.test(fullEncoding)) {

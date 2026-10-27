@@ -1107,7 +1107,7 @@
     const raw = value.trim();
     if (!raw) return "";
     if (key === "\u6807\u7B7E") {
-      const tag = raw.match(/([SXLZQJ])(?:_|$)/)?.[1];
+      const tag = raw.match(/([SXLZQJD])(?:_|$)/)?.[1];
       return tag ?? raw;
     }
     if (key === "\u8BC4\u5206") {

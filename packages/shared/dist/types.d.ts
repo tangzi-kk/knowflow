@@ -16,9 +16,11 @@ export interface SyncBinding {
     sync_hash?: string;
     /** 上次同步时间（ISO8601，带时区）。 */
     sync_time?: string;
+    /** 上次同步的知识元数据 hash；用于检测只改 YAML 的变更。 */
+    sync_meta_hash?: string;
 }
-/** 标签封闭枚举。依据 `02_YAML字段规范.md` §2.2。 */
-export type Tag = 'S' | 'X' | 'L' | 'Z' | 'Q' | 'J';
+/** 标签封闭枚举。依据《编码规范》§2.1 封闭七标签。 */
+export type Tag = 'S' | 'X' | 'L' | 'Z' | 'Q' | 'J' | 'D';
 export declare const TAG_NAMES: Record<Tag, string>;
 /** 知识库元数据（OB 维护，回写飞书成 callout）。依据 `02_YAML字段规范.md`。 */
 export interface KnowledgeMeta {
@@ -58,11 +60,9 @@ export interface KnowledgeMeta {
     索引_块?: string[];
     /** 索引_风险，零或多个。 */
     索引_风险?: string[];
-    /** 关联项目，零或多个。 */
+    /** 关联项目、文档和人物；保持为可追踪的字符串数组。 */
     关联项目?: string[];
-    /** 关联文档，零或多个。 */
     关联文档?: string[];
-    /** 关联人物，零或多个。 */
     关联人物?: string[];
 }
 /** OB 文件完整 frontmatter = 同步绑定 + 知识库元数据。 */

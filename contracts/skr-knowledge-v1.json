@@ -14,7 +14,8 @@
       "L",
       "Z",
       "Q",
-      "J"
+      "J",
+      "D"
     ]
   },
   "statuses": [
@@ -26,9 +27,9 @@
   ],
   "encoding": {
     "fullFormat": "YY_MMDD_TAG_TOPIC_LEVEL",
-    "fullPattern": "^[0-9]{2}_[0-9]{4}_[SXLZQJ]_[0-9]{2}_[a-z][0-9]+(?:[a-z][0-9]+)*$",
+    "fullPattern": "^[0-9]{2}_[0-9]{4}_[SXLZQJD]_[0-9]{2}_[a-z][0-9]+(?:[a-z][0-9]+)*$",
     "shortFormat": "TAGTOPIC.LEVEL",
-    "shortPattern": "^[SXLZQJ][0-9]{2}\\.[a-z][0-9]+(?:[a-z][0-9]+)*$"
+    "shortPattern": "^[SXLZQJD][0-9]{2}\\.[a-z][0-9]+(?:[a-z][0-9]+)*$"
   },
   "identity": {
     "primaryKey": "文档ID",

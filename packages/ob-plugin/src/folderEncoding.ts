@@ -15,8 +15,8 @@ import {
  * 界面和文件夹名只显示 `TAGnn`。
  */
 export const FOLDER_ENCODING_INDEX_PATH = '.feishu-sync/目录编码索引.json';
-export const FOLDER_SHORT_RE = /^([SXLZQJ])(\d{2})\s*·\s*(.+)$/;
-export const FOLDER_FULL_RE = /^(\d{2}_\d{4})_([SXLZQJ])_(\d{2})$/;
+export const FOLDER_SHORT_RE = /^([SXLZQJD])(\d{2})\s*·\s*(.+)$/;
+export const FOLDER_FULL_RE = /^(\d{2}_\d{4})_([SXLZQJD])_(\d{2})$/;
 
 const BUILTIN_EXCLUDED_RE = /^(?:(?:.*\/)?AGENTS\.md$|🪧导引(?:\/|$)|\.[^/]+(?:\/|$))/;
 
@@ -138,7 +138,7 @@ export async function previewFolderEncoding(
   const parentPath = folderParentPath(folderPath);
   const number = parsed?.number ?? nextFolderNumber(app, records, tag, parentPath, folderPath);
   const title = (parsed?.title
-    ?? originalName.replace(/^[SXLZQJ]\d{2}\s*·\s*/, '').trim()) || '未命名';
+    ?? originalName.replace(/^[SXLZQJD]\d{2}\s*·\s*/, '').trim()) || '未命名';
   const shortCode = `${tag}${String(number).padStart(2, '0')}`;
   const existingRecord = records.find((record) => record.path === folderPath);
   const datePrefix = existingRecord?.encoding.match(FOLDER_FULL_RE)?.[1] ?? datePrefixFromDate();
@@ -453,7 +453,7 @@ function nextFolderNumber(
 
 function folderTitle(name: string): string {
   return parseFolderShortCode(name)?.title
-    ?? name.replace(/^[SXLZQJ]\d{2}\s*·\s*/, '').trim();
+    ?? name.replace(/^[SXLZQJD]\d{2}\s*·\s*/, '').trim();
 }
 
 function compareFolderNames(left: FolderLike, right: FolderLike): number {
@@ -478,6 +478,7 @@ function inferFolderTag(name: string): string {
     ['Z', ['资源', '资料', '参考', '书签', '链接', '教程', '工具', '剪藏']],
     ['Q', ['灵感', '想法', '点子', '脑暴', '启发']],
     ['J', ['技能', '技巧', '流程', 'sop', '工作流', '实践', '经验']],
+    ['D', ['导引', '规范', '章程', '索引表', '总览', '地图', '架构指南', '指南']],
   ];
   let best = 'S';
   let bestScore = 0;

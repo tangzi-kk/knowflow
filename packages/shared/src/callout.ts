@@ -50,10 +50,10 @@ function formatTagValue(tag: Tag | undefined): string {
 
 function parseTagValue(value: string): Tag | null {
   const normalized = stripVariationSelectors(value).trim();
-  const direct = normalized.match(/(?:^|\s)([SXLZQJ])(?:\s|$)/);
-  const compact = normalized.match(/[SXLZQJ]/);
+  const direct = normalized.match(/(?:^|\s)([SXLZQJD])(?:\s|$)/);
+  const compact = normalized.match(/[SXLZQJD]/);
   const tag = (direct?.[1] ?? compact?.[0]) as Tag | undefined;
-  return tag && ['S', 'X', 'L', 'Z', 'Q', 'J'].includes(tag) ? tag : null;
+  return tag && ['S', 'X', 'L', 'Z', 'Q', 'J', 'D'].includes(tag) ? tag : null;
 }
 
 function mapFeishuBgToObType(bgColor: string): string {

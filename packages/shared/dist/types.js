@@ -11,6 +11,7 @@ export const TAG_NAMES = {
     Z: '📚资源',
     Q: '💡灵感',
     J: '🛠️技能',
+    D: '🪧导引',
 };
 /**
  * YAML 字段 → 飞书 callout 行映射。依据 `02_YAML字段规范.md` §五。

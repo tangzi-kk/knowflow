@@ -35,10 +35,10 @@ function formatTagValue(tag) {
 }
 function parseTagValue(value) {
     const normalized = stripVariationSelectors(value).trim();
-    const direct = normalized.match(/(?:^|\s)([SXLZQJ])(?:\s|$)/);
-    const compact = normalized.match(/[SXLZQJ]/);
+    const direct = normalized.match(/(?:^|\s)([SXLZQJD])(?:\s|$)/);
+    const compact = normalized.match(/[SXLZQJD]/);
     const tag = (direct?.[1] ?? compact?.[0]);
-    return tag && ['S', 'X', 'L', 'Z', 'Q', 'J'].includes(tag) ? tag : null;
+    return tag && ['S', 'X', 'L', 'Z', 'Q', 'J', 'D'].includes(tag) ? tag : null;
 }
 function mapFeishuBgToObType(bgColor) {
     if (!bgColor)

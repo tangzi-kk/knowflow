@@ -128,7 +128,7 @@ export function normalizePropertyOptionValue(key: string, value: string): string
   if (!raw) return '';
 
   if (key === '标签') {
-    const tag = raw.match(/([SXLZQJ])(?:_|$)/)?.[1];
+    const tag = raw.match(/([SXLZQJD])(?:_|$)/)?.[1];
     return tag ?? raw;
   }
 

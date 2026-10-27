@@ -232,7 +232,7 @@ function normalizeClipMeta(meta: unknown, fallback: {
 
 function normalizeTag(value: unknown): string {
   const raw = cleanText(value);
-  return raw.match(/^[SXLZQJ]$/) ? raw : raw.match(/([SXLZQJ])(?:_|$)/)?.[1] || 'S';
+  return raw.match(/^[SXLZQJD]$/) ? raw : raw.match(/([SXLZQJD])(?:_|$)/)?.[1] || 'S';
 }
 
 function normalizeDate(value: unknown, fallback: string): string {

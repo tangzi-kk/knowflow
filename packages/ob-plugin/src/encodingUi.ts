@@ -808,7 +808,7 @@ function shortCodeFromPath(path: string): string {
 
 function displayMessage(message: string): string {
   return message.replace(
-    /\b\d{2}_\d{4}_[SXLZQJ]_\d{2}_[a-z]\d+(?:[a-z]\d+)*\b/g,
+    /\b\d{2}_\d{4}_[SXLZQJD]_\d{2}_[a-z]\d+(?:[a-z]\d+)*\b/g,
     (fullCode) => {
       try {
         return deriveShortEncoding(fullCode);
@@ -825,7 +825,7 @@ function isManualCodeInput(value: string): boolean {
 
 function inferCommonTag(plan: KnowledgeChangePlan): string | undefined {
   const tags = plan.items
-    .map((item) => item.code.match(/^\d{2}_\d{4}_([SXLZQJ])_/)?.[1] ?? item.recognition?.tag)
+    .map((item) => item.code.match(/^\d{2}_\d{4}_([SXLZQJD])_/)?.[1] ?? item.recognition?.tag)
     .filter((tag): tag is string => Boolean(tag));
   const unique = [...new Set(tags)];
   return unique.length === 1 ? unique[0] : undefined;

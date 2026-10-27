@@ -48,7 +48,7 @@ test('the bundled SKR contract snapshot is pinned and self-consistent offline', 
   assert.match(source.commit, /^[0-9a-f]{40}$/);
   assert.equal(encoding.fullFormat, 'YY_MMDD_TAG_TOPIC_LEVEL');
   assert.equal(encoding.shortFormat, 'TAGTOPIC.LEVEL');
-  assert.deepEqual(tags.allowed, ['S', 'X', 'L', 'Z', 'Q', 'J']);
+  assert.deepEqual(tags.allowed, ['S', 'X', 'L', 'Z', 'Q', 'J', 'D']);
   assert.deepEqual(statuses, ['收集', '整理中', '已消化', '应用中', '已归档']);
   assert.equal(identity.primaryKey, '文档ID');
   assert.equal(identity.shortEncodingIsDerived, true);
@@ -56,7 +56,9 @@ test('the bundled SKR contract snapshot is pinned and self-consistent offline', 
   const fullEncoding = new RegExp(encoding.fullPattern);
   const shortEncoding = new RegExp(encoding.shortPattern);
   assert.equal(fullEncoding.test('25_1221_L_03_a4'), true);
+  assert.equal(fullEncoding.test('26_0911_D_33_a1'), true);
   assert.equal(shortEncoding.test('L03.a4'), true);
+  assert.equal(shortEncoding.test('D33.a1'), true);
   assert.equal(fullEncoding.test('25_1221_L_03'), false, 'legacy encoding without level must remain invalid');
   assert.equal(fullEncoding.test('25_1221_N_03_a4'), false, 'unknown legacy tag code must remain invalid');
 
